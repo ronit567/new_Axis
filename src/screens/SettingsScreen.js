@@ -1,0 +1,301 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS, SIZES } from '../constants/theme';
+
+function SectionLabel({ title, highlight }) {
+  if (highlight) {
+    return (
+      <View style={styles.sectionLabelWrap}>
+        <View style={styles.sectionLabelPill}>
+          <Text style={[styles.sectionLabelText, styles.sectionLabelHighlighted]}>
+            {title}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.sectionLabelWrap}>
+      <Text style={styles.sectionLabelText}>{title}</Text>
+    </View>
+  );
+}
+
+function RowItem({ label, value }) {
+  return (
+    <TouchableOpacity style={styles.row} activeOpacity={0.7}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowRight}>
+        {value != null && <Text style={styles.rowValue}>{value}</Text>}
+        <Text style={styles.rowChevron}>›</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function ToggleRow({ label, value, onValueChange }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: '#E0E0E0', true: COLORS.primary }}
+        thumbColor={COLORS.white}
+        ios_backgroundColor="#E0E0E0"
+      />
+    </View>
+  );
+}
+
+function RowDivider() {
+  return <View style={styles.rowDivider} />;
+}
+
+export default function SettingsScreen({ navigation }) {
+  const [pushNotif, setPushNotif] = useState(true);
+  const [verifiedOnly, setVerifiedOnly] = useState(true);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backArrow}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Western Verified Banner ── */}
+        <View style={styles.verifiedBanner}>
+          <View style={styles.verifiedIconCircle}>
+            <Text style={styles.verifiedCheckChar}>✓</Text>
+          </View>
+          <View>
+            <Text style={styles.verifiedTitle}>Western verified</Text>
+            <Text style={styles.verifiedEmail}>rsharma42@uwo.ca</Text>
+          </View>
+        </View>
+
+        {/* ── ACCOUNT ── */}
+        <SectionLabel title="ACCOUNT" />
+        <View style={styles.card}>
+          <RowItem label="Edit profile" />
+          <RowDivider />
+          <RowItem label="Change password" />
+          <RowDivider />
+          <RowItem label="Payment & payouts" />
+        </View>
+
+        {/* ── PREFERENCES ── */}
+        <SectionLabel title="PREFERENCES" highlight />
+        <View style={styles.card}>
+          <ToggleRow
+            label="Push notifications"
+            value={pushNotif}
+            onValueChange={setPushNotif}
+          />
+          <RowDivider />
+          <RowItem label="Default pickup area" value="UCC" />
+          <RowDivider />
+          <ToggleRow
+            label="Show only verified students"
+            value={verifiedOnly}
+            onValueChange={setVerifiedOnly}
+          />
+        </View>
+
+        {/* ── PRIVACY & SAFETY ── */}
+        <SectionLabel title="PRIVACY & SAFETY" />
+        <View style={styles.card}>
+          <RowItem label="Blocked users" />
+          <RowDivider />
+          <RowItem label="Community guidelines" />
+        </View>
+
+        {/* ── Log out ── */}
+        <TouchableOpacity
+          style={styles.logoutCard}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })
+          }
+        >
+          <Text style={styles.logoutText}>Log out</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#F7F7F7',
+  },
+
+  /* header */
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  backBtn: {
+    marginRight: 6,
+  },
+  backArrow: {
+    fontSize: 28,
+    color: COLORS.text,
+    lineHeight: 32,
+    marginTop: -2,
+  },
+  headerTitle: {
+    fontSize: SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+
+  /* scroll */
+  container: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+
+  /* verified banner */
+  verifiedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDF7EE',
+    borderRadius: SIZES.borderRadius,
+    padding: 14,
+    gap: 12,
+    marginBottom: 24,
+  },
+  verifiedIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.westernGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedCheckChar: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  verifiedTitle: {
+    fontSize: SIZES.sm,
+    fontWeight: '700',
+    color: '#2E7D32',
+  },
+  verifiedEmail: {
+    fontSize: SIZES.xs,
+    color: COLORS.westernGreen,
+    marginTop: 1,
+  },
+
+  /* section labels */
+  sectionLabelWrap: {
+    marginBottom: 8,
+  },
+  sectionLabelText: {
+    fontSize: SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+  },
+  sectionLabelPill: {
+    backgroundColor: '#EDE8FF',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  sectionLabelHighlighted: {
+    color: COLORS.primary,
+    letterSpacing: 0.8,
+  },
+
+  /* card */
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
+  /* rows */
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+  },
+  rowLabel: {
+    fontSize: SIZES.base,
+    color: COLORS.text,
+    flex: 1,
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowValue: {
+    fontSize: SIZES.sm,
+    color: COLORS.textSecondary,
+  },
+  rowChevron: {
+    fontSize: 20,
+    color: COLORS.textMuted,
+    lineHeight: 22,
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+  },
+
+  /* logout */
+  logoutCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  logoutText: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    color: COLORS.error,
+  },
+});
