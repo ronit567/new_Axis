@@ -1,7 +1,5 @@
 export const COLORS = {
   primary: '#5C2D91',
-  primaryDark: '#4A2070',
-  primaryLight: '#7B4FBF',
   white: '#FFFFFF',
   background: '#F8F8F8',
   inputBorder: '#E0E0E0',
@@ -13,16 +11,9 @@ export const COLORS = {
   success: '#34C759',
   error: '#FF3B30',
   divider: '#F0F0F0',
-  checkboxActive: '#5C2D91',
   stepActive: '#5C2D91',
   stepInactive: '#D9D9D9',
   westernGreen: '#4CAF50',
-};
-
-export const FONTS = {
-  regular: 'System',
-  medium: 'System',
-  bold: 'System',
 };
 
 export const SIZES = {
