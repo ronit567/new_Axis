@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import BottomTabBar from '../components/BottomTabBar';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import BottomTabBar, { TabName } from '../components/BottomTabBar';
 import HomeScreen from './HomeScreen';
 import SavedScreen from './SavedScreen';
 import MessagesScreen from './MessagesScreen';
 import ProfileScreen from './ProfileScreen';
+import { RootStackParamList } from '../types';
 
-export default function MainScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('Home');
+type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
+
+export default function MainScreen({ navigation }: Props) {
+  const [activeTab, setActiveTab] = useState<TabName>('Home');
 
   const renderContent = () => {
     switch (activeTab) {
@@ -24,7 +28,7 @@ export default function MainScreen({ navigation }) {
     }
   };
 
-  const handleTabPress = tab => {
+  const handleTabPress = (tab: TabName) => {
     if (tab === 'Create') {
       navigation.navigate('CreateListing');
       return;

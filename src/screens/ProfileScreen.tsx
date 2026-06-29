@@ -9,7 +9,19 @@ import {
 } from 'react-native';
 import { LISTINGS as MOCK_LISTINGS } from '../data/mockListings';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationProp } from '@react-navigation/native';
 import { COLORS, SIZES } from '../constants/theme';
+import { RootStackParamList } from '../types';
+
+type Props = {
+  navigation: NavigationProp<RootStackParamList>;
+};
+
+type MenuItem = {
+  icon: string;
+  label: string;
+  target: 'EditProfile' | 'Settings' | null;
+};
 
 const { width } = Dimensions.get('window');
 const H_PAD = 24;
@@ -17,7 +29,7 @@ const CARD_GAP = 8;
 const THUMB_WIDTH = (width - H_PAD * 2 - CARD_GAP * 2) / 3;
 const THUMB_HEIGHT = Math.round(THUMB_WIDTH * 0.95);
 
-function HatchedThumb({ isSold }) {
+function HatchedThumb({ isSold }: { isSold: boolean }) {
   return (
     <View
       style={[
@@ -38,7 +50,7 @@ function HatchedThumb({ isSold }) {
 }
 
 
-const MENU = [
+const MENU: MenuItem[] = [
   { icon: '✎', label: 'Edit profile',   target: 'EditProfile' },
   { icon: '⊙', label: 'Help & support', target: null          },
   { icon: '⚙', label: 'Settings',       target: 'Settings'    },
@@ -46,7 +58,7 @@ const MENU = [
 
 const MY_LISTINGS = MOCK_LISTINGS.slice(0, 3);
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView

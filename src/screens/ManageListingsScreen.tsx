@@ -8,13 +8,17 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import { MY_LISTINGS } from '../data/mockListings';
+import { RootStackParamList, MyListing } from '../types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
 
 const TABS = ['Active', 'Sold'];
 
-export default function ManageListingsScreen({ navigation }) {
+export default function ManageListingsScreen({ navigation }: Props) {
   const [listings, setListings] = useState(MY_LISTINGS);
   const [activeTab, setActiveTab] = useState('Active');
 
@@ -22,12 +26,12 @@ export default function ManageListingsScreen({ navigation }) {
     activeTab === 'Active' ? l.status === 'active' : l.status === 'sold',
   );
 
-  const markSold = id =>
+  const markSold = (id: string) =>
     setListings(prev =>
-      prev.map(l => (l.id === id ? { ...l, status: 'sold', soldFor: l.price } : l)),
+      prev.map(l => (l.id === id ? { ...l, status: 'sold' as const, soldFor: l.price } : l)),
     );
 
-  const deleteListing = id => {
+  const deleteListing = (id: string) => {
     Alert.alert('Delete listing?', 'This can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -38,7 +42,7 @@ export default function ManageListingsScreen({ navigation }) {
     ]);
   };
 
-  const renderItem = ({ item }) => {
+  const renderItem = ({ item }: { item: MyListing }) => {
     const isSold = item.status === 'sold';
     return (
       <View style={styles.card}>

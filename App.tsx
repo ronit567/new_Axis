@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { RootStackParamList } from './src/types';
 
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import SignInScreen from './src/screens/SignInScreen';
@@ -21,7 +22,7 @@ import MessagesScreen from './src/screens/MessagesScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (

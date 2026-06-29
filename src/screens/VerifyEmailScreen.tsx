@@ -6,21 +6,27 @@ import {
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
+  NativeSyntheticEvent,
+  TextInputKeyPressEventData,
   Platform,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
+import { RootStackParamList } from '../types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
 const CODE_LENGTH = 5;
 
-export default function VerifyEmailScreen({ navigation, route }) {
-  const email = route?.params?.email || 'rsharma42@uwo.ca';
+export default function VerifyEmailScreen({ navigation, route }: Props) {
+  const email = route?.params?.email ?? 'rsharma42@uwo.ca';
   const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(42);
-  const inputRefs = useRef([]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -29,12 +35,12 @@ export default function VerifyEmailScreen({ navigation, route }) {
     }
   }, [countdown]);
 
-  const handleCodeChange = (text, index) => {
+  const handleCodeChange = (text: string, index: number) => {
     const sanitized = text.replace(/[^0-9]/g, '');
     if (sanitized.length > 1) {
       const chars = sanitized.split('').slice(0, CODE_LENGTH - index);
       const newCode = [...code];
-      chars.forEach((char, i) => {
+      chars.forEach((char: string, i: number) => {
         if (index + i < CODE_LENGTH) newCode[index + i] = char;
       });
       setCode(newCode);
@@ -50,7 +56,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
     }
   };
 
-  const handleKeyPress = (e, index) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -98,7 +104,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
             {code.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={ref => (inputRefs.current[index] = ref)}
+                ref={ref => { inputRefs.current[index] = ref; }}
                 style={[styles.codeBox, digit ? styles.codeBoxFilled : null]}
                 value={digit}
                 onChangeText={text => handleCodeChange(text, index)}

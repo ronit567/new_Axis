@@ -10,8 +10,12 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import { RootStackParamList } from '../types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
 const PROGRAMS = [
   'Ivey HBA',
@@ -28,10 +32,10 @@ const YEARS = [1, 2, 3, 4, 'Grad'];
 
 const BIO_MAX = 150;
 
-export default function EditProfileScreen({ navigation }) {
+export default function EditProfileScreen({ navigation }: Props) {
   const [name, setName] = useState('Ronit S.');
   const [program, setProgram] = useState('Ivey HBA');
-  const [year, setYear] = useState(2);
+  const [year, setYear] = useState<number | string>(2);
   const [bio, setBio] = useState('2nd-year Ivey student, mostly selling textbooks & dorm stuff.');
   const [pickupArea, setPickupArea] = useState('UCC');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
