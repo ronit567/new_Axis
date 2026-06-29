@@ -6,8 +6,9 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import { LISTINGS } from '../data/mockListings';
@@ -15,6 +16,7 @@ import { LISTINGS } from '../data/mockListings';
 const CATEGORIES = ['All', 'Textbooks', 'Furniture', 'Tickets'];
 
 export default function HomeScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const [savedIds, setSavedIds] = useState([]);
 
@@ -47,42 +49,49 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarSmall}>
-            <Text style={styles.avatarText}>R</Text>
-          </View>
-          <View>
-            <Text style={styles.greeting}>Hi, Ronit</Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={11} color={COLORS.textMuted} />
-              <Text style={styles.location}>Western, London, ON</Text>
+    <View style={styles.safe}>
+      <StatusBar style="light" />
+
+      {/* Purple curved header */}
+      <View style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarSmall}>
+              <Text style={styles.avatarText}>RS</Text>
+            </View>
+            <View>
+              <Text style={styles.greeting}>Hi, Ronit</Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.location}>Western · London, ON</Text>
+              </View>
             </View>
           </View>
+          <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
+            <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
+            <View style={styles.bellDot} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
 
-      {/* Search Bar */}
-      <TouchableOpacity
-        style={styles.searchBar}
-        onPress={() => navigation.navigate('Search')}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
-        <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
-        <View style={styles.filterDivider} />
-        <TouchableOpacity
-          style={styles.filterIconBtn}
-          onPress={() => navigation.navigate('Search')}
-        >
-          <Ionicons name="options-outline" size={18} color={COLORS.primary} />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        {/* Search Bar */}
+        <View style={styles.searchRow}>
+          <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => navigation.navigate('Search')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
+            <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => navigation.navigate('Search')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="options-outline" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Category chips */}
       <View style={styles.categoryRow}>
@@ -119,7 +128,7 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={ListHeader}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -128,12 +137,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F5FA',
   },
+  purpleHeader: {
+    backgroundColor: COLORS.primary,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingBottom: 18,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 6,
     paddingBottom: 14,
   },
   headerLeft: {
@@ -145,19 +159,21 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
   },
   greeting: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text,
+    color: COLORS.white,
   },
   locationRow: {
     flexDirection: 'row',
@@ -166,54 +182,66 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: 'rgba(255,255,255,0.85)',
   },
   bellBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: COLORS.white,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 8,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    gap: 10,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginBottom: 16,
+    borderRadius: 14,
     paddingHorizontal: 14,
-    height: 46,
+    height: 48,
     gap: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchPlaceholder: {
     flex: 1,
     color: COLORS.textMuted,
     fontSize: 14,
   },
-  filterDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#E8E8E8',
-  },
-  filterIconBtn: {
-    paddingLeft: 4,
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#4A2070',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 8,
+    paddingTop: 16,
     marginBottom: 16,
   },
   catChip: {
