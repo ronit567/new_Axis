@@ -9,6 +9,8 @@ import CreateAccountScreen from './src/screens/CreateAccountScreen';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import SetupProfileScreen from './src/screens/SetupProfileScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import ManageListingsScreen from './src/screens/ManageListingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import MainScreen from './src/screens/MainScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -35,6 +37,8 @@ export default function App() {
           <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
           <Stack.Screen name="SetupProfile" component={SetupProfileScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Main" component={MainScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />

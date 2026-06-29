@@ -147,3 +147,12 @@ export const LISTINGS = [
 export const SAVED_LISTINGS = LISTINGS.filter(l => l.saved);
 
 export const ARIA_LISTINGS = LISTINGS.filter(l => l.seller.id === 's3');
+
+// The signed-in user's own listings (Manage my listings screen)
+export const MY_LISTINGS = [
+  { id: 'm1', title: 'Calc 1000 textbook', price: 35, status: 'active', category: 'Textbooks', views: 22, saves: 4, postedAgo: '2d ago', imageColor: '#E8E0F5' },
+  { id: 'm2', title: 'Mini fridge, clean', price: 60, status: 'active', category: 'Furniture', views: 41, saves: 9, postedAgo: '5d ago', imageColor: '#E4ECF8' },
+  { id: 'm3', title: 'Desk lamp, adjustable', price: 15, status: 'active', category: 'Other', views: 12, saves: 2, postedAgo: '1w ago', imageColor: '#EDE8F8' },
+  { id: 'm4', title: 'Econ 1021 textbook', price: 40, status: 'sold', category: 'Textbooks', views: 58, saves: 14, postedAgo: '3w ago', soldFor: 40, imageColor: '#E8E0F5' },
+  { id: 'm5', title: 'JBL Bluetooth speaker', price: 25, status: 'sold', category: 'Electronics', views: 33, saves: 7, postedAgo: '1mo ago', soldFor: 20, imageColor: '#E8ECF0' },
+];

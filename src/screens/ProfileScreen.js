@@ -39,10 +39,9 @@ function HatchedThumb({ isSold }) {
 
 
 const MENU = [
-  { icon: '✎', label: 'Edit profile',     target: null        },
-  { icon: '⏱', label: 'Purchase history', target: null        },
-  { icon: '⊙', label: 'Help & support',   target: null        },
-  { icon: '⚙', label: 'Settings',         target: 'Settings'  },
+  { icon: '✎', label: 'Edit profile',   target: 'EditProfile' },
+  { icon: '⊙', label: 'Help & support', target: null          },
+  { icon: '⚙', label: 'Settings',       target: 'Settings'    },
 ];
 
 const MY_LISTINGS = MOCK_LISTINGS.slice(0, 3);
@@ -100,7 +99,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.listingsBlock}>
           <View style={styles.listingsTopRow}>
             <Text style={styles.listingsTitle}>My listings</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
               <Text style={styles.manageText}>Manage</Text>
             </TouchableOpacity>
           </View>

@@ -29,9 +29,9 @@ function SectionLabel({ title, highlight }) {
   );
 }
 
-function RowItem({ label, value }) {
+function RowItem({ label, value, onPress }) {
   return (
-    <TouchableOpacity style={styles.row} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={onPress}>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowRight}>
         {value != null && <Text style={styles.rowValue}>{value}</Text>}
@@ -95,7 +95,7 @@ export default function SettingsScreen({ navigation }) {
         {/* ── ACCOUNT ── */}
         <SectionLabel title="ACCOUNT" />
         <View style={styles.card}>
-          <RowItem label="Edit profile" />
+          <RowItem label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
           <RowDivider />
           <RowItem label="Change password" />
           <RowDivider />
