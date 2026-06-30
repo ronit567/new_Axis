@@ -14,7 +14,7 @@ export const COLORS = {
   stepActive: '#5C2D91',
   stepInactive: '#D9D9D9',
   westernGreen: '#4CAF50',
-} as const;
+};
 
 export const SIZES = {
   xs: 10,
@@ -30,4 +30,4 @@ export const SIZES = {
   borderRadiusLg: 20,
   inputHeight: 52,
   buttonHeight: 52,
-} as const;
+};

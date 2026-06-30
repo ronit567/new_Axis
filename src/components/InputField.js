@@ -1,21 +1,6 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle, TextInputProps } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
-
-type Props = {
-  label?: string;
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
-  secureTextEntry?: boolean;
-  keyboardType?: TextInputProps['keyboardType'];
-  autoCapitalize?: TextInputProps['autoCapitalize'];
-  hint?: string;
-  hintType?: 'info' | 'success' | 'error';
-  rightElement?: React.ReactNode;
-  style?: ViewStyle;
-  inputRef?: React.RefObject<TextInput>;
-};
 
 export default function InputField({
   label,
@@ -30,7 +15,7 @@ export default function InputField({
   rightElement,
   style,
   inputRef,
-}: Props) {
+}) {
   const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 

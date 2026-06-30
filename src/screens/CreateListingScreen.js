@@ -10,12 +10,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
-import { RootStackParamList } from '../types';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
 const CATEGORIES = [
   'Electronics',
@@ -30,7 +26,7 @@ const CONDITIONS = ['Like new', 'Good', 'Fair'];
 
 const DESC_MAX = 300;
 
-export default function CreateListingScreen({ navigation }: Props) {
+export default function CreateListingScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Electronics');

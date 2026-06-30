@@ -7,36 +7,30 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import { LISTINGS } from '../data/mockListings';
-import { RootStackParamList, Listing } from '../types';
-
-type Props = {
-  navigation: NavigationProp<RootStackParamList>;
-};
 
 const CATEGORIES = ['All', 'Textbooks', 'Furniture', 'Tickets'];
 
-export default function HomeScreen({ navigation }: Props) {
+export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedIds, setSavedIds] = useState([]);
 
   const filtered =
     activeCategory === 'All'
       ? LISTINGS
       : LISTINGS.filter(l => l.category === activeCategory);
 
-  const toggleSave = (id: string) =>
+  const toggleSave = id =>
     setSavedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
 
-  const renderItem = ({ item }: { item: Listing }) => (
+  const renderItem = ({ item }) => (
     <ListingCard
       item={{ ...item, saved: savedIds.includes(item.id) || item.saved }}
       onPress={() => navigation.navigate('ListingDetail', { listing: item })}

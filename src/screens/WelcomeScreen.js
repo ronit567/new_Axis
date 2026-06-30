@@ -7,15 +7,11 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
-
-export default function WelcomeScreen({ navigation }: Props) {
+export default function WelcomeScreen({ navigation }) {
   return (
     <View style={styles.bg}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />

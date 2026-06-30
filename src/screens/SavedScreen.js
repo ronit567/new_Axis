@@ -7,26 +7,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NavigationProp } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import { SAVED_LISTINGS } from '../data/mockListings';
-import { RootStackParamList, Listing } from '../types';
-
-type Props = {
-  navigation: NavigationProp<RootStackParamList>;
-};
 
 const TABS = ['Items', 'Saved searches'];
 
-export default function SavedScreen({ navigation }: Props) {
+export default function SavedScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('Items');
   const [savedItems, setSavedItems] = useState(SAVED_LISTINGS);
 
-  const toggleSave = (id: string) =>
+  const toggleSave = id =>
     setSavedItems(prev => prev.filter(l => l.id !== id));
 
-  const renderItem = ({ item }: { item: Listing }) => (
+  const renderItem = ({ item }) => (
     <ListingCard
       item={item}
       onPress={() => navigation.navigate('ListingDetail', { listing: item })}

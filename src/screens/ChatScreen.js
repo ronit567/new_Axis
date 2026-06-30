@@ -10,22 +10,10 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
-import { RootStackParamList } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
-
-type Message = {
-  id: string;
-  text: string;
-  sent: boolean;
-  time: string;
-  dealAmount?: string;
-};
-
-const INITIAL_MESSAGES: Message[] = [
+const INITIAL_MESSAGES = [
   {
     id: '1',
     text: 'Hey! Is the iPad still available?',
@@ -47,7 +35,7 @@ const INITIAL_MESSAGES: Message[] = [
   },
 ];
 
-export default function ChatScreen({ navigation, route }: Props) {
+export default function ChatScreen({ navigation, route }) {
   const listing = route?.params?.listing ?? null;
   const contact = route?.params?.contact ?? {
     initials: 'AK',
@@ -57,7 +45,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
-  const listRef = useRef<FlatList<Message>>(null);
+  const listRef = useRef(null);
 
   const lastMessage = messages[messages.length - 1];
   const dealAmount = messages.find(m => m.dealAmount)?.dealAmount;
@@ -73,7 +61,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+  const renderMessage = ({ item, index }) => {
     const isLast = index === messages.length - 1;
     return (
       <View>

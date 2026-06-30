@@ -7,17 +7,13 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
-import { ARIA_LISTINGS } from '../data/mockListings';
-import { RootStackParamList } from '../types';
+import { SELLER_ARIA, ARIA_LISTINGS } from '../data/mockListings';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
-
-export default function SellerProfileScreen({ navigation, route }: Props) {
-  const { seller } = route.params;
+export default function SellerProfileScreen({ navigation, route }) {
+  const seller = route?.params?.seller || SELLER_ARIA;
   const [following, setFollowing] = useState(false);
 
   const stars = Math.round(seller.rating);

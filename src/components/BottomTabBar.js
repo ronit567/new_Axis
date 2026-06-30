@@ -1,21 +1,10 @@
-import React, { ComponentProps } from 'react';
+import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 
-export type TabName = 'Home' | 'Saved' | 'Create' | 'Messages' | 'Profile';
-
-type IoniconsName = ComponentProps<typeof Ionicons>['name'];
-
-type Tab = {
-  name: TabName;
-  label: string;
-  icon: IoniconsName;
-  activeIcon: IoniconsName;
-};
-
-const TABS: Tab[] = [
+const TABS = [
   { name: 'Home', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
   { name: 'Saved', label: 'Saved', icon: 'heart-outline', activeIcon: 'heart' },
   { name: 'Create', label: '', icon: 'add', activeIcon: 'add' },
@@ -23,12 +12,7 @@ const TABS: Tab[] = [
   { name: 'Profile', label: 'Profile', icon: 'person-outline', activeIcon: 'person' },
 ];
 
-type Props = {
-  activeTab: TabName;
-  onTabPress: (tab: TabName) => void;
-};
-
-export default function BottomTabBar({ activeTab, onTabPress }: Props) {
+export default function BottomTabBar({ activeTab, onTabPress }) {
   const insets = useSafeAreaInsets();
 
   return (

@@ -10,13 +10,9 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
-import { RootStackParamList } from '../types';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
 const PROGRAMS = [
   'Ivey HBA',
@@ -31,9 +27,9 @@ const PROGRAMS = [
 
 const YEARS = [1, 2, 3, 4, 'Grad'];
 
-export default function SetupProfileScreen({ navigation }: Props) {
+export default function SetupProfileScreen({ navigation, route }) {
   const [program, setProgram] = useState('Ivey HBA');
-  const [year, setYear] = useState<number | string>(2);
+  const [year, setYear] = useState(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 

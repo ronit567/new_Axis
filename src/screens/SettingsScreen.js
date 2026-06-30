@@ -8,13 +8,9 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
-import { RootStackParamList } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
-
-function SectionLabel({ title, highlight }: { title: string; highlight?: boolean }) {
+function SectionLabel({ title, highlight }) {
   if (highlight) {
     return (
       <View style={styles.sectionLabelWrap}>
@@ -33,9 +29,9 @@ function SectionLabel({ title, highlight }: { title: string; highlight?: boolean
   );
 }
 
-function RowItem({ label, value, onPress }: { label: string; value?: string; onPress?: () => void }) {
+function RowItem({ label, value }) {
   return (
-    <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={onPress}>
+    <TouchableOpacity style={styles.row} activeOpacity={0.7}>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowRight}>
         {value != null && <Text style={styles.rowValue}>{value}</Text>}
@@ -45,7 +41,7 @@ function RowItem({ label, value, onPress }: { label: string; value?: string; onP
   );
 }
 
-function ToggleRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+function ToggleRow({ label, value, onValueChange }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -64,7 +60,7 @@ function RowDivider() {
   return <View style={styles.rowDivider} />;
 }
 
-export default function SettingsScreen({ navigation }: Props) {
+export default function SettingsScreen({ navigation }) {
   const [pushNotif, setPushNotif] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(true);
 
@@ -99,7 +95,7 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* ── ACCOUNT ── */}
         <SectionLabel title="ACCOUNT" />
         <View style={styles.card}>
-          <RowItem label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
+          <RowItem label="Edit profile" />
           <RowDivider />
           <RowItem label="Change password" />
           <RowDivider />

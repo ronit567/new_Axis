@@ -9,15 +9,11 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
-import { RootStackParamList } from '../types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
-
-export default function SignInScreen({ navigation }: Props) {
+export default function SignInScreen({ navigation }) {
   const [email, setEmail] = useState('jdoe42@uwo.ca');
   const [password, setPassword] = useState('••••••••');
 

@@ -7,25 +7,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
-import { RootStackParamList } from '../types';
-
-type Props = {
-  navigation: NavigationProp<RootStackParamList>;
-};
-
-type Conversation = {
-  id: string;
-  initials: string;
-  avatarColor: string;
-  name: string;
-  preview: string;
-  time: string;
-  unread: boolean;
-  type: string;
-};
 
 const FILTERS = ['All', 'Buying', 'Selling'];
 
@@ -82,7 +65,7 @@ const CONVERSATIONS = [
   },
 ];
 
-export default function MessagesScreen({ navigation }: Props) {
+export default function MessagesScreen({ navigation }) {
   const [activeFilter, setActiveFilter] = useState('All');
 
   const filtered =
@@ -90,7 +73,7 @@ export default function MessagesScreen({ navigation }: Props) {
       ? CONVERSATIONS
       : CONVERSATIONS.filter(c => c.type === activeFilter);
 
-  const renderItem = ({ item, index }: { item: Conversation; index: number }) => (
+  const renderItem = ({ item, index }) => (
     <TouchableOpacity
       style={[styles.row, index > 0 ? styles.rowBorder : null]}
       activeOpacity={0.75}
