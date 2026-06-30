@@ -14,15 +14,17 @@ import { COLORS, SIZES } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
 export default function SignInScreen({ navigation }: Props) {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('jdoe42@uwo.ca');
   const [password, setPassword] = useState('••••••••');
 
   const handleSignIn = () => {
-    navigation.navigate('Main');
+    signIn();
   };
 
   return (
@@ -71,7 +73,7 @@ export default function SignInScreen({ navigation }: Props) {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.westernBtn} onPress={() => navigation.navigate('Main')} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.westernBtn} onPress={signIn} activeOpacity={0.85}>
               <Text style={styles.westernBtnIcon}>🏛</Text>
               <Text style={styles.westernBtnText}>Continue with Western SSO</Text>
             </TouchableOpacity>
