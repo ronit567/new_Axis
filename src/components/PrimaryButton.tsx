@@ -1,8 +1,17 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 
-export default function PrimaryButton({ title, onPress, loading = false, style, textStyle, disabled = false }) {
+type Props = {
+  title: string;
+  onPress: () => void;
+  loading?: boolean;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
+  disabled?: boolean;
+};
+
+export default function PrimaryButton({ title, onPress, loading = false, style, textStyle, disabled = false }: Props) {
   return (
     <TouchableOpacity
       style={[styles.button, (disabled || loading) ? styles.disabled : null, style]}

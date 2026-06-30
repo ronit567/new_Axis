@@ -10,23 +10,28 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../constants/theme";
+import { RootStackParamList, Listing } from "../types";
+
 import ListingCard from "../components/ListingCard";
 import { LISTINGS } from "../data/mockListings";
+
+type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 const FILTER_CATEGORIES = ["Textbooks", "Electronics", "Furniture", "Tickets"];
 const CONDITIONS = ["Like new", "Good", "Any"];
 
-export default function SearchScreen({ navigation }) {
+export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
   const [condition, setCondition] = useState("Like new");
   const [priceMax, setPriceMax] = useState(80);
-  const inputRef = useRef(null);
+  const inputRef = useRef<TextInput>(null);
 
   const results = LISTINGS.filter((l) => {
     const matchQuery =
@@ -37,12 +42,12 @@ export default function SearchScreen({ navigation }) {
     return matchQuery && matchCat;
   });
 
-  const toggleCategory = (cat) =>
+  const toggleCategory = (cat: string) =>
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
       onPress={() => navigation.navigate("ListingDetail", { listing: item })}

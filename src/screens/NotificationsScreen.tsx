@@ -7,10 +7,17 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
+import { RootStackParamList } from '../types';
 
-const TODAY_NOTIFICATIONS = [
+type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
+
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
+
+const TODAY_NOTIFICATIONS: Notification[] = [
   {
     id: 'n1',
     type: 'offer',
@@ -33,7 +40,7 @@ const TODAY_NOTIFICATIONS = [
   },
 ];
 
-const EARLIER_NOTIFICATIONS = [
+const EARLIER_NOTIFICATIONS: Notification[] = [
   {
     id: 'n3',
     type: 'price_drop',
@@ -66,7 +73,18 @@ const EARLIER_NOTIFICATIONS = [
   },
 ];
 
-function NotifItem({ item, onPress }) {
+type Notification = {
+  id: string;
+  type: string;
+  icon: string;
+  iconBg: string;
+  iconColor: string;
+  message: string;
+  time: string;
+  unread: boolean;
+};
+
+function NotifItem({ item, onPress }: { item: Notification; onPress: () => void }) {
   return (
     <TouchableOpacity
       style={[styles.item, item.unread ? styles.itemUnread : null]}
@@ -74,7 +92,7 @@ function NotifItem({ item, onPress }) {
       onPress={onPress}
     >
       <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
-        <Ionicons name={item.icon} size={20} color={item.iconColor} />
+        <Ionicons name={item.icon as IoniconsName} size={20} color={item.iconColor} />
       </View>
       <View style={styles.itemContent}>
         <Text style={[styles.itemText, item.unread ? styles.itemTextUnread : null]}>
@@ -89,7 +107,7 @@ function NotifItem({ item, onPress }) {
 
 const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: '#5C2D91' };
 
-export default function NotificationsScreen({ navigation }) {
+export default function NotificationsScreen({ navigation }: Props) {
   const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
   const [earlierNotifs, setEarlierNotifs] = useState(EARLIER_NOTIFICATIONS);
 
@@ -98,7 +116,7 @@ export default function NotificationsScreen({ navigation }) {
     setEarlierNotifs(prev => prev.map(n => ({ ...n, unread: false })));
   };
 
-  const handleNotifPress = item => {
+  const handleNotifPress = (item: Notification) => {
     if (item.type === 'offer' || item.type === 'reply') {
       navigation.navigate('Chat', { contact: CHAT_CONTACT });
     } else if (item.type === 'price_drop' || item.type === 'saves') {

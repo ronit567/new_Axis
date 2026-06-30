@@ -2,7 +2,13 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 
-export default function StepHeader({ currentStep, totalSteps = 3, onBack }) {
+type Props = {
+  currentStep: number;
+  totalSteps?: number;
+  onBack: () => void;
+};
+
+export default function StepHeader({ currentStep, totalSteps = 3, onBack }: Props) {
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={onBack} style={styles.backBtn}>

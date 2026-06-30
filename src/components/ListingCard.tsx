@@ -1,9 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
+import { Listing } from '../types';
 
-export default function ListingCard({ item, onPress, onSave, style }) {
+type Props = {
+  item: Listing;
+  onPress: () => void;
+  onSave: () => void;
+  style?: ViewStyle;
+};
+
+export default function ListingCard({ item, onPress, onSave, style }: Props) {
   return (
     <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.92}>
       <View style={[styles.imageArea, { backgroundColor: item.imageColor || '#EEE8F8' }]}>

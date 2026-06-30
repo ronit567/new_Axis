@@ -7,28 +7,18 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { SELLER_ARIA } from '../data/mockListings';
+import { RootStackParamList } from '../types';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
 const DOTS = [0, 1, 2, 3];
 
-export default function ListingDetailScreen({ navigation, route }) {
-  const listing = route?.params?.listing || {
-    id: '3',
-    title: 'iPad Air (4th gen) – 64GB – Space Grey',
-    price: 280,
-    condition: 'Like new',
-    category: 'Electronics',
-    seller: { name: 'Aria K.', year: 2, location: 'Elgin Hall', dotColor: '#34C759' },
-    saved: false,
-    imageColor: '#EBE4F8',
-    description:
-      'Barely used, comes with original box and charger. No scratches, screen protector on since day one. Selling because I upgraded. Cash or e-transfer.',
-    views: 34,
-    postedAgo: '2d ago',
-    pickup: 'Elgin Hall · Bathurst Row',
-  };
+export default function ListingDetailScreen({ navigation, route }: Props) {
+  const { listing } = route.params;
 
   const [saved, setSaved] = useState(listing.saved);
   const [activeDot, setActiveDot] = useState(0);

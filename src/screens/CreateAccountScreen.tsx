@@ -9,12 +9,16 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
+import { RootStackParamList } from '../types';
 
-export default function CreateAccountScreen({ navigation }) {
+type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
+
+export default function CreateAccountScreen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

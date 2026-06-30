@@ -1,4 +1,6 @@
-export const SELLER_ARIA = {
+import { Listing, MyListing, Seller, SellerProfile } from '../types';
+
+export const SELLER_ARIA: SellerProfile = {
   id: 's3',
   name: 'Aria K.',
   initials: 'AK',
@@ -12,7 +14,7 @@ export const SELLER_ARIA = {
   avatarColor: '#5C2D91',
 };
 
-const SELLERS = {
+const SELLERS: Record<string, Seller> = {
   s1: { id: 's1', name: 'Erica K.', year: 2, location: 'UCC', dotColor: '#5C2D91' },
   s2: { id: 's2', name: 'Liam', year: 3, location: 'Saugeen', dotColor: '#34C759' },
   s3: { id: 's3', name: 'Aria K.', year: 2, location: 'Elgin Hall', dotColor: '#34C759' },
@@ -21,7 +23,7 @@ const SELLERS = {
   s6: { id: 's6', name: 'Jake', year: 3, location: 'Huron', dotColor: '#5C2D91' },
 };
 
-export const LISTINGS = [
+export const LISTINGS: Listing[] = [
   {
     id: '1',
     title: 'Organic Chem 2 textbook',
@@ -144,6 +146,14 @@ export const LISTINGS = [
   },
 ];
 
-export const SAVED_LISTINGS = LISTINGS.filter(l => l.saved);
+export const SAVED_LISTINGS: Listing[] = LISTINGS.filter(l => l.saved);
 
-export const ARIA_LISTINGS = LISTINGS.filter(l => l.seller.id === 's3');
+export const ARIA_LISTINGS: Listing[] = LISTINGS.filter(l => l.seller.id === 's3');
+
+export const MY_LISTINGS: MyListing[] = [
+  { id: 'm1', title: 'Calc 1000 textbook', price: 35, status: 'active', category: 'Textbooks', views: 22, saves: 4, postedAgo: '2d ago', imageColor: '#E8E0F5' },
+  { id: 'm2', title: 'Mini fridge, clean', price: 60, status: 'active', category: 'Furniture', views: 41, saves: 9, postedAgo: '5d ago', imageColor: '#E4ECF8' },
+  { id: 'm3', title: 'Desk lamp, adjustable', price: 15, status: 'active', category: 'Other', views: 12, saves: 2, postedAgo: '1w ago', imageColor: '#EDE8F8' },
+  { id: 'm4', title: 'Econ 1021 textbook', price: 40, status: 'sold', category: 'Textbooks', views: 58, saves: 14, postedAgo: '3w ago', soldFor: 40, imageColor: '#E8E0F5' },
+  { id: 'm5', title: 'JBL Bluetooth speaker', price: 25, status: 'sold', category: 'Electronics', views: 33, saves: 7, postedAgo: '1mo ago', soldFor: 20, imageColor: '#E8ECF0' },
+];
