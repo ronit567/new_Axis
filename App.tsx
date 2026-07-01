@@ -25,6 +25,9 @@ import CreateListingScreen from './src/screens/CreateListingScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
+import CommunityGuidelinesScreen from './src/screens/CommunityGuidelinesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -58,6 +61,12 @@ function RootNavigator() {
           <Stack.Screen name="Messages" component={MessagesScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+          <Stack.Screen
+            name="CommunityGuidelines"
+            component={CommunityGuidelinesScreen}
+          />
         </Stack.Group>
       ) : (
         <Stack.Group>

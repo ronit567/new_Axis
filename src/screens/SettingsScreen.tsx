@@ -134,6 +134,25 @@ export default function SettingsScreen({ navigation }: Props) {
           <RowItem label="Community guidelines" />
         </View>
 
+        {/* ── LEGAL ── */}
+        <SectionLabel title="LEGAL" />
+        <View style={styles.card}>
+          <RowItem
+            label="Privacy policy"
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+          />
+          <RowDivider />
+          <RowItem
+            label="Terms of service"
+            onPress={() => navigation.navigate('TermsOfService')}
+          />
+          <RowDivider />
+          <RowItem
+            label="Community guidelines"
+            onPress={() => navigation.navigate('CommunityGuidelines')}
+          />
+        </View>
+
         {/* ── Log out ── */}
         <TouchableOpacity
           style={styles.logoutCard}
