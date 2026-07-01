@@ -154,9 +154,9 @@ export default function CreateListingScreen({ navigation }: Props) {
             <Text style={styles.charCount}>{photos.length}/{MAX_PHOTOS}</Text>
           </View>
           <View style={styles.photosRow}>
-            {photos.map((uri, i) => (
-              <View key={uri} style={styles.thumbWrap}>
-                <Image source={{ uri }} style={styles.thumb} />
+            {photos.map((photo, i) => (
+              <View key={photo.id} style={styles.thumbWrap}>
+                <Image source={{ uri: photo.uri }} style={styles.thumb} />
                 {i === 0 && (
                   <View style={styles.coverBadge}>
                     <Text style={styles.coverBadgeText}>Cover</Text>
@@ -164,7 +164,7 @@ export default function CreateListingScreen({ navigation }: Props) {
                 )}
                 <TouchableOpacity
                   style={styles.removeBtn}
-                  onPress={() => removePhoto(uri)}
+                  onPress={() => removePhoto(photo.id)}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                   <Ionicons name="close" size={14} color={COLORS.white} />
