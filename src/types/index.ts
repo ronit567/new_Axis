@@ -73,4 +73,7 @@ export type RootStackParamList = {
   Messages: undefined;
   Chat: { listing?: Listing; contact?: Contact };
   Notifications: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  CommunityGuidelines: undefined;
 };
