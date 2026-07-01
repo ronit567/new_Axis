@@ -69,10 +69,6 @@ export default function SetupProfileScreen({ navigation }: Props) {
                 <Text style={styles.cameraIcon}>📷</Text>
               </View>
             </View>
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedDot}>🟢</Text>
-              <Text style={styles.verifiedText}>Western verified</Text>
-            </View>
           </View>
 
           <Text style={styles.sectionLabel}>Program</Text>
@@ -211,23 +207,6 @@ const styles = StyleSheet.create({
   },
   cameraIcon: {
     fontSize: 11,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDF7EE',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: SIZES.borderRadiusSm,
-    gap: 6,
-  },
-  verifiedDot: {
-    fontSize: 12,
-  },
-  verifiedText: {
-    color: '#2E7D32',
-    fontSize: SIZES.sm,
-    fontWeight: '600',
   },
   sectionLabel: {
     fontSize: SIZES.sm,

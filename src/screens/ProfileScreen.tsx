@@ -82,7 +82,6 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
           <View style={styles.nameRow}>
             <Text style={styles.nameText}>Ronit S.</Text>
-            <View style={styles.verifiedDot} />
           </View>
           <Text style={styles.programText}>Ivey HBA · Year 2</Text>
           <View style={styles.ratingRow}>
@@ -225,12 +224,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: COLORS.text,
-  },
-  verifiedDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: COLORS.westernGreen,
   },
   programText: {
     fontSize: SIZES.sm,

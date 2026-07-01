@@ -45,12 +45,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.nameRow}>
             <Text style={styles.sellerName}>{seller.name}</Text>
-            {seller.verified ? (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#34C759" />
-                <Text style={styles.verifiedText}>Western verified</Text>
-              </View>
-            ) : null}
           </View>
           <Text style={styles.joinedText}>
             {seller.program} · Joined {seller.joinedDate}
@@ -195,20 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: COLORS.text,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EDF7EE',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  verifiedText: {
-    fontSize: 11,
-    color: '#2E7D32',
-    fontWeight: '600',
   },
   joinedText: {
     fontSize: 13,

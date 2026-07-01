@@ -70,7 +70,6 @@ function RowDivider() {
 export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();
   const [pushNotif, setPushNotif] = useState(true);
-  const [verifiedOnly, setVerifiedOnly] = useState(true);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
@@ -104,17 +103,6 @@ export default function SettingsScreen({ navigation }: Props) {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Western Verified Banner ── */}
-        <View style={styles.verifiedBanner}>
-          <View style={styles.verifiedIconCircle}>
-            <Text style={styles.verifiedCheckChar}>✓</Text>
-          </View>
-          <View>
-            <Text style={styles.verifiedTitle}>Western verified</Text>
-            <Text style={styles.verifiedEmail}>rsharma42@uwo.ca</Text>
-          </View>
-        </View>
-
         {/* ── ACCOUNT ── */}
         <SectionLabel title="ACCOUNT" />
         <View style={styles.card}>
@@ -135,12 +123,6 @@ export default function SettingsScreen({ navigation }: Props) {
           />
           <RowDivider />
           <RowItem label="Default pickup area" value="UCC" />
-          <RowDivider />
-          <ToggleRow
-            label="Show only verified students"
-            value={verifiedOnly}
-            onValueChange={setVerifiedOnly}
-          />
         </View>
 
         {/* ── PRIVACY & SAFETY ── */}
@@ -278,40 +260,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  /* verified banner */
-  verifiedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDF7EE',
-    borderRadius: SIZES.borderRadius,
-    padding: 14,
-    gap: 12,
-    marginBottom: 24,
-  },
-  verifiedIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.westernGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifiedCheckChar: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  verifiedTitle: {
-    fontSize: SIZES.sm,
-    fontWeight: '700',
-    color: '#2E7D32',
-  },
-  verifiedEmail: {
-    fontSize: SIZES.xs,
-    color: COLORS.westernGreen,
-    marginTop: 1,
-  },
-
   /* section labels */
   sectionLabelWrap: {
     marginBottom: 8,
@@ -384,6 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     paddingVertical: 16,
     alignItems: 'center',
+    marginBottom: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,

@@ -55,16 +55,6 @@ const EARLIER_NOTIFICATIONS: Notification[] = [
     unread: false,
   },
   {
-    id: 'n4',
-    type: 'verified',
-    icon: 'checkmark-circle-outline',
-    iconBg: '#E8F5E9',
-    iconColor: COLORS.westernGreen,
-    message: "You're now Western verified — your badge is live",
-    time: '2d ago',
-    unread: false,
-  },
-  {
     id: 'n5',
     type: 'saves',
     icon: 'heart-outline',
@@ -137,8 +127,6 @@ export default function NotificationsScreen({ navigation }: Props) {
       navigation.navigate('Chat', { contact: CHAT_CONTACT });
     } else if (item.type === 'price_drop' || item.type === 'saves') {
       navigation.navigate('Main');
-    } else if (item.type === 'verified') {
-      navigation.navigate('Settings');
     }
   };
 

@@ -79,18 +79,6 @@ export default function EditProfileScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Verified email (read-only) */}
-          <View style={styles.verifiedBanner}>
-            <View style={styles.verifiedIconCircle}>
-              <Ionicons name="checkmark" size={15} color={COLORS.white} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.verifiedTitle}>Western verified</Text>
-              <Text style={styles.verifiedEmail}>rsharma42@uwo.ca</Text>
-            </View>
-            <Ionicons name="lock-closed" size={15} color={COLORS.westernGreen} />
-          </View>
-
           {/* Full name */}
           <Text style={styles.fieldLabel}>Full name</Text>
           <TextInput
@@ -260,35 +248,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     color: COLORS.primary,
     fontWeight: '600',
-  },
-
-  /* verified banner */
-  verifiedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EDF7EE',
-    borderRadius: SIZES.borderRadius,
-    padding: 14,
-    gap: 12,
-    marginBottom: 24,
-  },
-  verifiedIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.westernGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifiedTitle: {
-    fontSize: SIZES.sm,
-    fontWeight: '700',
-    color: '#2E7D32',
-  },
-  verifiedEmail: {
-    fontSize: SIZES.xs,
-    color: COLORS.westernGreen,
-    marginTop: 1,
   },
 
   /* fields */
