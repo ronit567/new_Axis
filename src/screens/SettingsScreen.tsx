@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -69,6 +71,21 @@ export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();
   const [pushNotif, setPushNotif] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(true);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+
+  const canDelete = confirmText === 'DELETE';
+
+  const closeDeleteModal = () => {
+    setDeleteModalVisible(false);
+    setConfirmText('');
+  };
+
+  const handleDeleteAccount = () => {
+    if (!canDelete) return;
+    closeDeleteModal();
+    signOut();
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -142,7 +159,66 @@ export default function SettingsScreen({ navigation }: Props) {
         >
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
+
+        {/* ── DANGER ZONE ── */}
+        <SectionLabel title="DANGER ZONE" />
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => setDeleteModalVisible(true)}
+          >
+            <Text style={styles.dangerRowLabel}>Delete account</Text>
+            <Text style={styles.rowChevron}>›</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+
+      {/* ── Delete account confirmation modal ── */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete account</Text>
+            <Text style={styles.modalBody}>
+              Your listings, messages, and profile will be permanently removed.
+              This cannot be undone.
+            </Text>
+
+            <Text style={styles.modalInputLabel}>Type DELETE to confirm</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={confirmText}
+              onChangeText={setConfirmText}
+              placeholder="DELETE"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+
+            <TouchableOpacity
+              style={[styles.deleteButton, !canDelete && styles.deleteButtonDisabled]}
+              activeOpacity={0.8}
+              disabled={!canDelete}
+              onPress={handleDeleteAccount}
+            >
+              <Text style={styles.deleteButtonText}>Permanently delete account</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              activeOpacity={0.7}
+              onPress={closeDeleteModal}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -301,5 +377,83 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '600',
     color: COLORS.error,
+  },
+
+  /* danger zone */
+  dangerRowLabel: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    color: COLORS.error,
+    flex: 1,
+  },
+
+  /* delete modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  modalBody: {
+    fontSize: SIZES.md,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  modalInputLabel: {
+    fontSize: SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  modalInput: {
+    height: SIZES.inputHeight,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderRadius: SIZES.borderRadiusSm,
+    paddingHorizontal: 14,
+    fontSize: SIZES.base,
+    color: COLORS.text,
+    backgroundColor: COLORS.inputBackground,
+    marginBottom: 18,
+  },
+  deleteButton: {
+    height: SIZES.buttonHeight,
+    backgroundColor: COLORS.error,
+    borderRadius: SIZES.borderRadiusSm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.4,
+  },
+  deleteButtonText: {
+    fontSize: SIZES.base,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  cancelButton: {
+    height: SIZES.buttonHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  cancelButtonText: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
 });
