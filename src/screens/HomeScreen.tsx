@@ -164,7 +164,7 @@ export default function HomeScreen({ navigation }: Props) {
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={ListHeader}
+          ListHeaderComponent={filtered.length > 0 ? ListHeader : null}
           ListEmptyComponent={
             <EmptyState
               icon="storefront-outline"
