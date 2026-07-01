@@ -14,6 +14,7 @@ import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -164,6 +165,19 @@ export default function HomeScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={ListHeader}
+          ListEmptyComponent={
+            <EmptyState
+              icon="storefront-outline"
+              title="Nothing here yet"
+              message={
+                activeCategory === 'All'
+                  ? 'New listings show up here first. Be the first to post one.'
+                  : `No ${activeCategory.toLowerCase()} listings right now. Post one or check back soon.`
+              }
+              ctaLabel="Post a listing"
+              onPressCta={() => navigation.navigate('CreateListing')}
+            />
+          }
         />
       )}
     </View>

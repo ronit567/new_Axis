@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ const CONDITIONS = ['Like new', 'Good', 'Fair'];
 const DESC_MAX = 300;
 const MAX_PHOTOS = 6;
 
+type PhotoAsset = { id: string; uri: string };
+
 export default function CreateListingScreen({ navigation }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -43,13 +45,15 @@ export default function CreateListingScreen({ navigation }: Props) {
   const [isFree, setIsFree] = useState(false);
   const [isTrade, setIsTrade] = useState(false);
   const [condition, setCondition] = useState('Like new');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<PhotoAsset[]>([]);
+  const nextPhotoId = useRef(0);
 
   const canPost = title.trim().length > 0 && (price.length > 0 || isFree);
 
   const addPhotos = (uris: string[]) => {
     if (uris.length === 0) return;
-    setPhotos(prev => [...prev, ...uris].slice(0, MAX_PHOTOS));
+    const additions = uris.map(uri => ({ id: `photo-${nextPhotoId.current++}`, uri }));
+    setPhotos(prev => [...prev, ...additions].slice(0, MAX_PHOTOS));
   };
 
   const takePhoto = async () => {
@@ -95,8 +99,8 @@ export default function CreateListingScreen({ navigation }: Props) {
     ]);
   };
 
-  const removePhoto = (uri: string) => {
-    setPhotos(prev => prev.filter(p => p !== uri));
+  const removePhoto = (id: string) => {
+    setPhotos(prev => prev.filter(p => p.id !== id));
   };
 
   const handleFree = () => {

@@ -13,6 +13,7 @@ import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -182,19 +183,37 @@ export default function NotificationsScreen({ navigation }: Props) {
           message="Something went wrong. Please try again."
           onRetry={handleRetry}
         />
+      ) : todayNotifs.length === 0 && earlierNotifs.length === 0 ? (
+        <EmptyState
+          icon="notifications-outline"
+          title="You're all caught up"
+          message="Offers, replies, and updates on your listings will show up here."
+          ctaLabel="Browse listings"
+          onPressCta={() => navigation.navigate('Main')}
+        />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
           {/* Today */}
-          <Text style={styles.sectionLabel}>TODAY</Text>
-          {todayNotifs.map(item => (
-            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-          ))}
+          {todayNotifs.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>TODAY</Text>
+              {todayNotifs.map(item => (
+                <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+              ))}
+            </>
+          )}
 
           {/* Earlier */}
-          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
-          {earlierNotifs.map(item => (
-            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-          ))}
+          {earlierNotifs.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, todayNotifs.length > 0 ? { marginTop: 20 } : null]}>
+                EARLIER
+              </Text>
+              {earlierNotifs.map(item => (
+                <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+              ))}
+            </>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>

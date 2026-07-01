@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { MY_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, MyListing } from '../types';
 
@@ -190,17 +191,23 @@ export default function ManageListingsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="pricetags-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>
-              {activeTab === 'Active' ? 'No active listings' : 'Nothing sold yet'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {activeTab === 'Active'
-                ? 'Tap + to post something for sale.'
-                : 'Items you mark as sold will appear here.'}
-            </Text>
-          </View>
+          activeTab === 'Active' ? (
+            <EmptyState
+              icon="pricetags-outline"
+              title="No active listings"
+              message="Post something for sale — it only takes a minute."
+              ctaLabel="Post your first listing"
+              onPressCta={() => navigation.navigate('CreateListing')}
+            />
+          ) : (
+            <EmptyState
+              icon="checkmark-done-outline"
+              title="Nothing sold yet"
+              message="Items you mark as sold will show up here."
+              ctaLabel="View active listings"
+              onPressCta={() => setActiveTab('Active')}
+            />
+          )
         }
       />
       )}
@@ -380,25 +387,5 @@ const styles = StyleSheet.create({
   deleteBtn: {
     flex: 0,
     width: 44,
-  },
-
-  /* empty */
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: SIZES.md,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

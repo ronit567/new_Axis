@@ -12,6 +12,7 @@ import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { SAVED_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -97,11 +98,13 @@ export default function SavedScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🤍</Text>
-              <Text style={styles.emptyTitle}>No saved items yet</Text>
-              <Text style={styles.emptySubtitle}>Tap the heart on any listing to save it here.</Text>
-            </View>
+            <EmptyState
+              icon="heart-outline"
+              title="No saved items yet"
+              message="Tap the heart on any listing to save it here for later."
+              ctaLabel="Browse listings"
+              onPressCta={() => navigation.navigate('Search')}
+            />
           }
         />
       ) : (
@@ -171,27 +174,6 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   savedSearches: {
     paddingHorizontal: 20,

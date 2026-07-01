@@ -19,6 +19,7 @@ import { RootStackParamList, Listing } from "../types";
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
+import EmptyState from "../components/EmptyState";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -152,6 +153,24 @@ export default function SearchScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <EmptyState
+              icon="search-outline"
+              title="No results found"
+              message={
+                query
+                  ? `We couldn't find anything for "${query}". Try a different search or adjust your filters.`
+                  : "Nothing matches these filters. Try adjusting them."
+              }
+              ctaLabel="Clear filters"
+              onPressCta={() => {
+                setQuery("");
+                setSelectedCategories([]);
+                setCondition("Any");
+                setPriceMax(200);
+              }}
+            />
+          }
         />
       )}
 
