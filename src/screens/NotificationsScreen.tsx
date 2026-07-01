@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -110,6 +111,12 @@ const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: '#5C2D91' }
 export default function NotificationsScreen({ navigation }: Props) {
   const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
   const [earlierNotifs, setEarlierNotifs] = useState(EARLIER_NOTIFICATIONS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const markAllRead = () => {
     setTodayNotifs(prev => prev.map(n => ({ ...n, unread: false })));
@@ -139,19 +146,44 @@ export default function NotificationsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-        {/* Today */}
-        <Text style={styles.sectionLabel}>TODAY</Text>
-        {todayNotifs.map(item => (
-          <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-        ))}
+      {isLoading ? (
+        <View style={styles.body}>
+          <Text style={styles.sectionLabel}>TODAY</Text>
+          {[0, 1].map(i => (
+            <View key={i} style={styles.item}>
+              <SkeletonLoader width={42} height={42} borderRadius={21} />
+              <View style={styles.skeletonContent}>
+                <SkeletonLoader width="90%" height={13} />
+                <SkeletonLoader width="30%" height={11} />
+              </View>
+            </View>
+          ))}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
+          {[0, 1, 2].map(i => (
+            <View key={i} style={styles.item}>
+              <SkeletonLoader width={42} height={42} borderRadius={21} />
+              <View style={styles.skeletonContent}>
+                <SkeletonLoader width="90%" height={13} />
+                <SkeletonLoader width="30%" height={11} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+          {/* Today */}
+          <Text style={styles.sectionLabel}>TODAY</Text>
+          {todayNotifs.map(item => (
+            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+          ))}
 
-        {/* Earlier */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
-        {earlierNotifs.map(item => (
-          <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-        ))}
-      </ScrollView>
+          {/* Earlier */}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
+          {earlierNotifs.map(item => (
+            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -221,6 +253,10 @@ const styles = StyleSheet.create({
   },
   itemContent: {
     flex: 1,
+  },
+  skeletonContent: {
+    flex: 1,
+    gap: 7,
   },
   itemText: {
     fontSize: SIZES.sm,

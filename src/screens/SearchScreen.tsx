@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { COLORS } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
+import SkeletonLoader from "../components/SkeletonLoader";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -31,7 +32,13 @@ export default function SearchScreen({ navigation }: Props) {
   const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
   const [condition, setCondition] = useState("Like new");
   const [priceMax, setPriceMax] = useState(80);
+  const [isLoading, setIsLoading] = useState(true);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const results = LISTINGS.filter((l) => {
     const matchQuery =
@@ -101,7 +108,9 @@ export default function SearchScreen({ navigation }: Props) {
 
       {/* Results count + cancel */}
       <View style={styles.resultsRow}>
-        <Text style={styles.resultsCount}>{results.length} results</Text>
+        <Text style={styles.resultsCount}>
+          {isLoading ? "Searching…" : `${results.length} results`}
+        </Text>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
@@ -111,16 +120,35 @@ export default function SearchScreen({ navigation }: Props) {
       </View>
 
       {/* Results Grid */}
-      <FlatList
-        data={results}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-      />
+      {isLoading ? (
+        <View style={styles.listContent}>
+          {[0, 1, 2].map((rowIndex) => (
+            <View key={rowIndex} style={styles.row}>
+              {[0, 1].map((colIndex) => (
+                <View key={colIndex} style={styles.skeletonCard}>
+                  <SkeletonLoader width="100%" height={128} borderRadius={0} />
+                  <View style={styles.skeletonInfo}>
+                    <SkeletonLoader width="40%" height={15} />
+                    <SkeletonLoader width="90%" height={12} />
+                    <SkeletonLoader width="70%" height={11} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
 
       {/* Filter Bottom Sheet */}
       <Modal
@@ -327,6 +355,16 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  skeletonInfo: {
+    padding: 10,
+    gap: 7,
   },
   modalOverlay: {
     flex: 1,

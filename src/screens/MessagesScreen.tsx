@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { RootStackParamList } from '../types';
 
 type Props = {
@@ -84,6 +85,12 @@ const CONVERSATIONS = [
 
 export default function MessagesScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filtered =
     activeFilter === 'All'
@@ -148,7 +155,25 @@ export default function MessagesScreen({ navigation }: Props) {
       </View>
 
       {/* Conversation list */}
-      <FlatList
+      {isLoading ? (
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <View key={i} style={[styles.row, i > 0 ? styles.rowBorder : null]}>
+              <SkeletonLoader
+                width={48}
+                height={48}
+                borderRadius={24}
+                style={styles.skeletonAvatar}
+              />
+              <View style={styles.skeletonRowContent}>
+                <SkeletonLoader width="45%" height={14} />
+                <SkeletonLoader width="75%" height={12} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <FlatList
         data={filtered}
         renderItem={renderItem}
         keyExtractor={item => item.id}
@@ -161,7 +186,8 @@ export default function MessagesScreen({ navigation }: Props) {
             <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
           </View>
         }
-      />
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -292,6 +318,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     marginLeft: 8,
     flexShrink: 0,
+  },
+  skeletonAvatar: {
+    marginRight: 14,
+  },
+  skeletonRowContent: {
+    flex: 1,
+    gap: 8,
   },
   empty: {
     alignItems: 'center',

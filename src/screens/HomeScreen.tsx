@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -25,6 +26,12 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filtered =
     activeCategory === 'All'
@@ -124,16 +131,36 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       {/* Listing Grid */}
-      <FlatList
-        data={filtered}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={ListHeader}
-      />
+      {isLoading ? (
+        <View style={styles.listContent}>
+          {ListHeader}
+          {[0, 1, 2].map(rowIndex => (
+            <View key={rowIndex} style={styles.row}>
+              {[0, 1].map(colIndex => (
+                <View key={colIndex} style={styles.skeletonCard}>
+                  <SkeletonLoader width="100%" height={128} borderRadius={0} />
+                  <View style={styles.skeletonInfo}>
+                    <SkeletonLoader width="40%" height={15} />
+                    <SkeletonLoader width="90%" height={12} />
+                    <SkeletonLoader width="70%" height={11} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={ListHeader}
+        />
+      )}
     </View>
   );
 }
@@ -297,5 +324,15 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  skeletonInfo: {
+    padding: 10,
+    gap: 7,
   },
 });
