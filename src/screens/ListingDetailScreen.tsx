@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { SELLER_ARIA } from '../data/mockListings';
 import { RootStackParamList } from '../types';
+import ReportModal from '../components/ReportModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
@@ -22,6 +23,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
   const [saved, setSaved] = useState(listing.saved);
   const [activeDot, setActiveDot] = useState(0);
+  const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
   return (
@@ -41,6 +43,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               size={20}
               color={saved ? '#E63946' : COLORS.text}
             />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+            <Ionicons name="flag-outline" size={20} color={COLORS.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -143,6 +148,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           <Text style={styles.messageText}>Message</Text>
         </TouchableOpacity>
       </View>
+      <ReportModal
+        visible={reportVisible}
+        target="listing"
+        targetName={listing.title}
+        onClose={() => setReportVisible(false)}
+      />
     </SafeAreaView>
   );
 }

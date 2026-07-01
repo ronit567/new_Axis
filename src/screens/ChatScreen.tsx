@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import ReportModal from '../components/ReportModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -57,6 +58,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
+  const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
   const lastMessage = messages[messages.length - 1];
@@ -136,6 +138,9 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Text style={styles.viewBtnText}>View</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.flagBtn} onPress={() => setReportVisible(true)}>
+          <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
 
       {/* Listing preview banner */}
@@ -197,6 +202,13 @@ export default function ChatScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <ReportModal
+        visible={reportVisible}
+        target="chat"
+        targetName={contact.name}
+        onClose={() => setReportVisible(false)}
+        onBlock={() => {}}
+      />
     </SafeAreaView>
   );
 }
@@ -262,6 +274,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
+  },
+  flagBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   viewBtnText: {
     fontSize: SIZES.sm,

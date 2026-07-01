@@ -13,12 +13,15 @@ import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import { ARIA_LISTINGS } from '../data/mockListings';
 import { RootStackParamList } from '../types';
+import ReportModal from '../components/ReportModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
 
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { seller } = route.params;
   const [following, setFollowing] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   const stars = Math.round(seller.rating);
 
@@ -29,7 +32,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
           <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
         </TouchableOpacity>
       </View>
@@ -129,6 +132,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
         </View>
       </ScrollView>
+      <ReportModal
+        visible={reportVisible}
+        target="user"
+        targetName={seller.name}
+        onClose={() => setReportVisible(false)}
+        onBlock={() => setBlocked(true)}
+      />
     </SafeAreaView>
   );
 }
