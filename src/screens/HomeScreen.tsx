@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -13,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
+import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
@@ -114,9 +114,48 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
+      {/* Category chips */}
+      <View style={styles.categoryRow}>
+        {CATEGORIES.map(cat => (
+          <TouchableOpacity
+            key={cat}
+            style={[
+              styles.catChip,
+              activeCategory === cat ? styles.catChipActive : null,
+            ]}
+            onPress={() => setActiveCategory(cat)}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.catLabel,
+                activeCategory === cat ? styles.catLabelActive : null,
+              ]}
+            >
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Content: loading skeleton / error / listing grid */}
       {isLoading ? (
-        <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.listContent}>
+          {ListHeader}
+          {[0, 1, 2].map(rowIndex => (
+            <View key={rowIndex} style={styles.row}>
+              {[0, 1].map(colIndex => (
+                <View key={colIndex} style={styles.skeletonCard}>
+                  <SkeletonLoader width="100%" height={128} borderRadius={0} />
+                  <View style={styles.skeletonInfo}>
+                    <SkeletonLoader width="40%" height={15} />
+                    <SkeletonLoader width="90%" height={12} />
+                    <SkeletonLoader width="70%" height={11} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
         </View>
       ) : hasError ? (
         <ErrorState
@@ -124,43 +163,16 @@ export default function HomeScreen({ navigation }: Props) {
           onRetry={handleRetry}
         />
       ) : (
-        <>
-          {/* Category chips */}
-          <View style={styles.categoryRow}>
-            {CATEGORIES.map(cat => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.catChip,
-                  activeCategory === cat ? styles.catChipActive : null,
-                ]}
-                onPress={() => setActiveCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.catLabel,
-                    activeCategory === cat ? styles.catLabelActive : null,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Listing Grid */}
-          <FlatList
-            data={filtered}
-            renderItem={renderItem}
-            keyExtractor={item => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.row}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={ListHeader}
-          />
-        </>
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={ListHeader}
+        />
       )}
     </View>
   );
@@ -170,11 +182,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F5F5FA',
-  },
-  centerFill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   purpleHeader: {
     backgroundColor: COLORS.primary,
@@ -330,5 +337,15 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  skeletonInfo: {
+    padding: 10,
+    gap: 7,
   },
 });

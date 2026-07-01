@@ -5,12 +5,12 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import { RootStackParamList } from '../types';
 
@@ -164,8 +164,21 @@ export default function MessagesScreen({ navigation }: Props) {
 
       {/* Conversation list */}
       {isLoading ? (
-        <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <View key={i} style={[styles.row, i > 0 ? styles.rowBorder : null]}>
+              <SkeletonLoader
+                width={48}
+                height={48}
+                borderRadius={24}
+                style={styles.skeletonAvatar}
+              />
+              <View style={styles.skeletonRowContent}>
+                <SkeletonLoader width="45%" height={14} />
+                <SkeletonLoader width="75%" height={12} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : hasError ? (
         <ErrorState
@@ -196,11 +209,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
-  },
-  centerFill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -323,6 +331,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     marginLeft: 8,
     flexShrink: 0,
+  },
+  skeletonAvatar: {
+    marginRight: 14,
+  },
+  skeletonRowContent: {
+    flex: 1,
+    gap: 8,
   },
   empty: {
     alignItems: 'center',

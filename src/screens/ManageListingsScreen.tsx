@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import SkeletonLoader from '../components/SkeletonLoader';
 import { MY_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, MyListing } from '../types';
 
@@ -21,6 +22,12 @@ const TABS = ['Active', 'Sold'];
 export default function ManageListingsScreen({ navigation }: Props) {
   const [listings, setListings] = useState(MY_LISTINGS);
   const [activeTab, setActiveTab] = useState('Active');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filtered = listings.filter(l =>
     activeTab === 'Active' ? l.status === 'active' : l.status === 'sold',
@@ -152,6 +159,30 @@ export default function ManageListingsScreen({ navigation }: Props) {
         ))}
       </View>
 
+      {isLoading ? (
+        <View style={styles.listContent}>
+          {[0, 1, 2].map(i => (
+            <View key={i} style={styles.card}>
+              <View style={styles.cardTop}>
+                <SkeletonLoader
+                  width={64}
+                  height={64}
+                  borderRadius={SIZES.borderRadiusSm}
+                />
+                <View style={styles.skeletonInfo}>
+                  <SkeletonLoader width="70%" height={14} />
+                  <SkeletonLoader width="30%" height={16} />
+                  <SkeletonLoader width="50%" height={12} />
+                </View>
+              </View>
+              <View style={styles.actions}>
+                <SkeletonLoader width="100%" height={38} style={styles.skeletonAction} />
+                <SkeletonLoader width="100%" height={38} style={styles.skeletonAction} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
       <FlatList
         data={filtered}
         renderItem={renderItem}
@@ -172,6 +203,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
           </View>
         }
       />
+      )}
     </SafeAreaView>
   );
 }
@@ -275,6 +307,14 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
     gap: 4,
+  },
+  skeletonInfo: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonAction: {
+    flex: 1,
+    borderRadius: SIZES.borderRadiusSm,
   },
   title: {
     fontSize: SIZES.md,

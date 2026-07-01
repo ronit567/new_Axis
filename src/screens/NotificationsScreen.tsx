@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
+import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import { RootStackParamList } from '../types';
 
@@ -155,8 +155,27 @@ export default function NotificationsScreen({ navigation }: Props) {
       </View>
 
       {isLoading ? (
-        <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.body}>
+          <Text style={styles.sectionLabel}>TODAY</Text>
+          {[0, 1].map(i => (
+            <View key={i} style={styles.item}>
+              <SkeletonLoader width={42} height={42} borderRadius={21} />
+              <View style={styles.skeletonContent}>
+                <SkeletonLoader width="90%" height={13} />
+                <SkeletonLoader width="30%" height={11} />
+              </View>
+            </View>
+          ))}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
+          {[0, 1, 2].map(i => (
+            <View key={i} style={styles.item}>
+              <SkeletonLoader width={42} height={42} borderRadius={21} />
+              <View style={styles.skeletonContent}>
+                <SkeletonLoader width="90%" height={13} />
+                <SkeletonLoader width="30%" height={11} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : hasError ? (
         <ErrorState
@@ -186,11 +205,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
-  },
-  centerFill: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -252,6 +266,10 @@ const styles = StyleSheet.create({
   },
   itemContent: {
     flex: 1,
+  },
+  skeletonContent: {
+    flex: 1,
+    gap: 7,
   },
   itemText: {
     fontSize: SIZES.sm,

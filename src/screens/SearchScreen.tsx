@@ -8,7 +8,6 @@ import {
   FlatList,
   Modal,
   ScrollView,
-  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -18,6 +17,7 @@ import { COLORS } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
+import SkeletonLoader from "../components/SkeletonLoader";
 import ErrorState from "../components/ErrorState";
 import { LISTINGS } from "../data/mockListings";
 
@@ -114,9 +114,36 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       </View>
 
+      {/* Results count + cancel */}
+      <View style={styles.resultsRow}>
+        <Text style={styles.resultsCount}>
+          {isLoading ? "Searching…" : `${results.length} results`}
+        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Results Grid: loading skeleton / error / list */}
       {isLoading ? (
-        <View style={styles.centerFill}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.listContent}>
+          {[0, 1, 2].map((rowIndex) => (
+            <View key={rowIndex} style={styles.row}>
+              {[0, 1].map((colIndex) => (
+                <View key={colIndex} style={styles.skeletonCard}>
+                  <SkeletonLoader width="100%" height={128} borderRadius={0} />
+                  <View style={styles.skeletonInfo}>
+                    <SkeletonLoader width="40%" height={15} />
+                    <SkeletonLoader width="90%" height={12} />
+                    <SkeletonLoader width="70%" height={11} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
         </View>
       ) : hasError ? (
         <ErrorState
@@ -124,30 +151,16 @@ export default function SearchScreen({ navigation }: Props) {
           onRetry={handleRetry}
         />
       ) : (
-        <>
-          {/* Results count + cancel */}
-          <View style={styles.resultsRow}>
-            <Text style={styles.resultsCount}>{results.length} results</Text>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Results Grid */}
-          <FlatList
-            data={results}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.row}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            keyboardShouldPersistTaps="handled"
-          />
-        </>
+        <FlatList
+          data={results}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+        />
       )}
 
       {/* Filter Bottom Sheet */}
@@ -287,11 +300,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F5F5FA",
   },
-  centerFill: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   header: {
     backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 28,
@@ -360,6 +368,16 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  skeletonInfo: {
+    padding: 10,
+    gap: 7,
   },
   modalOverlay: {
     flex: 1,
