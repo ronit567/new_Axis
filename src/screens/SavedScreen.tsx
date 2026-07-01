@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
-import SkeletonLoader from '../components/SkeletonLoader';
+import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import { SAVED_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
@@ -77,16 +77,8 @@ export default function SavedScreen({ navigation }: Props) {
         <View style={styles.listContent}>
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
-              {[0, 1].map(colIndex => (
-                <View key={colIndex} style={styles.skeletonCard}>
-                  <SkeletonLoader width="100%" height={128} borderRadius={0} />
-                  <View style={styles.skeletonInfo}>
-                    <SkeletonLoader width="40%" height={15} />
-                    <SkeletonLoader width="90%" height={12} />
-                    <SkeletonLoader width="70%" height={11} />
-                  </View>
-                </View>
-              ))}
+              <ListingCardSkeleton />
+              <ListingCardSkeleton />
             </View>
           ))}
         </View>
@@ -179,16 +171,6 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-  },
-  skeletonCard: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  skeletonInfo: {
-    padding: 10,
-    gap: 7,
   },
   emptyState: {
     alignItems: 'center',
