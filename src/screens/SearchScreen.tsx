@@ -19,6 +19,7 @@ import { RootStackParamList, Listing } from "../types";
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
+import EmptyState from "../components/EmptyState";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -152,6 +153,14 @@ export default function SearchScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <EmptyState
+              icon="search-outline"
+              title="No results found. Try a different search."
+              ctaLabel="Clear search"
+              onCta={() => setQuery('')}
+            />
+          }
         />
       )}
 

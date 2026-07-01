@@ -14,6 +14,7 @@ import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -164,6 +165,14 @@ export default function HomeScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={ListHeader}
+          ListEmptyComponent={
+            <EmptyState
+              icon="storefront-outline"
+              title={`No listings in ${activeCategory} yet.`}
+              ctaLabel="Browse all listings"
+              onCta={() => setActiveCategory('All')}
+            />
+          }
         />
       )}
     </View>

@@ -13,6 +13,7 @@ import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -181,6 +182,13 @@ export default function NotificationsScreen({ navigation }: Props) {
         <ErrorState
           message="Something went wrong. Please try again."
           onRetry={handleRetry}
+        />
+      ) : todayNotifs.length === 0 && earlierNotifs.length === 0 ? (
+        <EmptyState
+          icon="notifications-outline"
+          title="You're all caught up! No new notifications right now."
+          ctaLabel="Go to feed"
+          onCta={() => navigation.navigate('Main')}
         />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
