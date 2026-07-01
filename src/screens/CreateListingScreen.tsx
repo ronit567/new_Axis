@@ -8,10 +8,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 
@@ -29,6 +32,7 @@ const CATEGORIES = [
 const CONDITIONS = ['Like new', 'Good', 'Fair'];
 
 const DESC_MAX = 300;
+const MAX_PHOTOS = 4;
 
 export default function CreateListingScreen({ navigation }: Props) {
   const [title, setTitle] = useState('');
@@ -39,8 +43,59 @@ export default function CreateListingScreen({ navigation }: Props) {
   const [isFree, setIsFree] = useState(false);
   const [isTrade, setIsTrade] = useState(false);
   const [condition, setCondition] = useState('Like new');
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const canPost = title.trim().length > 0 && (price.length > 0 || isFree);
+
+  const handleAddPhoto = () => {
+    Alert.alert('Add photo', 'Choose a source', [
+      {
+        text: 'Camera',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission required', 'Camera access is needed to take photos.');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+            allowsEditing: true,
+            aspect: [1, 1],
+          });
+          if (!result.canceled) {
+            setPhotos(prev => [...prev, result.assets[0].uri].slice(0, MAX_PHOTOS));
+          }
+        },
+      },
+      {
+        text: 'Photo Library',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('Permission required', 'Photo library access is needed to pick photos.');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.8,
+            allowsMultipleSelection: true,
+            selectionLimit: MAX_PHOTOS - photos.length,
+          });
+          if (!result.canceled) {
+            setPhotos(prev =>
+              [...prev, ...result.assets.map(a => a.uri)].slice(0, MAX_PHOTOS)
+            );
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleFree = () => {
     setIsFree(!isFree);
@@ -89,13 +144,28 @@ export default function CreateListingScreen({ navigation }: Props) {
         >
           {/* Photos */}
           <View style={styles.photosRow}>
-            <TouchableOpacity style={styles.addPhotoBox} activeOpacity={0.8}>
-              <Ionicons name="camera-outline" size={26} color={COLORS.textMuted} />
-              <Text style={styles.addPhotoLabel}>Add photo</Text>
-            </TouchableOpacity>
-            {[1, 2, 3].map(i => (
-              <View key={i} style={styles.emptyPhotoBox} />
+            {photos.map((uri, index) => (
+              <View key={uri + index} style={styles.photoThumb}>
+                <Image source={{ uri }} style={styles.photoThumbImage} />
+                <TouchableOpacity
+                  style={styles.photoRemoveBtn}
+                  onPress={() => handleRemovePhoto(index)}
+                  hitSlop={{ top: 4, right: 4, bottom: 4, left: 4 }}
+                >
+                  <Ionicons name="close-circle" size={20} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
             ))}
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity
+                style={styles.addPhotoBox}
+                onPress={handleAddPhoto}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="camera-outline" size={26} color={COLORS.textMuted} />
+                <Text style={styles.addPhotoLabel}>Add photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Title */}
@@ -294,13 +364,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  emptyPhotoBox: {
+  photoThumb: {
     width: 80,
     height: 80,
     borderRadius: SIZES.borderRadiusSm,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    backgroundColor: COLORS.background,
+    overflow: 'hidden',
+  },
+  photoThumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
   },
   fieldLabel: {
     fontSize: SIZES.sm,

@@ -25,6 +25,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "sdkVersion": "54.0.0"
+    "sdkVersion": "54.0.0",
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Axis needs access to your photo library so you can attach images to your listings.",
+          "cameraPermission": "Axis needs access to your camera so you can take photos for your listings."
+        }
+      ]
+    ]
   }
 }
