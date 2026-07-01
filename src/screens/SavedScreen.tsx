@@ -12,6 +12,7 @@ import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { SAVED_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -97,11 +98,12 @@ export default function SavedScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🤍</Text>
-              <Text style={styles.emptyTitle}>No saved items yet</Text>
-              <Text style={styles.emptySubtitle}>Tap the heart on any listing to save it here.</Text>
-            </View>
+            <EmptyState
+              icon="heart-outline"
+              title="No saved items yet. Tap the heart on any listing to save it here."
+              ctaLabel="Browse listings"
+              onCta={() => navigation.navigate('Main')}
+            />
           }
         />
       ) : (

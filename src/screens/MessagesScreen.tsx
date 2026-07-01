@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
 import { RootStackParamList } from '../types';
 
 type Props = {
@@ -193,11 +194,12 @@ export default function MessagesScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="chatbubble-outline" size={44} color={COLORS.textMuted} />
-              <Text style={styles.emptyTitle}>No conversations yet</Text>
-              <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
-            </View>
+            <EmptyState
+              icon="chatbubble-ellipses-outline"
+              title="No conversations yet. Start a chat by messaging a seller on any listing."
+              ctaLabel="Browse listings"
+              onCta={() => navigation.navigate('Main')}
+            />
           }
         />
       )}

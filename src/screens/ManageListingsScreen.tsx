@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 import { MY_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, MyListing } from '../types';
 
@@ -190,17 +191,23 @@ export default function ManageListingsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="pricetags-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>
-              {activeTab === 'Active' ? 'No active listings' : 'Nothing sold yet'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {activeTab === 'Active'
-                ? 'Tap + to post something for sale.'
-                : 'Items you mark as sold will appear here.'}
-            </Text>
-          </View>
+          activeTab === 'Active' ? (
+            <EmptyState
+              icon="pricetags-outline"
+              title="No active listings yet."
+              ctaLabel="Post your first listing"
+              onCta={() => navigation.navigate('CreateListing')}
+            />
+          ) : (
+            <EmptyState
+              icon="checkmark-circle-outline"
+              iconColor="#4CAF50"
+              iconBg="#E8F5E9"
+              title="Nothing sold yet. Mark an item as sold to see it here."
+              ctaLabel="View active listings"
+              onCta={() => setActiveTab('Active')}
+            />
+          )
         }
       />
       )}
