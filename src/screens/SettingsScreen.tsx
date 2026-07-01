@@ -130,8 +130,6 @@ export default function SettingsScreen({ navigation }: Props) {
         <SectionLabel title="PRIVACY & SAFETY" />
         <View style={styles.card}>
           <RowItem label="Blocked users" />
-          <RowDivider />
-          <RowItem label="Community guidelines" />
         </View>
 
         {/* ── LEGAL ── */}
