@@ -3,17 +3,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootStackParamList } from './src/types';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 
+// ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import CreateAccountScreen from './src/screens/CreateAccountScreen';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import SetupProfileScreen from './src/screens/SetupProfileScreen';
+
+// ── Signed-in: the app ──
+import MainScreen from './src/screens/MainScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import ManageListingsScreen from './src/screens/ManageListingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import MainScreen from './src/screens/MainScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import ListingDetailScreen from './src/screens/ListingDetailScreen';
 import SellerProfileScreen from './src/screens/SellerProfileScreen';
@@ -24,24 +28,25 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
+/**
+ * One navigator, two mutually exclusive groups. The `isSignedIn` flag decides
+ * which group is mounted — React Navigation animates the swap and resets the
+ * other group's state automatically, so there's no manual navigate/reset.
+ */
+function RootNavigator() {
+  const { isSignedIn } = useAuth();
+
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Welcome"
-          screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
-        >
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-          <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
-          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-          <Stack.Screen name="SetupProfile" component={SetupProfileScreen} />
+    <Stack.Navigator
+      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+    >
+      {isSignedIn ? (
+        <Stack.Group>
+          <Stack.Screen name="Main" component={MainScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="Main" component={MainScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
@@ -53,8 +58,28 @@ export default function App() {
           <Stack.Screen name="Messages" component={MessagesScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+        </Stack.Group>
+      ) : (
+        <Stack.Group>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+          <Stack.Screen name="SetupProfile" component={SetupProfileScreen} />
+        </Stack.Group>
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -65,6 +66,7 @@ function RowDivider() {
 }
 
 export default function SettingsScreen({ navigation }: Props) {
+  const { signOut } = useAuth();
   const [pushNotif, setPushNotif] = useState(true);
   const [verifiedOnly, setVerifiedOnly] = useState(true);
 
@@ -136,9 +138,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.logoutCard}
           activeOpacity={0.8}
-          onPress={() =>
-            navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })
-          }
+          onPress={signOut}
         >
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>

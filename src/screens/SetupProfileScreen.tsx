@@ -15,6 +15,7 @@ import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -32,13 +33,14 @@ const PROGRAMS = [
 const YEARS = [1, 2, 3, 4, 'Grad'];
 
 export default function SetupProfileScreen({ navigation }: Props) {
+  const { signIn } = useAuth();
   const [program, setProgram] = useState('Ivey HBA');
   const [year, setYear] = useState<number | string>(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
   const handleFinish = () => {
-    navigation.navigate('Main');
+    signIn();
   };
 
   return (
