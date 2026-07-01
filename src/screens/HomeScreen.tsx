@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -30,11 +31,24 @@ export default function HomeScreen({ navigation }: Props) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    if (isLoading) anim.start();
+    else { anim.stop(); pulseAnim.setValue(0.4); }
+    return () => anim.stop();
+  }, [isLoading, pulseAnim]);
 
   const handleRetry = () => {
     setHasError(false);
@@ -145,8 +159,8 @@ export default function HomeScreen({ navigation }: Props) {
           {ListHeader}
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
-              <ListingCardSkeleton />
-              <ListingCardSkeleton />
+              <ListingCardSkeleton animatedValue={pulseAnim} />
+              <ListingCardSkeleton animatedValue={pulseAnim} />
             </View>
           ))}
         </View>

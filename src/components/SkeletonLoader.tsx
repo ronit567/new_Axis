@@ -7,6 +7,7 @@ type Props = {
   height?: DimensionValue;
   borderRadius?: number;
   style?: ViewStyle | ViewStyle[];
+  animatedValue?: Animated.Value;
 };
 
 export default function SkeletonLoader({
@@ -14,18 +15,21 @@ export default function SkeletonLoader({
   height = 16,
   borderRadius = SIZES.borderRadiusSm,
   style,
+  animatedValue,
 }: Props) {
-  const opacity = useRef(new Animated.Value(0.4)).current;
+  const ownOpacity = useRef(new Animated.Value(0.4)).current;
+  const opacity = animatedValue ?? ownOpacity;
 
   useEffect(() => {
+    if (animatedValue) return;
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, {
+        Animated.timing(ownOpacity, {
           toValue: 1,
           duration: 700,
           useNativeDriver: true,
         }),
-        Animated.timing(opacity, {
+        Animated.timing(ownOpacity, {
           toValue: 0.4,
           duration: 700,
           useNativeDriver: true,
@@ -34,7 +38,7 @@ export default function SkeletonLoader({
     );
     animation.start();
     return () => animation.stop();
-  }, [opacity]);
+  }, [ownOpacity, animatedValue]);
 
   return (
     <Animated.View
