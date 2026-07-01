@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -12,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
+import ErrorState from '../components/ErrorState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -25,6 +27,19 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const filtered =
     activeCategory === 'All'
@@ -99,41 +114,54 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Category chips */}
-      <View style={styles.categoryRow}>
-        {CATEGORIES.map(cat => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.catChip,
-              activeCategory === cat ? styles.catChipActive : null,
-            ]}
-            onPress={() => setActiveCategory(cat)}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[
-                styles.catLabel,
-                activeCategory === cat ? styles.catLabelActive : null,
-              ]}
-            >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {isLoading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
+      ) : (
+        <>
+          {/* Category chips */}
+          <View style={styles.categoryRow}>
+            {CATEGORIES.map(cat => (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.catChip,
+                  activeCategory === cat ? styles.catChipActive : null,
+                ]}
+                onPress={() => setActiveCategory(cat)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.catLabel,
+                    activeCategory === cat ? styles.catLabelActive : null,
+                  ]}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-      {/* Listing Grid */}
-      <FlatList
-        data={filtered}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={ListHeader}
-      />
+          {/* Listing Grid */}
+          <FlatList
+            data={filtered}
+            renderItem={renderItem}
+            keyExtractor={item => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListHeaderComponent={ListHeader}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -142,6 +170,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F5F5FA',
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   purpleHeader: {
     backgroundColor: COLORS.primary,
