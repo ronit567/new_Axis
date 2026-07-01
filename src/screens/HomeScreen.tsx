@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import SkeletonLoader from '../components/SkeletonLoader';
+import ErrorState from '../components/ErrorState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -27,11 +28,18 @@ export default function HomeScreen({ navigation }: Props) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const filtered =
     activeCategory === 'All'
@@ -130,7 +138,7 @@ export default function HomeScreen({ navigation }: Props) {
         ))}
       </View>
 
-      {/* Listing Grid */}
+      {/* Content: loading skeleton / error / listing grid */}
       {isLoading ? (
         <View style={styles.listContent}>
           {ListHeader}
@@ -149,6 +157,11 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
       ) : (
         <FlatList
           data={filtered}

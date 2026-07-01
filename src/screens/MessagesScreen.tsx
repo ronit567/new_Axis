@@ -11,6 +11,7 @@ import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
+import ErrorState from '../components/ErrorState';
 import { RootStackParamList } from '../types';
 
 type Props = {
@@ -86,11 +87,18 @@ const CONVERSATIONS = [
 export default function MessagesScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const filtered =
     activeFilter === 'All'
@@ -172,20 +180,25 @@ export default function MessagesScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
       ) : (
         <FlatList
-        data={filtered}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="chatbubble-outline" size={44} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No conversations yet</Text>
-            <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
-          </View>
-        }
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="chatbubble-outline" size={44} color={COLORS.textMuted} />
+              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
+            </View>
+          }
         />
       )}
     </SafeAreaView>

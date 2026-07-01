@@ -11,6 +11,7 @@ import { NavigationProp } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import SkeletonLoader from '../components/SkeletonLoader';
+import ErrorState from '../components/ErrorState';
 import { SAVED_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -24,11 +25,18 @@ export default function SavedScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
   const [savedItems, setSavedItems] = useState(SAVED_LISTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const toggleSave = (id: string) =>
     setSavedItems(prev => prev.filter(l => l.id !== id));
@@ -82,6 +90,11 @@ export default function SavedScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+      ) : hasError && activeTab === 'Items' ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
       ) : activeTab === 'Items' ? (
         <FlatList
           data={savedItems}

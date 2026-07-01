@@ -18,6 +18,7 @@ import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
 import SkeletonLoader from "../components/SkeletonLoader";
+import ErrorState from "../components/ErrorState";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -33,12 +34,19 @@ export default function SearchScreen({ navigation }: Props) {
   const [condition, setCondition] = useState("Like new");
   const [priceMax, setPriceMax] = useState(80);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1200);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const results = LISTINGS.filter((l) => {
     const matchQuery =
@@ -119,7 +127,7 @@ export default function SearchScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Results Grid */}
+      {/* Results Grid: loading skeleton / error / list */}
       {isLoading ? (
         <View style={styles.listContent}>
           {[0, 1, 2].map((rowIndex) => (
@@ -137,6 +145,11 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
       ) : (
         <FlatList
           data={results}
