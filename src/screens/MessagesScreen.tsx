@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import ErrorState from '../components/ErrorState';
 import { RootStackParamList } from '../types';
 
 type Props = {
@@ -84,6 +86,19 @@ const CONVERSATIONS = [
 
 export default function MessagesScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const filtered =
     activeFilter === 'All'
@@ -148,20 +163,31 @@ export default function MessagesScreen({ navigation }: Props) {
       </View>
 
       {/* Conversation list */}
-      <FlatList
-        data={filtered}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="chatbubble-outline" size={44} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>No conversations yet</Text>
-            <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
-          </View>
-        }
-      />
+      {isLoading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
+      ) : (
+        <FlatList
+          data={filtered}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="chatbubble-outline" size={44} color={COLORS.textMuted} />
+              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptySubtitle}>Start a chat by messaging a seller on any listing.</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -170,6 +196,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

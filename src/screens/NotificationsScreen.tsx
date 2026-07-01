@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { COLORS, SIZES } from '../constants/theme';
+import ErrorState from '../components/ErrorState';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -110,6 +112,19 @@ const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: '#5C2D91' }
 export default function NotificationsScreen({ navigation }: Props) {
   const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
   const [earlierNotifs, setEarlierNotifs] = useState(EARLIER_NOTIFICATIONS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const markAllRead = () => {
     setTodayNotifs(prev => prev.map(n => ({ ...n, unread: false })));
@@ -139,19 +154,30 @@ export default function NotificationsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-        {/* Today */}
-        <Text style={styles.sectionLabel}>TODAY</Text>
-        {todayNotifs.map(item => (
-          <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-        ))}
+      {isLoading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+          {/* Today */}
+          <Text style={styles.sectionLabel}>TODAY</Text>
+          {todayNotifs.map(item => (
+            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+          ))}
 
-        {/* Earlier */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
-        {earlierNotifs.map(item => (
-          <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-        ))}
-      </ScrollView>
+          {/* Earlier */}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
+          {earlierNotifs.map(item => (
+            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+          ))}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -160,6 +186,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

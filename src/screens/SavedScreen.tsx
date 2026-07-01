@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
+import ErrorState from '../components/ErrorState';
 import { SAVED_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 
@@ -22,6 +24,19 @@ const TABS = ['Items', 'Saved searches'];
 export default function SavedScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
   const [savedItems, setSavedItems] = useState(SAVED_LISTINGS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const toggleSave = (id: string) =>
     setSavedItems(prev => prev.filter(l => l.id !== id));
@@ -58,7 +73,16 @@ export default function SavedScreen({ navigation }: Props) {
         ))}
       </View>
 
-      {activeTab === 'Items' ? (
+      {isLoading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
+      ) : activeTab === 'Items' ? (
         <FlatList
           data={savedItems}
           renderItem={renderItem}
@@ -94,6 +118,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F5F5FA',
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     paddingHorizontal: 20,

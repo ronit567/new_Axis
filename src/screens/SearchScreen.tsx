@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -17,6 +18,7 @@ import { COLORS } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
+import ErrorState from "../components/ErrorState";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -31,7 +33,20 @@ export default function SearchScreen({ navigation }: Props) {
   const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
   const [condition, setCondition] = useState("Like new");
   const [priceMax, setPriceMax] = useState(80);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    setTimeout(() => setIsLoading(false), 1200);
+  };
 
   const results = LISTINGS.filter((l) => {
     const matchQuery =
@@ -99,28 +114,41 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Results count + cancel */}
-      <View style={styles.resultsRow}>
-        <Text style={styles.resultsCount}>{results.length} results</Text>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
+      {isLoading ? (
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : hasError ? (
+        <ErrorState
+          message="Something went wrong. Please try again."
+          onRetry={handleRetry}
+        />
+      ) : (
+        <>
+          {/* Results count + cancel */}
+          <View style={styles.resultsRow}>
+            <Text style={styles.resultsCount}>{results.length} results</Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Results Grid */}
-      <FlatList
-        data={results}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-      />
+          {/* Results Grid */}
+          <FlatList
+            data={results}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+          />
+        </>
+      )}
 
       {/* Filter Bottom Sheet */}
       <Modal
@@ -258,6 +286,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: "#F5F5FA",
+  },
+  centerFill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     backgroundColor: COLORS.primary,
