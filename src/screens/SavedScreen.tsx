@@ -65,7 +65,7 @@ export default function SavedScreen({ navigation }: Props) {
         ))}
       </View>
 
-      {isLoading ? (
+      {isLoading && activeTab === 'Items' ? (
         <View style={styles.listContent}>
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
