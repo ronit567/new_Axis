@@ -46,7 +46,8 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
   };
 
   const handleBlock = () => {
-    handleClose();
+    setSelected(null);
+    setSubmitted(false);
     Alert.alert(
       'User blocked',
       `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
