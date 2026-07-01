@@ -8,10 +8,13 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 
@@ -29,6 +32,7 @@ const CATEGORIES = [
 const CONDITIONS = ['Like new', 'Good', 'Fair'];
 
 const DESC_MAX = 300;
+const MAX_PHOTOS = 6;
 
 export default function CreateListingScreen({ navigation }: Props) {
   const [title, setTitle] = useState('');
@@ -39,8 +43,61 @@ export default function CreateListingScreen({ navigation }: Props) {
   const [isFree, setIsFree] = useState(false);
   const [isTrade, setIsTrade] = useState(false);
   const [condition, setCondition] = useState('Like new');
+  const [photos, setPhotos] = useState<string[]>([]);
 
   const canPost = title.trim().length > 0 && (price.length > 0 || isFree);
+
+  const addPhotos = (uris: string[]) => {
+    if (uris.length === 0) return;
+    setPhotos(prev => [...prev, ...uris].slice(0, MAX_PHOTOS));
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Camera access needed',
+        'Enable camera access in Settings to take photos for your listing.'
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled) addPhotos(result.assets.map(a => a.uri));
+  };
+
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Photo access needed',
+        'Enable photo library access in Settings to add pictures to your listing.'
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+      quality: 0.8,
+    });
+    if (!result.canceled) addPhotos(result.assets.map(a => a.uri));
+  };
+
+  const openPhotoPicker = () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    Alert.alert('Add photo', undefined, [
+      { text: 'Take Photo', onPress: takePhoto },
+      { text: 'Choose from Library', onPress: pickFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const removePhoto = (uri: string) => {
+    setPhotos(prev => prev.filter(p => p !== uri));
+  };
 
   const handleFree = () => {
     setIsFree(!isFree);
@@ -88,14 +145,38 @@ export default function CreateListingScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           {/* Photos */}
+          <View style={styles.descHeader}>
+            <Text style={styles.fieldLabel}>Photos</Text>
+            <Text style={styles.charCount}>{photos.length}/{MAX_PHOTOS}</Text>
+          </View>
           <View style={styles.photosRow}>
-            <TouchableOpacity style={styles.addPhotoBox} activeOpacity={0.8}>
-              <Ionicons name="camera-outline" size={26} color={COLORS.textMuted} />
-              <Text style={styles.addPhotoLabel}>Add photo</Text>
-            </TouchableOpacity>
-            {[1, 2, 3].map(i => (
-              <View key={i} style={styles.emptyPhotoBox} />
+            {photos.map((uri, i) => (
+              <View key={uri} style={styles.thumbWrap}>
+                <Image source={{ uri }} style={styles.thumb} />
+                {i === 0 && (
+                  <View style={styles.coverBadge}>
+                    <Text style={styles.coverBadgeText}>Cover</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => removePhoto(uri)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="close" size={14} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
             ))}
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity
+                style={styles.addPhotoBox}
+                activeOpacity={0.8}
+                onPress={openPhotoPicker}
+              >
+                <Ionicons name="camera-outline" size={26} color={COLORS.textMuted} />
+                <Text style={styles.addPhotoLabel}>Add photo</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Title */}
@@ -274,6 +355,7 @@ const styles = StyleSheet.create({
   },
   photosRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginBottom: 20,
   },
@@ -294,13 +376,40 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500',
   },
-  emptyPhotoBox: {
+  thumbWrap: {
+    width: 80,
+    height: 80,
+  },
+  thumb: {
     width: 80,
     height: 80,
     borderRadius: SIZES.borderRadiusSm,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
     backgroundColor: COLORS.background,
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  coverBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: COLORS.white,
   },
   fieldLabel: {
     fontSize: SIZES.sm,
