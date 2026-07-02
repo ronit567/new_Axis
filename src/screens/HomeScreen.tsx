@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -18,12 +19,13 @@ import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
+import { BROWSE_CATEGORIES } from '../constants/categories';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
-const CATEGORIES = ['All', 'Textbooks', 'Furniture', 'Tickets'];
+const CATEGORIES = BROWSE_CATEGORIES;
 
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -130,7 +132,12 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       {/* Category chips */}
-      <View style={styles.categoryRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryScroll}
+        contentContainerStyle={styles.categoryRow}
+      >
         {CATEGORIES.map(cat => (
           <TouchableOpacity
             key={cat}
@@ -151,7 +158,7 @@ export default function HomeScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Content: loading skeleton / error / listing grid */}
       {isLoading ? (
@@ -298,12 +305,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  categoryScroll: {
+    flexGrow: 0,
+    paddingTop: 16,
+    marginBottom: 16,
+  },
   categoryRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 8,
-    paddingTop: 16,
-    marginBottom: 16,
   },
   catChip: {
     paddingHorizontal: 16,

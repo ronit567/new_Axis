@@ -17,17 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import { LISTING_CATEGORIES } from '../constants/categories';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
-const CATEGORIES = [
-  'Electronics',
-  'Textbooks',
-  'Furniture',
-  'Clothing',
-  'Sports',
-  'Other',
-];
+const CATEGORIES = LISTING_CATEGORIES;
 
 const CONDITIONS = ['Like new', 'Good', 'Fair'];
 

@@ -750,7 +750,7 @@ Milestone 4:
 
 - `HomeScreen` and `SavedScreen` have a fake `setTimeout` simulating loading — remove these when real async hooks land, or they will double-delay the UI.
 - `src/data/mockListings.ts` must not be deleted until every screen that imports from it has been migrated to a real hook.
-- **Category inconsistency (known bug, do not silently fix):** `HomeScreen` filters by `['All', 'Textbooks', 'Furniture', 'Tickets']` but `CreateListingScreen` uses `['Electronics', 'Textbooks', 'Furniture', 'Clothing', 'Sports', 'Other']` — Tickets cannot be created. This predates Phase 1 and must be resolved as a dedicated task in Phase 2 with an explicit decision on the canonical category list.
+- **Category inconsistency — RESOLVED (2026-07-02).** A single source of truth now lives in `src/constants/categories.ts` (`LISTING_CATEGORIES` = Textbooks, Furniture, Electronics, Tickets, Clothing, Sports, Other; `BROWSE_CATEGORIES` = `['All', ...LISTING_CATEGORIES]`). `HomeScreen` uses `BROWSE_CATEGORIES` (chip row made horizontally scrollable), `CreateListingScreen` uses `LISTING_CATEGORIES`. Tickets are now creatable and browsable. Not yet visually verified on a simulator.
 - Auth ↔ Query coordination: queries must use `enabled: !!user` and `signOut` must call `queryClient.clear()`. Missing either causes subtle bugs (queries firing before auth, or stale data leaking between sessions). `signOut` clears the cache as of M3; the `enabled: !!user` half applies when real queries land in Phase 2.
 - **Onboarding / profile capture (M3 decision, needs confirmation):** `verifyOtp` signs the user in immediately, so the signed-out `SetupProfile` step is bypassed. Phase 2 must decide how first-run profile capture works — likely an in-app step gated on "profile row exists" rather than on session existence. Until then `SetupProfile` is orphaned and `handleFinish` is a no-op.
 - **`profiles` insert (M3):** deferred to Phase 2 because the table doesn't exist yet. When it lands, wire `SetupProfile` (or its replacement) through `ProfileRepository`, not a direct `supabase` call.
@@ -770,4 +770,4 @@ Milestone 4:
 - `MessagesScreen` and `ChatScreen` are entirely static — no messages data layer yet.
 - `ManageListingsScreen` uses `MY_LISTINGS` from mock data.
 - `ProfileScreen` and `SellerProfileScreen` use hardcoded mock seller data.
-- **Category inconsistency:** `HomeScreen` browse categories (`Textbooks`, `Furniture`, `Tickets`) do not match `CreateListingScreen` categories (`Electronics`, `Textbooks`, `Furniture`, `Clothing`, `Sports`, `Other`). Tickets cannot be created. Resolve in Phase 2.
+- ~~**Category inconsistency:**~~ RESOLVED — both screens now derive from `src/constants/categories.ts`. See Handoff → Risks/Notes.
