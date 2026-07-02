@@ -127,7 +127,8 @@ This epic is the load-bearing wall. Screens come after.
 **AC:** `src/types/database.ts` exists and is imported only by repositories/mappers; `db:types` script works.
 **Depends on:** AX-101. **Size:** S.
 
-### AX-110 — Mapper layer: DB rows → domain types ⭐ KEYSTONE ⬜
+### AX-110 — Mapper layer: DB rows → domain types ⭐ KEYSTONE ✅
+> **Done** on `feature/phase2-foundation` (`2eaf2fd`). `src/lib/timeAgo.ts`, `src/types/database.ts` (hand-authored rows, to be replaced by AX-102 gen-types), `src/repositories/mappers.ts` (`toSeller`/`toListing`/`toSellerProfile`), + 18 unit tests. Decisions logged in-code: deterministic `imageColor`/`avatarColor` fallbacks, `dotColor` defaults to muted grey (no presence system), `badge` always null (no column), rating/reviewCount 0 until AX-702.
 **Why:** the type↔DB mismatch above. Without a single mapping point, every screen reinvents `created_at → "3d ago"` and seller joins. This is where that lives.
 **Tasks:**
 - Create `src/repositories/mappers.ts` (or per-repo `mapListing`, `mapProfile`).
@@ -373,13 +374,15 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 ## Epic 8 — Quality, tooling & release
 
-### AX-901 — Test harness ⬜ (do early — AX-110 wants it)
+### AX-901 — Test harness ✅
+> **Done** on `feature/phase2-foundation` (`a0a0c8a`). `jest-expo` preset, `jest.config.js` (ignores `.claude/worktrees` to avoid Haste collisions), `npm test`/`test:watch`. 20 tests green across mappers/timeAgo/sanity.
 **Why:** zero tests today. The mapper and repositories are exactly the logic worth testing.
 **Tasks:** add Jest + `@testing-library/react-native` + `ts-jest`/babel-jest; a sample mapper test; `npm test` script. Consider MSW or a Supabase mock for repo tests.
 **AC:** `npm test` runs; mapper tests pass.
 **Depends on:** none. **Size:** M. **Sequencing:** land before/with AX-110.
 
-### AX-902 — CI pipeline ⬜
+### AX-902 — CI pipeline ✅
+> **Done** on `feature/phase2-foundation` (`91fdb4e`, refined `5198c53`). `scripts/check-architecture.sh` (fatal on Supabase-in-screens, warns on mock imports until AX-299), `npm run check:arch`, `.github/workflows/ci.yml` (tsc + arch + `test --if-present`). Guard matches real import lines only, not comments.
 **Tasks:** GitHub Actions: `tsc --noEmit`, `npm test`, and a grep-guard that fails on `data/mockListings` imports (post AX-299) and on direct `lib/supabase` imports in `screens/`/`components/` (enforces the architecture rule automatically).
 **AC:** PRs run typecheck + tests + the architecture guards.
 **Depends on:** AX-901. **Size:** S.
