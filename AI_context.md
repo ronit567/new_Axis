@@ -551,6 +551,8 @@ Definition of done: all checklist items pass on a real device or simulator build
 
 ## Phase 2 Preview (do not start until Phase 1 is fully done)
 
+> **Prep available (not yet applied):** draft schema + RLS live in `supabase/migrations/0001_initial_schema.sql` and `0002_rls_policies.sql`, with `supabase/health_check.sql` for Milestone 5 and `supabase/README.md` for how/decisions. Review before applying via MCP/dashboard. A `.env.example` documents the required keys.
+
 1. Create Supabase DB tables with correct schema and RLS policies
 2. Generate TypeScript types from Supabase (`npx supabase gen types typescript`)
 3. Implement real repository methods (listings CRUD, saved toggle)
