@@ -89,7 +89,7 @@ The **entire frontend UI is complete** and ships with mock data. No Supabase, no
 | UI components and screens | ✅ Done |
 | Design system (`COLORS`, `SIZES`) | ✅ Done |
 | Skeleton loaders, error states, empty states | ✅ Done |
-| `AuthContext` — real Supabase auth | ❌ Not started (boolean stub only) |
+| `AuthContext` — real Supabase auth | 🟡 Code done (session mgmt, loading, signIn/up/otp/out) — awaiting `.env` keys to verify |
 | Supabase client | 🟡 Code done (`src/lib/supabase.ts`) — awaiting `.env` keys |
 | TanStack Query | ✅ Provider done (`src/providers/QueryProvider.tsx`, wired into `App.tsx`) |
 | Repository layer | ❌ Not started |
@@ -454,22 +454,26 @@ Definition of done: `useQuery` and `useMutation` can be called from any screen w
 Branch: `feature/auth-provider`
 
 Tasks:
-- [ ] Replace the boolean stub in `src/context/AuthContext.tsx` with real Supabase auth
-- [ ] On mount: call `supabase.auth.getSession()` — set `loading: true` until resolved
-- [ ] Subscribe to `supabase.auth.onAuthStateChange` — update `session` and `user`, cleanup listener on unmount
-- [ ] `signIn()` — calls `supabase.auth.signInWithPassword({ email, password })`; signature must accept `(email: string, password: string)`
-- [ ] `signOut()` — calls `supabase.auth.signOut()` AND `queryClient.clear()` (import from `QueryProvider`)
-- [ ] Add `session`, `user`, `loading` to the context value
-- [ ] `isSignedIn` derives from `!!session` — `App.tsx` requires zero changes
-- [ ] While `loading === true`, render `<ActivitySpinner />` from `src/components/ActivitySpinner.tsx` at the root, not the navigator
+- [x] Replace the boolean stub in `src/context/AuthContext.tsx` with real Supabase auth
+- [x] On mount: call `supabase.auth.getSession()` — set `loading: true` until resolved
+- [x] Subscribe to `supabase.auth.onAuthStateChange` — update `session` and `user`, cleanup listener on unmount
+- [x] `signIn()` — calls `supabase.auth.signInWithPassword({ email, password })`; signature accepts `(email: string, password: string)`
+- [x] `signOut()` — calls `supabase.auth.signOut()` AND `queryClient.clear()` (imported from `QueryProvider`)
+- [x] Add `session`, `user`, `loading` to the context value
+- [x] `isSignedIn` derives from `!!session` — `App.tsx` unchanged
+- [x] While `loading === true`, render `<ActivitySpinner />` — done **inside `AuthProvider`** (it renders the spinner instead of `children`), which keeps `App.tsx` unchanged while still gating at the root
 
-**Wire auth screens to Supabase calls:**
-- `SignInScreen` → `signInWithPassword`
-- `CreateAccountScreen` → `signUp` → navigate to `VerifyEmail` with email
-- `VerifyEmailScreen` → `verifyOtp({ email, token, type: 'signup' })` → navigate to `SetupProfile`
-- `SetupProfileScreen` → insert into `profiles` table
+**Wire auth screens to Supabase calls:** (routed through `useAuth()` so screens don't import `supabase` directly — respects the "no Supabase in screens" rule)
+- [x] `SignInScreen` → `signIn(email, password)` (+ loading/error via `Alert`; SSO button now shows a "coming soon" alert instead of calling the stub)
+- [x] `CreateAccountScreen` → `signUp(email, password)` → navigate to `VerifyEmail`
+- [x] `VerifyEmailScreen` → `verifyOtp(email, token)` — no manual navigate; the resulting session swaps the navigator
+- [~] `SetupProfileScreen` → insert into `profiles` table — **DEFERRED to Phase 2** (see deviations below)
 
-Definition of done: real sign-in and sign-out work end to end. Session persists across app restarts. No auth flash on relaunch.
+**⚠️ Two deviations from the literal plan (decisions, flag for review):**
+1. **`profiles` insert deferred.** The `profiles` table does not exist until Phase 2, so `SetupProfileScreen` cannot insert. Its broken `signIn()` call was removed; `handleFinish` is a documented no-op.
+2. **`SetupProfile` is bypassed in the real flow.** `verifyOtp` establishes a session immediately, so `RootNavigator` swaps to the signed-in stack the moment email is verified — the user never reaches `SetupProfile` (which lives in the signed-out group). Proper first-run profile capture belongs in Phase 2, gated on profile existence rather than session existence. **This changes the visible onboarding UX and should be confirmed.**
+
+Definition of done: real sign-in and sign-out work end to end. Session persists across app restarts. No auth flash on relaunch. **Status:** code complete + `tsc` passes; end-to-end verification is BLOCKED until `.env` keys + a configured Supabase project exist (verified at Milestone 5).
 
 ---
 
@@ -663,6 +667,19 @@ Append a new entry after every work session. Never overwrite previous entries.
 
 ---
 
+### 2026-07-02
+
+**Milestone:** 3 — Real AuthContext
+**Branch:** `feature/auth-provider` (branched off `feature/query-provider`, kept local)
+**Summary:** Replaced the boolean `AuthContext` stub with real Supabase auth: `getSession()` on mount with a `loading` gate, `onAuthStateChange` subscription (cleaned up on unmount), `session`/`user`/`loading` in context, `isSignedIn = !!session`, and `signOut` that also calls `queryClient.clear()`. Added `signIn`/`signUp`/`verifyOtp` to the context and wired `SignInScreen`, `CreateAccountScreen`, and `VerifyEmailScreen` through them (with loading + `Alert` error handling). Loading gate renders `<ActivitySpinner size="large">` inside `AuthProvider`, so `App.tsx` is unchanged. `tsc --noEmit` passes.
+
+**Two deviations (need a product decision — see Risks):** (1) `SetupProfileScreen`'s `profiles` insert is deferred to Phase 2 (table doesn't exist); its broken `signIn()` call was removed and `handleFinish` is a documented no-op. (2) Because `verifyOtp` creates a session immediately, the navigator swaps to the app on verify and `SetupProfile` is bypassed in the real signup flow.
+
+**Files changed:** `src/context/AuthContext.tsx` (rewritten), `src/screens/SignInScreen.tsx`, `src/screens/CreateAccountScreen.tsx`, `src/screens/VerifyEmailScreen.tsx`, `src/screens/SetupProfileScreen.tsx`.
+**Outstanding:** End-to-end auth verification (needs `.env` keys + configured Supabase project — email OTP templates, etc.) — happens at Milestone 5. Decide Phase 2 onboarding/profile-capture model.
+
+---
+
 ## Handoff
 
 Update this section at the end of every coding session before stopping.
@@ -670,7 +687,8 @@ Update this section at the end of every coding session before stopping.
 ### Completed
 
 - **Milestone 1 (code portion)** on branch `feature/supabase-client`: deps installed, polyfill wired, `src/lib/supabase.ts` created, `.env` scaffolded and confirmed gitignored, `tsc` passes. Committed locally (`41ce559`).
-- **Milestone 2** on branch `feature/query-provider`: `@tanstack/react-query` installed, `QueryProvider` created with defaults + 401 handler, wired into `App.tsx`, `tsc` passes.
+- **Milestone 2** on branch `feature/query-provider`: `@tanstack/react-query` installed, `QueryProvider` created with defaults + 401 handler, wired into `App.tsx`, `tsc` passes. Committed locally (`9a4d781`).
+- **Milestone 3** on branch `feature/auth-provider`: real `AuthContext` (session mgmt, loading gate, `signIn`/`signUp`/`verifyOtp`/`signOut`), auth screens wired via `useAuth()`, `tsc` passes. Two deviations deferred to Phase 2 (profiles insert + SetupProfile bypass — see Risks).
 
 ### Files Changed
 
@@ -686,10 +704,17 @@ Milestone 2:
 - `App.tsx` — import `QueryProvider`, wrap inside `AuthProvider` / outside `NavigationContainer`
 - `package.json` / `package-lock.json` — added `@tanstack/react-query`
 
+Milestone 3:
+- `src/context/AuthContext.tsx` — rewritten: real Supabase auth, loading gate, `signIn`/`signUp`/`verifyOtp`/`signOut`
+- `src/screens/SignInScreen.tsx` — wired to `signIn`, loading/error, SSO button → "coming soon" alert, cleared fake defaults
+- `src/screens/CreateAccountScreen.tsx` — wired to `signUp` then navigate to `VerifyEmail`
+- `src/screens/VerifyEmailScreen.tsx` — wired to `verifyOtp`; navigator swap replaces manual navigation
+- `src/screens/SetupProfileScreen.tsx` — removed broken `signIn()`; `handleFinish` is a documented no-op (profiles insert → Phase 2)
+
 ### Remaining Work
 
 - **Milestone 1 (user step):** provision Supabase project, paste URL + anon key into `.env`. Milestone 1 is not truly done until keys are in and a real import works (verified in Milestone 5).
-- Milestone 3: Real AuthContext with session persistence (must import `queryClient` from `QueryProvider` and call `.clear()` on signOut)
+- Milestone 4: Repository layer scaffolding (`ListingRepository`, `ProfileRepository`, `MessageRepository`)
 - Milestone 3: Real AuthContext with session persistence
 - Milestone 4: Repository layer scaffolding
 - Milestone 5: Smoke test with real DB roundtrip
@@ -699,11 +724,13 @@ Milestone 2:
 - `HomeScreen` and `SavedScreen` have a fake `setTimeout` simulating loading — remove these when real async hooks land, or they will double-delay the UI.
 - `src/data/mockListings.ts` must not be deleted until every screen that imports from it has been migrated to a real hook.
 - **Category inconsistency (known bug, do not silently fix):** `HomeScreen` filters by `['All', 'Textbooks', 'Furniture', 'Tickets']` but `CreateListingScreen` uses `['Electronics', 'Textbooks', 'Furniture', 'Clothing', 'Sports', 'Other']` — Tickets cannot be created. This predates Phase 1 and must be resolved as a dedicated task in Phase 2 with an explicit decision on the canonical category list.
-- Auth ↔ Query coordination: queries must use `enabled: !!user` and `signOut` must call `queryClient.clear()`. Missing either causes subtle bugs (queries firing before auth, or stale data leaking between sessions).
+- Auth ↔ Query coordination: queries must use `enabled: !!user` and `signOut` must call `queryClient.clear()`. Missing either causes subtle bugs (queries firing before auth, or stale data leaking between sessions). `signOut` clears the cache as of M3; the `enabled: !!user` half applies when real queries land in Phase 2.
+- **Onboarding / profile capture (M3 decision, needs confirmation):** `verifyOtp` signs the user in immediately, so the signed-out `SetupProfile` step is bypassed. Phase 2 must decide how first-run profile capture works — likely an in-app step gated on "profile row exists" rather than on session existence. Until then `SetupProfile` is orphaned and `handleFinish` is a no-op.
+- **`profiles` insert (M3):** deferred to Phase 2 because the table doesn't exist yet. When it lands, wire `SetupProfile` (or its replacement) through `ProfileRepository`, not a direct `supabase` call.
 
 ### Suggested Next Prompt
 
-> "Continue with Milestone 3 (real AuthContext with Supabase session persistence)."
+> "Continue with Milestone 4 (scaffold the repository layer)."
 
 ---
 
@@ -711,6 +738,8 @@ Milestone 2:
 
 - `HomeScreen` and `SavedScreen` have a fake `setTimeout` simulating loading — remove these when real async hooks land.
 - `CreateListingScreen` submit shows an `Alert.alert('Post listing')` stub — real submit goes to `ListingRepository.create()`.
+- `SetupProfileScreen` `handleFinish` is a no-op (M3): the `profiles` insert is deferred to Phase 2 and the screen is bypassed once `verifyOtp` creates a session. Revisit onboarding routing in Phase 2.
+- `VerifyEmailScreen` resend button is still UI-only (countdown reset) — not wired to a real Supabase resend yet.
 - `MessagesScreen` and `ChatScreen` are entirely static — no messages data layer yet.
 - `ManageListingsScreen` uses `MY_LISTINGS` from mock data.
 - `ProfileScreen` and `SellerProfileScreen` use hardcoded mock seller data.

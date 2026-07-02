@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,11 +21,27 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
 export default function SignInScreen({ navigation }: Props) {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('jdoe42@uwo.ca');
-  const [password, setPassword] = useState('••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSignIn = () => {
-    signIn();
+  const handleSignIn = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await signIn(email.trim(), password);
+    } catch (e) {
+      Alert.alert(
+        'Sign in failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSSO = () => {
+    Alert.alert('Coming soon', 'Western SSO isn’t available yet.');
   };
 
   return (
@@ -65,7 +82,12 @@ export default function SignInScreen({ navigation }: Props) {
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
 
-            <PrimaryButton title="Sign in" onPress={handleSignIn} style={styles.signInBtn} />
+            <PrimaryButton
+              title="Sign in"
+              onPress={handleSignIn}
+              loading={submitting}
+              style={styles.signInBtn}
+            />
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -73,7 +95,7 @@ export default function SignInScreen({ navigation }: Props) {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.westernBtn} onPress={signIn} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.westernBtn} onPress={handleSSO} activeOpacity={0.85}>
               <Text style={styles.westernBtnIcon}>🏛</Text>
               <Text style={styles.westernBtnText}>Continue with Western SSO</Text>
             </TouchableOpacity>

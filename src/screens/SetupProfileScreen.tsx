@@ -15,7 +15,6 @@ import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
-import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -33,15 +32,16 @@ const PROGRAMS = [
 const YEARS = [1, 2, 3, 4, 'Grad'];
 
 export default function SetupProfileScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
   const [program, setProgram] = useState('Ivey HBA');
   const [year, setYear] = useState<number | string>(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
-  const handleFinish = () => {
-    signIn();
-  };
+  // Persisting the profile (insert into the `profiles` table) and routing the
+  // user in afterward land in Phase 2, once that table + RLS exist. In the real
+  // flow the session created by verifyOtp already routes the user into the app,
+  // so this screen is currently bypassed — see the AI_context handoff notes.
+  const handleFinish = () => {};
 
   return (
     <SafeAreaView style={styles.safe}>

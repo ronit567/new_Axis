@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -15,21 +16,35 @@ import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
 
 export default function CreateAccountScreen({ navigation }: Props) {
+  const { signUp } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const isWesternEmail = email.endsWith('@uwo.ca') || email.endsWith('@alumni.uwo.ca');
   const canContinue = fullName.trim() && email.trim() && password.trim() && agreed;
 
-  const handleContinue = () => {
-    if (canContinue) {
-      navigation.navigate('VerifyEmail', { email });
+  const handleContinue = async () => {
+    if (!canContinue || submitting) return;
+    const trimmedEmail = email.trim();
+    setSubmitting(true);
+    try {
+      await signUp(trimmedEmail, password);
+      navigation.navigate('VerifyEmail', { email: trimmedEmail });
+    } catch (e) {
+      Alert.alert(
+        'Sign up failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -101,6 +116,7 @@ export default function CreateAccountScreen({ navigation }: Props) {
               title="Continue"
               onPress={handleContinue}
               disabled={!canContinue}
+              loading={submitting}
               style={styles.continueBtn}
             />
           </View>

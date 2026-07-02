@@ -10,6 +10,7 @@ import {
   TextInputKeyPressEventData,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,15 +18,18 @@ import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
 const CODE_LENGTH = 5;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
+  const { verifyOtp } = useAuth();
   const email = route?.params?.email ?? 'rsharma42@uwo.ca';
   const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(42);
+  const [submitting, setSubmitting] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -62,8 +66,21 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleVerify = () => {
-    navigation.navigate('SetupProfile');
+  // A successful verifyOtp establishes a session; RootNavigator then swaps to
+  // the signed-in stack automatically, so there is no manual navigation here.
+  const handleVerify = async () => {
+    if (!isFilled || submitting) return;
+    setSubmitting(true);
+    try {
+      await verifyOtp(email, code.join(''));
+    } catch (e) {
+      Alert.alert(
+        'Verification failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleResend = () => {
@@ -134,6 +151,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
             title="Verify & continue"
             onPress={handleVerify}
             disabled={!isFilled}
+            loading={submitting}
             style={styles.verifyBtn}
           />
 
