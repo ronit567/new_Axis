@@ -92,7 +92,7 @@ The **entire frontend UI is complete** and ships with mock data. No Supabase, no
 | `AuthContext` — real Supabase auth | 🟡 Code done (session mgmt, loading, signIn/up/otp/out) — awaiting `.env` keys to verify |
 | Supabase client | 🟡 Code done (`src/lib/supabase.ts`) — awaiting `.env` keys |
 | TanStack Query | ✅ Provider done (`src/providers/QueryProvider.tsx`, wired into `App.tsx`) |
-| Repository layer | ❌ Not started |
+| Repository layer | 🟡 Scaffolded (3 repos, typed placeholder methods) — Phase 2 fills in real queries |
 | Database schema / tables | ❌ Not started |
 | Image upload (Supabase Storage) | ❌ Not started |
 | Real-time messaging | ❌ Not started |
@@ -482,11 +482,13 @@ Definition of done: real sign-in and sign-out work end to end. Session persists 
 Branch: `feature/repository-layer`
 
 Tasks:
-- [ ] Create `src/repositories/ListingRepository.ts`
-- [ ] Create `src/repositories/ProfileRepository.ts`
-- [ ] Create `src/repositories/MessageRepository.ts`
+- [x] Create `src/repositories/ListingRepository.ts`
+- [x] Create `src/repositories/ProfileRepository.ts`
+- [x] Create `src/repositories/MessageRepository.ts`
 
 Each repository is a plain exported object. Methods may be placeholders at this stage — the goal is establishing the architecture, not live data.
+
+> **Done:** all three exist as plain exported objects with typed placeholder methods (return `[]`/`null`, mutations throw). `ProfileRepository` exposes `getById`/`getCurrent`/`upsert(UpsertProfileInput)`; `MessageRepository` exposes `getConversations`/`getMessages`/`send(SendMessageInput)` plus a `Message` type. `tsc` passes; verified no screen/component imports `supabase` directly.
 
 ```ts
 // src/repositories/ListingRepository.ts
@@ -680,6 +682,16 @@ Append a new entry after every work session. Never overwrite previous entries.
 
 ---
 
+### 2026-07-02
+
+**Milestone:** 4 — Repository layer (interfaces + placeholders)
+**Branch:** `feature/repository-layer` (branched off `feature/auth-provider`, kept local)
+**Summary:** Scaffolded the three repositories as plain exported objects with typed placeholder methods. `ListingRepository` matches the doc's spec (`getAll`/`getById`/`create`/`toggleSaved`/`getSavedByUser` + `CreateListingInput`). Added `ProfileRepository` (`getById`/`getCurrent`/`upsert` + `UpsertProfileInput`) and `MessageRepository` (`getConversations`/`getMessages`/`send` + `Message`/`SendMessageInput` types). Placeholders return `[]`/`null`; mutations throw `not implemented`. `tsc` passes; confirmed no screen/component imports `supabase` directly.
+**Files changed:** `src/repositories/ListingRepository.ts` (new), `src/repositories/ProfileRepository.ts` (new), `src/repositories/MessageRepository.ts` (new).
+**Outstanding:** Milestone 5 — smoke test. **BLOCKED on user:** needs `.env` keys, a provisioned Supabase project, a `health_check` table, and a real device/simulator run. Cannot be completed autonomously.
+
+---
+
 ## Handoff
 
 Update this section at the end of every coding session before stopping.
@@ -688,7 +700,8 @@ Update this section at the end of every coding session before stopping.
 
 - **Milestone 1 (code portion)** on branch `feature/supabase-client`: deps installed, polyfill wired, `src/lib/supabase.ts` created, `.env` scaffolded and confirmed gitignored, `tsc` passes. Committed locally (`41ce559`).
 - **Milestone 2** on branch `feature/query-provider`: `@tanstack/react-query` installed, `QueryProvider` created with defaults + 401 handler, wired into `App.tsx`, `tsc` passes. Committed locally (`9a4d781`).
-- **Milestone 3** on branch `feature/auth-provider`: real `AuthContext` (session mgmt, loading gate, `signIn`/`signUp`/`verifyOtp`/`signOut`), auth screens wired via `useAuth()`, `tsc` passes. Two deviations deferred to Phase 2 (profiles insert + SetupProfile bypass — see Risks).
+- **Milestone 3** on branch `feature/auth-provider`: real `AuthContext` (session mgmt, loading gate, `signIn`/`signUp`/`verifyOtp`/`signOut`), auth screens wired via `useAuth()`, `tsc` passes. Committed locally (`edc469b`). Two deviations deferred to Phase 2 (profiles insert + SetupProfile bypass — see Risks).
+- **Milestone 4** on branch `feature/repository-layer`: three repositories scaffolded with typed placeholder methods, `tsc` passes, no direct `supabase` imports in screens/components.
 
 ### Files Changed
 
@@ -711,10 +724,15 @@ Milestone 3:
 - `src/screens/VerifyEmailScreen.tsx` — wired to `verifyOtp`; navigator swap replaces manual navigation
 - `src/screens/SetupProfileScreen.tsx` — removed broken `signIn()`; `handleFinish` is a documented no-op (profiles insert → Phase 2)
 
+Milestone 4:
+- `src/repositories/ListingRepository.ts` — new; `getAll`/`getById`/`create`/`toggleSaved`/`getSavedByUser` + `CreateListingInput`
+- `src/repositories/ProfileRepository.ts` — new; `getById`/`getCurrent`/`upsert` + `UpsertProfileInput`
+- `src/repositories/MessageRepository.ts` — new; `getConversations`/`getMessages`/`send` + `Message`/`SendMessageInput`
+
 ### Remaining Work
 
 - **Milestone 1 (user step):** provision Supabase project, paste URL + anon key into `.env`. Milestone 1 is not truly done until keys are in and a real import works (verified in Milestone 5).
-- Milestone 4: Repository layer scaffolding (`ListingRepository`, `ProfileRepository`, `MessageRepository`)
+- **Milestone 5 (BLOCKED on user):** smoke test — needs keys, provisioned project, a `health_check` table, and a real device/simulator run. Cannot be done autonomously.
 - Milestone 3: Real AuthContext with session persistence
 - Milestone 4: Repository layer scaffolding
 - Milestone 5: Smoke test with real DB roundtrip
@@ -730,7 +748,7 @@ Milestone 3:
 
 ### Suggested Next Prompt
 
-> "Continue with Milestone 4 (scaffold the repository layer)."
+> "I've provisioned Supabase and added the keys to `.env` — run Milestone 5 (smoke test) on a simulator." (Milestone 5 is blocked until then.)
 
 ---
 
