@@ -535,6 +535,8 @@ create table health_check (
 -- No RLS needed on this table — it's for testing only and will be dropped in Phase 2
 ```
 
+> **Helper ready:** `src/lib/healthCheck.ts` exports `runHealthCheck()` — does the real insert + select and returns a typed result. Call it from a dev button/debugger once keys + the `health_check` table exist.
+
 Tasks:
 - [ ] `.env` variables load correctly (log `supabase.supabaseUrl` to console in dev)
 - [ ] Supabase client initialises without error
