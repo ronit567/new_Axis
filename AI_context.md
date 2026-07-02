@@ -91,7 +91,7 @@ The **entire frontend UI is complete** and ships with mock data. No Supabase, no
 | Skeleton loaders, error states, empty states | ✅ Done |
 | `AuthContext` — real Supabase auth | ❌ Not started (boolean stub only) |
 | Supabase client | 🟡 Code done (`src/lib/supabase.ts`) — awaiting `.env` keys |
-| TanStack Query | ❌ Not started (not even installed) |
+| TanStack Query | ✅ Provider done (`src/providers/QueryProvider.tsx`, wired into `App.tsx`) |
 | Repository layer | ❌ Not started |
 | Database schema / tables | ❌ Not started |
 | Image upload (Supabase Storage) | ❌ Not started |
@@ -411,11 +411,13 @@ Definition of done: build passes, `supabase` is importable from any file, no sec
 Branch: `feature/query-provider`
 
 Tasks:
-- [ ] `npx expo install @tanstack/react-query`
-- [ ] Create `src/providers/QueryProvider.tsx`
-- [ ] Wrap `App.tsx`: `QueryProvider` sits inside `AuthProvider`, outside `NavigationContainer`
-- [ ] Configure defaults: `staleTime: 1000 * 60 * 2`, `gcTime: 1000 * 60 * 10`, `retry: 2`, `refetchOnWindowFocus: false`, `refetchOnReconnect: true`
-- [ ] Add global `onError` handler that signs the user out and clears the cache on 401 errors
+- [x] `npx expo install @tanstack/react-query` (`^5.101.2`)
+- [x] Create `src/providers/QueryProvider.tsx`
+- [x] Wrap `App.tsx`: `QueryProvider` sits inside `AuthProvider`, outside `NavigationContainer`
+- [x] Configure defaults: `staleTime: 1000 * 60 * 2`, `gcTime: 1000 * 60 * 10`, `retry: 2`, `refetchOnWindowFocus: false`, `refetchOnReconnect: true`
+- [x] Add global `onError` handler that signs the user out and clears the cache on 401 errors
+
+> **Implementation note:** the sample below omits the `onError` handler required by the checklist. The shipped version adds it via a `QueryCache({ onError })` that calls `supabase.auth.signOut()` + `queryClient.clear()` when the error is a 401 (`status === 401`, `code === '401'`, or PostgREST `PGRST301`). 401 detection is best-effort until the repository layer defines a concrete error shape — revisit in Phase 2.
 
 **`src/providers/QueryProvider.tsx` — complete implementation:**
 ```tsx
@@ -651,26 +653,43 @@ Append a new entry after every work session. Never overwrite previous entries.
 
 ---
 
+### 2026-07-02
+
+**Milestone:** 2 — TanStack Query provider
+**Branch:** `feature/query-provider` (branched off `feature/supabase-client`, kept local)
+**Summary:** Installed `@tanstack/react-query`, created `src/providers/QueryProvider.tsx` with the specified defaults, and wrapped it into `App.tsx` inside `AuthProvider` / outside `NavigationContainer`. Added the 401 `onError` handler (via `QueryCache`) that the checklist requires but the sample omitted. `tsc --noEmit` passes.
+**Files changed:** `App.tsx` (import + wrap), `src/providers/QueryProvider.tsx` (new), `package.json` + `package-lock.json` (dep).
+**Outstanding:** Milestone 3 — real AuthContext. `queryClient.clear()` will be called from `signOut` there. Live behaviour of the 401 handler unverified until real queries exist (Phase 2).
+
+---
+
 ## Handoff
 
 Update this section at the end of every coding session before stopping.
 
 ### Completed
 
-- **Milestone 1 (code portion)** on branch `feature/supabase-client`: deps installed, polyfill wired, `src/lib/supabase.ts` created, `.env` scaffolded and confirmed gitignored, `tsc` passes.
+- **Milestone 1 (code portion)** on branch `feature/supabase-client`: deps installed, polyfill wired, `src/lib/supabase.ts` created, `.env` scaffolded and confirmed gitignored, `tsc` passes. Committed locally (`41ce559`).
+- **Milestone 2** on branch `feature/query-provider`: `@tanstack/react-query` installed, `QueryProvider` created with defaults + 401 handler, wired into `App.tsx`, `tsc` passes.
 
 ### Files Changed
 
+Milestone 1:
 - `App.tsx` — added `import 'react-native-url-polyfill/auto'` as line 1
 - `src/lib/supabase.ts` — new Supabase client singleton (SecureStore adapter)
 - `.env` — new, empty placeholders (gitignored, not committed)
 - `package.json` / `package-lock.json` — added `@supabase/supabase-js`, `expo-secure-store`, `react-native-url-polyfill`
 - `app.json` — `expo-secure-store` config plugin auto-added by `expo install`
 
+Milestone 2:
+- `src/providers/QueryProvider.tsx` — new; `QueryClient` + `QueryCache` 401 handler; exports `queryClient`
+- `App.tsx` — import `QueryProvider`, wrap inside `AuthProvider` / outside `NavigationContainer`
+- `package.json` / `package-lock.json` — added `@tanstack/react-query`
+
 ### Remaining Work
 
 - **Milestone 1 (user step):** provision Supabase project, paste URL + anon key into `.env`. Milestone 1 is not truly done until keys are in and a real import works (verified in Milestone 5).
-- Milestone 2: TanStack Query provider
+- Milestone 3: Real AuthContext with session persistence (must import `queryClient` from `QueryProvider` and call `.clear()` on signOut)
 - Milestone 3: Real AuthContext with session persistence
 - Milestone 4: Repository layer scaffolding
 - Milestone 5: Smoke test with real DB roundtrip
@@ -684,7 +703,7 @@ Update this section at the end of every coding session before stopping.
 
 ### Suggested Next Prompt
 
-> "I've pasted the Supabase URL and anon key into `.env` — Continue with Milestone 2 (TanStack Query provider)."
+> "Continue with Milestone 3 (real AuthContext with Supabase session persistence)."
 
 ---
 

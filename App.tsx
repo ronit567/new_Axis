@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootStackParamList } from './src/types';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import QueryProvider from './src/providers/QueryProvider';
 
 // ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -85,11 +86,13 @@ function RootNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </SafeAreaProvider>
+      <QueryProvider>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </QueryProvider>
     </AuthProvider>
   );
 }
