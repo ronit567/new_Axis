@@ -30,7 +30,9 @@ done
 
 if [ -n "$SUPA_DIRS" ]; then
   # Match: lib/supabase (e.g. '../lib/supabase', '@/lib/supabase') or the raw SDK.
-  SUPA_HITS=$(grep -rnE "(lib/supabase)|(@supabase/supabase-js)" $SUPA_DIRS 2>/dev/null || true)
+  # Second grep requires an import/require/export keyword on the line so prose or
+  # comments that merely mention the path are not flagged.
+  SUPA_HITS=$(grep -rnE "(lib/supabase)|(@supabase/supabase-js)" $SUPA_DIRS 2>/dev/null | grep -Ew "import|require|export" || true)
   if [ -n "$SUPA_HITS" ]; then
     echo "FAIL: direct Supabase import(s) found in screens/components (only repositories may import Supabase):"
     echo "$SUPA_HITS" | sed 's/^/  /'
@@ -44,7 +46,9 @@ fi
 
 # --- Rule 2: no mockListings imports (WARNING until AX-299) ------------------
 if [ -d src ]; then
-  MOCK_HITS=$(grep -rnE "data/mockListings" src 2>/dev/null || true)
+  # Require an import/require/export keyword so comments referencing the mock
+  # file (e.g. "// mirrors src/data/mockListings.ts") are not flagged.
+  MOCK_HITS=$(grep -rnE "data/mockListings" src 2>/dev/null | grep -Ew "import|require|export" || true)
   if [ -n "$MOCK_HITS" ]; then
     if [ "$WARN_ONLY_MOCK" -eq 1 ]; then
       echo "WARNING: import(s) of src/data/mockListings found (allowed for now; becomes FATAL after AX-299):"
