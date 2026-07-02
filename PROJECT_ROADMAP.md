@@ -329,11 +329,15 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 ## Epic 7 — Trust, safety & product polish (student-marketplace specific)
 
-### AX-701 — Restrict signups to the university domain ⬜ (product decision)
+### AX-701 — Restrict signups to the university domain ⬜
 **Why:** it's a *Western students* marketplace. Right now any email can sign up. This is core to the product's trust model.
-**Tasks:** enforce `@uwo.ca` (and affiliate domains? Huron/King's/Brescia) at signup — client-side check + a DB trigger/Auth hook as the real gate. Decide the exact allowed-domain list with the user.
-**AC:** non-university emails are rejected at sign-up.
-**Depends on:** AX-003. **Size:** M. **Flag:** confirm the domain list before building.
+**Decision (2026-07-02, confirmed):** allow **`@uwo.ca` only**. This one rule covers main-campus and the affiliate colleges (Huron/King's/Brescia students are issued `@uwo.ca` addresses), so there is no separate affiliate-domain list to maintain.
+**Tasks:**
+- Client-side check at `CreateAccount` (reject non-`@uwo.ca` before calling `signUp`, with a clear inline error).
+- Real gate server-side: a Supabase Auth hook / `before user created` trigger that rejects any email not ending in `@uwo.ca` — the client check is UX only and must not be the enforcement point.
+- Normalize case (`.trim().toLowerCase()`) before the check.
+**AC:** a non-`@uwo.ca` email is rejected at sign-up both in the UI and at the backend even if the client check is bypassed.
+**Depends on:** AX-003. **Size:** M.
 
 ### AX-702 — Reviews & ratings ⬜
 **Why:** `SellerProfile` shows `rating`/`reviewCount` but there's no `reviews` table — it's fabricated data.
@@ -417,7 +421,7 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 ## Open questions for the user (blockers on specific tickets)
 
-1. **Allowed email domains (AX-701):** just `@uwo.ca`, or include Huron/King's/Brescia/affiliates? Or open to all for launch and gate later?
+1. ~~**Allowed email domains (AX-701):**~~ **RESOLVED 2026-07-02** — `@uwo.ca` only. Affiliate-college students (Huron/King's/Brescia) get `@uwo.ca` addresses, so this single rule covers them; no separate domain list.
 2. **Category storage (AX-101):** CHECK constraint against `LISTING_CATEGORIES`, or a lookup table for future admin-editable categories?
 3. **Profile creation (AX-301):** DB trigger auto-creates a bare row, or app creates it in onboarding? (Affects RLS and the routing model.)
 4. **Reviews at launch (AX-702):** ship v1 with reviews, or hide the rating UI and add reviews in v1.1?

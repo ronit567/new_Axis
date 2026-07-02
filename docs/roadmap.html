@@ -513,7 +513,7 @@ const epics = [
     { id: "AX-603", size: "L", status: "todo", title: "Push notifications (v1.1)", why: "expo-notifications; store push tokens; send from the trigger.", dep: "AX-601" },
   ]},
   { num: "7", title: "Trust, safety & product polish", goal: "Student-marketplace specifics that carry the trust model.", tickets: [
-    { id: "AX-701", size: "M", status: "decision", title: "Restrict signups to the university domain", why: "It’s a Western students marketplace — any email can sign up today. Confirm the allowed-domain list.", dep: "AX-003" },
+    { id: "AX-701", size: "M", status: "todo", title: "Restrict signups to @uwo.ca", why: "Decided: @uwo.ca only (covers Huron/King’s/Brescia — they get @uwo.ca addresses). Client check + a server-side Auth hook as the real gate.", dep: "AX-003" },
     { id: "AX-702", size: "L", status: "todo", title: "Reviews & ratings", why: "SellerProfile shows rating/reviewCount with no reviews table — it’s fabricated. Hide fake stars until built.", dep: "AX-112" },
     { id: "AX-703", size: "M", status: "todo", title: "Report & block are functional", why: "ReportModal UI exists but isn’t persisted; add reports + blocks tables and filter blocked users.", dep: "AX-101" },
     { id: "AX-704", size: "M", status: "todo", title: "Account deletion actually deletes", why: "Verify the existing branch deletes the auth user + cascades, not just signs out.", dep: "AX-101" },
@@ -530,7 +530,7 @@ const epics = [
 ];
 
 const decisions = [
-  ["AX-701", "Allowed email domains?", "Just @uwo.ca, or include Huron / King’s / Brescia affiliates? Or open at launch and gate later?"],
+  ["AX-701 ✓", "Email domain — RESOLVED", "@uwo.ca only. Affiliate-college students (Huron / King’s / Brescia) get @uwo.ca addresses, so one rule covers them — no separate domain list."],
   ["AX-101", "Category storage?", "CHECK constraint against LISTING_CATEGORIES, or a lookup table for future admin-editable categories?"],
   ["AX-301", "Profile creation?", "DB trigger auto-creates a bare row, or the app creates it in onboarding? Affects RLS + routing."],
   ["AX-702", "Reviews at launch?", "Ship v1 with reviews, or hide the rating UI and add them in v1.1?"],
