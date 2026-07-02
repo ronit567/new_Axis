@@ -1,0 +1,41 @@
+name: CI
+
+# AX-902 — CI pipeline + architecture guards.
+# Runs typecheck, the mechanical architecture guard, and the test suite on every
+# push and pull request.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Typecheck, guards & tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        # Prefer a clean, lockfile-faithful install; fall back to `npm install`
+        # if the lockfile and package.json are ever briefly out of sync.
+        run: npm ci || npm install
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Architecture guards
+        run: npm run check:arch
+
+      - name: Tests
+        # NOTE: `npm test` is provided by the AX-901 test-harness branch. Until
+        # that lands there is no `test` script, so `--if-present` makes this a
+        # no-op instead of failing CI. Once AX-901 merges this runs the suite.
+        run: npm test --if-present
