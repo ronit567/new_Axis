@@ -551,7 +551,9 @@ Definition of done: all checklist items pass on a real device or simulator build
 
 ## Phase 2 Preview (do not start until Phase 1 is fully done)
 
-> **Prep available (not yet applied):** draft schema + RLS live in `supabase/migrations/0001_initial_schema.sql` and `0002_rls_policies.sql`, with `supabase/health_check.sql` for Milestone 5 and `supabase/README.md` for how/decisions. Review before applying via MCP/dashboard. A `.env.example` documents the required keys.
+> **Prep available (not yet applied / not yet wired):**
+> - **DB drafts:** schema + RLS in `supabase/migrations/0001_initial_schema.sql` and `0002_rls_policies.sql`, `supabase/health_check.sql` for Milestone 5, `supabase/README.md` for how/decisions. `.env.example` documents the keys.
+> - **Hooks layer:** `src/hooks/` (`queryKeys`, `useListings`/`useListing`/`useCreateListing`, `useSavedListings`/`useToggleSaved`, `useProfile`/`useCurrentProfile`/`useUpsertProfile`, `useConversations`/`useMessages`/`useSendMessage`). TanStack Query wrappers over the repositories with `enabled: !!user` gating and mutation invalidation. **Not imported by any screen yet** — wiring each screen (and deleting mock data) is the per-screen Phase 2 work (items 4–7).
 
 1. Create Supabase DB tables with correct schema and RLS policies
 2. Generate TypeScript types from Supabase (`npx supabase gen types typescript`)
@@ -704,6 +706,9 @@ Update this section at the end of every coding session before stopping.
 - **Milestone 2** on branch `feature/query-provider`: `@tanstack/react-query` installed, `QueryProvider` created with defaults + 401 handler, wired into `App.tsx`, `tsc` passes. Committed locally (`9a4d781`).
 - **Milestone 3** on branch `feature/auth-provider`: real `AuthContext` (session mgmt, loading gate, `signIn`/`signUp`/`verifyOtp`/`signOut`), auth screens wired via `useAuth()`, `tsc` passes. Committed locally (`edc469b`). Two deviations deferred to Phase 2 (profiles insert + SetupProfile bypass — see Risks).
 - **Milestone 4** on branch `feature/repository-layer`: three repositories scaffolded with typed placeholder methods, `tsc` passes, no direct `supabase` imports in screens/components.
+- **Prep (Phase 2 groundwork, not milestones):**
+  - `chore/db-schema-draft` (`2c5bf72`): draft schema + RLS SQL, `health_check.sql`, `.env.example`, `supabase/README.md`.
+  - `feature/hooks-layer`: `src/hooks/` TanStack Query wrappers over the repositories (queries gated on `!!user`, mutations invalidate). Not wired into screens yet.
 
 ### Files Changed
 
