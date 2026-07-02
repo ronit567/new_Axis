@@ -162,7 +162,7 @@ export default function HomeScreen({ navigation }: Props) {
 
       {/* Content: loading skeleton / error / listing grid */}
       {isLoading ? (
-        <View style={styles.listContent}>
+        <ScrollView style={styles.contentArea} contentContainerStyle={styles.listContent}>
           {ListHeader}
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
@@ -170,7 +170,7 @@ export default function HomeScreen({ navigation }: Props) {
               <ListingCardSkeleton animatedValue={pulseAnim} />
             </View>
           ))}
-        </View>
+        </ScrollView>
       ) : hasError ? (
         <ErrorState
           message="Something went wrong. Please try again."
@@ -178,6 +178,7 @@ export default function HomeScreen({ navigation }: Props) {
         />
       ) : (
         <FlatList
+          style={styles.contentArea}
           data={filtered}
           renderItem={renderItem}
           keyExtractor={item => item.id}
@@ -307,12 +308,12 @@ const styles = StyleSheet.create({
   },
   categoryScroll: {
     flexGrow: 0,
-    paddingTop: 16,
     marginBottom: 16,
   },
   categoryRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
+    paddingTop: 16,
     gap: 8,
   },
   catChip: {
@@ -351,6 +352,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.primary,
     fontWeight: '500',
+  },
+  contentArea: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: 20,
