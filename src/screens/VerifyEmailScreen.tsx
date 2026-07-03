@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
-const CODE_LENGTH = 5;
+const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
   const { verifyOtp } = useAuth();
@@ -113,7 +113,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
           <Text style={styles.title}>Check your inbox</Text>
           <Text style={styles.subtitle}>
-            We sent a 5-digit code to{'\n'}
+            We sent a 6-digit code to{'\n'}
             <Text style={styles.emailHighlight}>{email}</Text>
           </Text>
 
@@ -221,11 +221,11 @@ const styles = StyleSheet.create({
   codeRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     marginBottom: 16,
   },
   codeBox: {
-    width: 52,
+    width: 46,
     height: 60,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
