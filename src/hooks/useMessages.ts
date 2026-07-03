@@ -18,12 +18,12 @@ export function useConversations() {
   })
 }
 
-export function useMessages(listingId: string) {
+export function useMessages(listingId: string, partnerId: string) {
   const { user } = useAuth()
   return useQuery({
-    queryKey: queryKeys.messages(listingId),
-    queryFn: () => MessageRepository.getMessages(listingId),
-    enabled: !!user && !!listingId,
+    queryKey: queryKeys.messages(listingId, partnerId),
+    queryFn: () => MessageRepository.getMessages(listingId, partnerId),
+    enabled: !!user && !!listingId && !!partnerId,
   })
 }
 
@@ -37,7 +37,7 @@ export function useSendMessage() {
     },
     onSuccess: (_data, input) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.messages(input.listingId),
+        queryKey: queryKeys.messages(input.listingId, input.receiverId),
       })
       if (user) {
         queryClient.invalidateQueries({

@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase'
 import { Contact } from '../types'
 
 export type Message = {
@@ -21,7 +20,10 @@ export const MessageRepository = {
   async getConversations(userId: string): Promise<Contact[]> {
     return []
   },
-  async getMessages(listingId: string): Promise<Message[]> {
+  // partnerId scopes to the single 1:1 thread about this listing. Without it a
+  // seller with several interested buyers would get every buyer's messages
+  // (all of which pass the sender/receiver RLS check) merged into one array.
+  async getMessages(listingId: string, partnerId: string): Promise<Message[]> {
     return []
   },
   async send(senderId: string, data: SendMessageInput): Promise<Message> {
