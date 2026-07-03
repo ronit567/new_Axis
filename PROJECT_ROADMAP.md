@@ -435,5 +435,3 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 - **Stacked branches:** the Phase-1 work is a chain of un-merged feature branches (`supabase-client → query-provider → auth-provider → repository-layer → hooks-layer`). Before Phase 2, decide whether to merge that chain into `main` (recommended — get a clean base) so new tickets branch off `main`, not off each other.
 - **`AI_context.md` "Remaining Work" list is stale** — it re-lists Milestones 3/4 as remaining even though the Handoff marks them complete. Reconcile it during the next `Update context` pass.
 - **Nav params carry full objects** (`Listing`, `SellerProfile`). Migrating to IDs (AX-203, AX-502) is the right call for data freshness and smaller navigation state — do it as part of those tickets, not as a big-bang refactor.
-</content>
-</invoke>

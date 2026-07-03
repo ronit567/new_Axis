@@ -26,9 +26,13 @@ export function useListing(id: string) {
 }
 
 export function useCreateListing() {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CreateListingInput) => ListingRepository.create(input),
+    mutationFn: (input: CreateListingInput) => {
+      if (!user) throw new Error('Not signed in')
+      return ListingRepository.create(user.id, input)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
     },

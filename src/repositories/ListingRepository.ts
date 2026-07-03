@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase'
 import { Listing } from '../types'
 
 export type CreateListingInput = {
@@ -22,7 +21,7 @@ export const ListingRepository = {
   async getById(id: string): Promise<Listing | null> {
     return null
   },
-  async create(data: CreateListingInput): Promise<Listing> {
+  async create(sellerId: string, data: CreateListingInput): Promise<Listing> {
     throw new Error('ListingRepository.create not implemented')
   },
   async toggleSaved(listingId: string, userId: string): Promise<void> {},
