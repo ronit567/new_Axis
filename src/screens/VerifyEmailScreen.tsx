@@ -10,6 +10,7 @@ import {
   TextInputKeyPressEventData,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,15 +18,19 @@ import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
-const CODE_LENGTH = 5;
+const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
+  const { verifyOtp, resend } = useAuth();
   const email = route?.params?.email ?? 'rsharma42@uwo.ca';
   const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(42);
+  const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -62,14 +67,39 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleVerify = () => {
-    navigation.navigate('SetupProfile');
+  // A successful verifyOtp establishes a session; RootNavigator then swaps to
+  // the signed-in stack automatically, so there is no manual navigation here.
+  const handleVerify = async () => {
+    if (!isFilled || submitting) return;
+    setSubmitting(true);
+    try {
+      await verifyOtp(email, code.join(''));
+    } catch (e) {
+      Alert.alert(
+        'Verification failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleResend = () => {
-    setCountdown(60);
-    setCode(Array(CODE_LENGTH).fill(''));
-    inputRefs.current[0]?.focus();
+  const handleResend = async () => {
+    if (resending) return;
+    setResending(true);
+    try {
+      await resend(email);
+      setCountdown(60);
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+    } catch (e) {
+      Alert.alert(
+        'Resend failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setResending(false);
+    }
   };
 
   const isFilled = code.every(c => c !== '');
@@ -96,7 +126,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
           <Text style={styles.title}>Check your inbox</Text>
           <Text style={styles.subtitle}>
-            We sent a 5-digit code to{'\n'}
+            We sent a 6-digit code to{'\n'}
             <Text style={styles.emailHighlight}>{email}</Text>
           </Text>
 
@@ -134,6 +164,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
             title="Verify & continue"
             onPress={handleVerify}
             disabled={!isFilled}
+            loading={submitting}
             style={styles.verifyBtn}
           />
 
@@ -203,11 +234,11 @@ const styles = StyleSheet.create({
   codeRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
     marginBottom: 16,
   },
   codeBox: {
-    width: 52,
+    width: 46,
     height: 60,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
