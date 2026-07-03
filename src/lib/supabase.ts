@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store'
 import * as Crypto from 'expo-crypto'
 import * as aesjs from 'aes-js'
 import { createClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database'
 
 // expo-secure-store caps a stored value at 2048 bytes, but a Supabase session
 // (access JWT + refresh token + user object) routinely runs several KB and
@@ -70,7 +71,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: new LargeSecureStore(),
     autoRefreshToken: true,
