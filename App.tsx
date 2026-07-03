@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootStackParamList } from './src/types';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import QueryProvider from './src/providers/QueryProvider';
+import ActivitySpinner from './src/components/ActivitySpinner';
 
 // ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -39,7 +40,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * other group's state automatically, so there's no manual navigate/reset.
  */
 function RootNavigator() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, loading } = useAuth();
+
+  // Gate here rather than in AuthProvider so the provider tree (and
+  // NavigationContainer) stays mounted while the session is being restored.
+  if (loading) {
+    return <ActivitySpinner size="large" style={{ flex: 1 }} />;
+  }
 
   return (
     <Stack.Navigator
