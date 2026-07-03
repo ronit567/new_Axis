@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase'
 import { SellerProfile } from '../types'
 
 export type UpsertProfileInput = {

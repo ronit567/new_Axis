@@ -488,7 +488,7 @@ Tasks:
 
 Each repository is a plain exported object. Methods may be placeholders at this stage — the goal is establishing the architecture, not live data.
 
-> **Done:** all three exist as plain exported objects with typed placeholder methods (return `[]`/`null`, mutations throw). `ProfileRepository` exposes `getById`/`getCurrent`/`upsert(UpsertProfileInput)`; `MessageRepository` exposes `getConversations`/`getMessages`/`send(SendMessageInput)` plus a `Message` type. `tsc` passes; verified no screen/component imports `supabase` directly.
+> **Done:** all three exist as plain exported objects with typed placeholder methods (return `[]`/`null`, mutations throw). `ProfileRepository` exposes `getById`/`getCurrent`/`upsert(userId, UpsertProfileInput)`; `MessageRepository` exposes `getConversations`/`getMessages(listingId, partnerId)`/`send(senderId, SendMessageInput)` plus a `Message` type. `tsc` passes; verified no screen/component imports `supabase` directly.
 
 ```ts
 // src/repositories/ListingRepository.ts
@@ -510,7 +510,7 @@ export type CreateListingInput = {
 export const ListingRepository = {
   async getAll(category?: string): Promise<Listing[]> { return [] },
   async getById(id: string): Promise<Listing | null> { return null },
-  async create(data: CreateListingInput): Promise<Listing> { throw new Error('not implemented') },
+  async create(sellerId: string, data: CreateListingInput): Promise<Listing> { throw new Error('not implemented') },
   async toggleSaved(listingId: string, userId: string): Promise<void> {},
   async getSavedByUser(userId: string): Promise<Listing[]> { return [] },
 }

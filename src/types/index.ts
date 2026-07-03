@@ -50,6 +50,10 @@ export type MyListing = {
 };
 
 export type Contact = {
+  // The conversation partner's user id. Optional while screens still run on mock
+  // data; the real getConversations() populates it so a Contact can round-trip
+  // into getMessages(listingId, partnerId) / a reply to a specific person.
+  id?: string;
   initials: string;
   avatarColor: string;
   name: string;
