@@ -43,6 +43,7 @@ yarn-error.*
 # ─── Editor / IDE ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+.claude/
 *.suo
 *.ntvs*
 *.njsproj
