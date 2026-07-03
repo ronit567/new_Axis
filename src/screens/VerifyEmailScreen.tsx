@@ -25,11 +25,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 const CODE_LENGTH = 6;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
-  const { verifyOtp } = useAuth();
+  const { verifyOtp, resend } = useAuth();
   const email = route?.params?.email ?? 'rsharma42@uwo.ca';
   const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
   const [countdown, setCountdown] = useState(42);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   useEffect(() => {
@@ -83,10 +84,22 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleResend = () => {
-    setCountdown(60);
-    setCode(Array(CODE_LENGTH).fill(''));
-    inputRefs.current[0]?.focus();
+  const handleResend = async () => {
+    if (resending) return;
+    setResending(true);
+    try {
+      await resend(email);
+      setCountdown(60);
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+    } catch (e) {
+      Alert.alert(
+        'Resend failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    } finally {
+      setResending(false);
+    }
   };
 
   const isFilled = code.every(c => c !== '');
