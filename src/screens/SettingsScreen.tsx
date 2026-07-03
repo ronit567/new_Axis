@@ -8,6 +8,7 @@ import {
   Switch,
   Modal,
   TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -80,10 +81,28 @@ export default function SettingsScreen({ navigation }: Props) {
     setConfirmText('');
   };
 
-  const handleDeleteAccount = () => {
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      Alert.alert(
+        'Sign out failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    }
+  };
+
+  const handleDeleteAccount = async () => {
     if (!canDelete) return;
-    closeDeleteModal();
-    signOut();
+    try {
+      await signOut();
+      closeDeleteModal();
+    } catch (e) {
+      Alert.alert(
+        'Sign out failed',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    }
   };
 
   return (
@@ -154,7 +173,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.logoutCard}
           activeOpacity={0.8}
-          onPress={signOut}
+          onPress={handleSignOut}
         >
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>

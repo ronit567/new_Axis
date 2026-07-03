@@ -91,10 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (error) throw error;
       },
-      // Clear the query cache on the way out so the next user on this device
-      // can't briefly see the previous user's cached data.
+      // Surface a failed sign-out (e.g. offline) instead of swallowing it: if
+      // the session wasn't actually cleared, don't wipe the cache and leave the
+      // user stranded looking signed-out while still authenticated.
       signOut: async () => {
-        await supabase.auth.signOut();
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        // Clear the query cache on the way out so the next user on this device
+        // can't briefly see the previous user's cached data.
         queryClient.clear();
       },
     }),
