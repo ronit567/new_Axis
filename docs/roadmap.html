@@ -1,0 +1,609 @@
+<title>Axis Roadmap</title>
+<style>
+  :root {
+    --ground: #FBFAFD;
+    --paper: #FFFFFF;
+    --ink: #1E1726;
+    --muted: #6B6076;
+    --faint: #9A90A6;
+    --hair: #E9E4F0;
+    --hair-2: #F1EDF6;
+    --accent: #5C2D91;
+    --accent-deep: #3F1E6B;
+    --accent-wash: #F4EFFA;
+    --blocked: #B5761F;
+    --blocked-wash: #FBF1E0;
+    --decision: #7A4FB0;
+    --decision-wash: #F1EBF9;
+    --todo: #5B6472;
+    --todo-wash: #EEF0F3;
+    --gold: #B8860B;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Monaco, "Cascadia Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- Masthead ---- */
+  header.top {
+    background:
+      radial-gradient(120% 140% at 88% -10%, rgba(92,45,145,0.14), transparent 55%),
+      var(--paper);
+    border-bottom: 1px solid var(--hair);
+  }
+  .top-inner { padding: 40px 0 34px; }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .kicker::before {
+    content: "";
+    width: 22px; height: 2px;
+    background: var(--accent);
+    display: inline-block;
+  }
+  h1 {
+    font-size: clamp(30px, 4.6vw, 48px);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+    font-weight: 800;
+  }
+  h1 .thin { color: var(--muted); font-weight: 500; }
+  .lede {
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 16px;
+    margin: 0;
+  }
+  .lede code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+
+  /* ---- Stat tiles ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-top: 30px;
+  }
+  .stat {
+    background: var(--paper);
+    padding: 18px 20px;
+  }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    display: block;
+  }
+  .stat .l {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 7px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot.blocked { background: var(--blocked); }
+  .dot.decision { background: var(--decision); }
+  .dot.todo { background: var(--todo); }
+  .dot.accent { background: var(--accent); }
+
+  /* ---- Section: current state ---- */
+  section { padding: 46px 0 6px; }
+  .sec-head { margin-bottom: 22px; }
+  .sec-head .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 8px;
+  }
+  .sec-head h2 {
+    font-size: 22px;
+    letter-spacing: -0.015em;
+    margin: 0;
+    font-weight: 750;
+  }
+  .sec-head p { color: var(--muted); margin: 8px 0 0; max-width: 66ch; font-size: 14.5px; }
+
+  .reality {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .rcard {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    padding: 15px 16px;
+  }
+  .rcard .rl {
+    font-size: 13px;
+    font-weight: 650;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .rcard .rs { font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
+  .badge-state {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    font-weight: 600;
+    margin-left: auto;
+    flex: none;
+  }
+  .s-done { background: #E3F1EA; color: #2E7D5B; }
+  .s-partial { background: var(--decision-wash); color: var(--decision); }
+  .s-none { background: var(--todo-wash); color: var(--todo); }
+
+  .keystone-note {
+    margin-top: 20px;
+    background: linear-gradient(180deg, #FFFDF6, #FFFBEF);
+    border: 1px solid #EBDDB4;
+    border-left: 3px solid var(--gold);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .keystone-note .kk {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: #8A6608;
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+  .keystone-note p { margin: 0; font-size: 14px; color: #4A3E1E; }
+  .keystone-note strong { color: #2E260F; }
+
+  /* ---- Sprint rail ---- */
+  .sprints {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .sprint {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    padding: 14px 15px;
+    position: relative;
+  }
+  .sprint .sn {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .sprint .st { font-size: 13.5px; font-weight: 650; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .sprint .sids { font-family: var(--mono); font-size: 11.5px; color: var(--muted); line-height: 1.7; }
+
+  /* ---- Filter bar ---- */
+  .filterbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(251,250,253,0.86);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--hair);
+    padding: 12px 0;
+    margin-top: 40px;
+  }
+  .filterbar .wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filterbar .fl {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--faint);
+    margin-right: 4px;
+  }
+  .chip-btn {
+    font-family: var(--sans);
+    font-size: 12.5px;
+    border: 1px solid var(--hair);
+    background: var(--paper);
+    color: var(--muted);
+    padding: 6px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .chip-btn:hover { border-color: var(--accent); color: var(--accent-deep); }
+  .chip-btn[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .chip-btn[aria-pressed="true"] .dot { box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+  .chip-btn:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+
+  /* ---- Epics ---- */
+  .epic { margin-top: 40px; scroll-margin-top: 64px; }
+  .epic-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--hair);
+    margin-bottom: 18px;
+  }
+  .epic-head .num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .epic-head h3 { font-size: 19px; margin: 0; letter-spacing: -0.015em; font-weight: 750; }
+  .epic-head .goal { color: var(--muted); font-size: 13.5px; margin-left: auto; text-align: right; max-width: 44ch; }
+
+  .tickets { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+
+  .ticket {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    padding: 15px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    transition: box-shadow .15s, border-color .15s, transform .15s;
+  }
+  .ticket:hover {
+    box-shadow: 0 6px 22px -12px rgba(63,30,107,0.28);
+    border-color: #DBD0EA;
+  }
+  .ticket.keystone {
+    border-color: #E7CF8E;
+    background: linear-gradient(180deg, #FFFEFA, var(--paper) 60%);
+    box-shadow: 0 0 0 1px #EBDDB4 inset;
+  }
+  .t-top { display: flex; align-items: center; gap: 9px; }
+  .t-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-deep);
+    letter-spacing: 0.01em;
+  }
+  .t-chips { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip.size { background: var(--hair-2); color: var(--muted); }
+  .chip.status { display: inline-flex; align-items: center; gap: 5px; }
+  .chip.blocked { background: var(--blocked-wash); color: var(--blocked); }
+  .chip.decision { background: var(--decision-wash); color: var(--decision); }
+  .chip.todo { background: var(--todo-wash); color: var(--todo); }
+  .chip.keystoneflag { background: #FBF1D4; color: #8A6608; }
+
+  .t-title { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.3; }
+  .t-why { font-size: 13px; color: var(--muted); margin: 0; }
+  .t-dep {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+    margin-top: 2px;
+    border-top: 1px dashed var(--hair);
+    padding-top: 9px;
+  }
+  .t-dep b { color: var(--muted); font-weight: 600; }
+
+  .hidden { display: none !important; }
+
+  /* ---- Decisions ---- */
+  .decisions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .decision-card {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-left: 3px solid var(--decision);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .decision-card .q { font-size: 14px; font-weight: 650; margin: 0 0 5px; }
+  .decision-card .q .tref { font-family: var(--mono); font-size: 11px; color: var(--decision); font-weight: 600; }
+  .decision-card p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  footer {
+    margin-top: 54px;
+    border-top: 1px solid var(--hair);
+    padding: 26px 0 44px;
+    color: var(--faint);
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+  footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+  @media (max-width: 640px) {
+    .decisions { grid-template-columns: 1fr; }
+    .epic-head { flex-wrap: wrap; }
+    .epic-head .goal { margin-left: 0; text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <p class="kicker">Axis · Western Student Marketplace</p>
+    <h1>Phase 2 Roadmap <span class="thin">— from wired-but-empty to a shippable v1</span></h1>
+    <p class="lede">The frontend ships on mock data and the Supabase plumbing compiles. This board tracks the work that turns placeholders into a real marketplace: apply the schema, build the <code>repository</code> + mapper layer, and migrate the 7 mock-consuming screens onto live data. Grounded in an audit of the tree, not the context doc.</p>
+
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Audit · where the code actually is</p>
+      <h2>Foundation compiles. Nothing round-trips yet.</h2>
+      <p>Every layer below the UI exists as code but is unverified or unwired. The repositories return <code style="font-family:var(--mono)">[]</code> and <code style="font-family:var(--mono)">null</code>; the hooks are imported by zero screens; the schema has never been applied.</p>
+    </div>
+    <div class="reality" id="reality"></div>
+
+    <div class="keystone-note">
+      <span class="kk">◆ KEYSTONE</span>
+      <p>The <strong>UI <code style="font-family:var(--mono);background:#F5ECD3;color:#6B5410;padding:0 4px;border-radius:4px">Listing</code> type was designed for a screen, not a database.</strong> It nests a <code style="font-family:var(--mono)">seller</code> object, stores <code style="font-family:var(--mono)">postedAgo</code> as <em>"3d ago"</em>, and carries <code style="font-family:var(--mono)">saved</code> per-row — the DB has <code style="font-family:var(--mono)">seller_id</code>, <code style="font-family:var(--mono)">created_at</code>, and a <code style="font-family:var(--mono)">saved_listings</code> join. Nothing renders until a <strong>mapper layer (AX-110)</strong> bridges the two. Every screen ticket depends on it.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Execution · dependency-aware</p>
+      <h2>Suggested sprint order</h2>
+    </div>
+    <div class="sprints" id="sprints"></div>
+  </section>
+
+</div>
+
+<div class="filterbar">
+  <div class="wrap">
+    <span class="fl">Filter</span>
+    <button class="chip-btn" data-filter="all" aria-pressed="true">All tickets</button>
+    <button class="chip-btn" data-filter="blocked" aria-pressed="false"><span class="dot blocked"></span>Blocked</button>
+    <button class="chip-btn" data-filter="decision" aria-pressed="false"><span class="dot decision"></span>Needs decision</button>
+    <button class="chip-btn" data-filter="todo" aria-pressed="false"><span class="dot todo"></span>Ready to build</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="epics"></div>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Blockers · your call</p>
+      <h2>Open decisions before building</h2>
+      <p>Six product/architecture choices gate specific tickets. Answering these unblocks the sprints above.</p>
+    </div>
+    <div class="decisions" id="decisions"></div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>AXIS · PROJECT_ROADMAP.md</span>
+    <span>Audited 2026-07-02 · 9 epics · branch docs/marketplace-roadmap</span>
+  </div>
+</footer>
+
+<script>
+const reality = [
+  ["Frontend UI — 24 screens", "src/screens/*", "done", "Ships on mock"],
+  ["Supabase client", "src/lib/supabase.ts", "partial", "No keys"],
+  ["TanStack Query provider", "src/providers/*", "done", "Wired"],
+  ["Real AuthContext", "src/context/AuthContext.tsx", "partial", "Unverified"],
+  ["Repository layer", "src/repositories/*", "partial", "Placeholders"],
+  ["Hooks layer", "src/hooks/*", "partial", "Unwired"],
+  ["DB schema + RLS", "supabase/migrations/*", "partial", "Not applied"],
+  ["Image upload (Storage)", "—", "none", "Not started"],
+  ["Realtime messaging", "—", "none", "Not started"],
+  ["Tests / CI", "—", "none", "None exist"],
+];
+
+const sprints = [
+  ["Sprint 0", "Unblock the foundation", "AX-001 · 002 · 003\nAX-901 · 706"],
+  ["Sprint 1", "Data-access foundation", "AX-101 · 102\nAX-110 ◆ · 111 · 112\nAX-301"],
+  ["Sprint 2", "Browse works + images", "AX-201 · 202 · 203\nAX-205 · 204\nAX-401 · 402 · 302"],
+  ["Sprint 3", "Kill the mock", "AX-303 · 304 · 305\nAX-299 · 902"],
+  ["Sprint 4", "Messaging (realtime)", "AX-113 · 501\nAX-502 · 503"],
+  ["Sprint 5", "Notifications + safety", "AX-601 · 602\nAX-701 · 703 · 704 · 705"],
+  ["Sprint 6", "Harden & ship", "AX-903 · 904 · 905\nAX-603 · 702 → v1.1"],
+];
+
+const epics = [
+  { num: "0", title: "Unblock Phase 1", goal: "Get from “code compiles” to “one real row round-trips.”", tickets: [
+    { id: "AX-001", size: "S", status: "blocked", title: "Provision Supabase project & load keys", why: "Everything downstream is blocked; the client can’t init without a URL + anon key.", dep: "user action" },
+    { id: "AX-002", size: "S", status: "blocked", title: "Smoke-test the round-trip (Milestone 5)", why: "Proves client + auth + query wiring before building on it.", dep: "AX-001" },
+    { id: "AX-003", size: "M", status: "todo", title: "Verify the real auth flow end-to-end", why: "AuthContext was written but never run against a live project — OTP, persistence, loading gate all unverified.", dep: "AX-001" },
+  ]},
+  { num: "1", title: "Database & data-access foundation", goal: "The load-bearing wall. Screens come after.", tickets: [
+    { id: "AX-101", size: "M", status: "decision", title: "Apply schema & RLS to the live project", why: "The migration drafts have never been run. Decide CLI vs dashboard; add a category constraint.", dep: "AX-001" },
+    { id: "AX-102", size: "S", status: "todo", title: "Generate DB types & set the type boundary", why: "Repos speak row types internally, return domain types outward. Screens never see rows.", dep: "AX-101" },
+    { id: "AX-110", size: "M", status: "todo", title: "Mapper layer: DB rows → domain types", why: "The keystone. One place for seller joins, created_at → “3d ago”, image fallback, saved-set. Every screen depends on it.", dep: "AX-102, AX-901", keystone: true },
+    { id: "AX-111", size: "L", status: "todo", title: "Implement ListingRepository for real", why: "It’s all placeholders — getAll/getById/create/toggleSaved/getSaved + incrementViews.", dep: "AX-110" },
+    { id: "AX-112", size: "M", status: "todo", title: "Implement ProfileRepository for real", why: "getById / getCurrent / upsert own row.", dep: "AX-110" },
+    { id: "AX-113", size: "L", status: "todo", title: "Implement MessageRepository for real", why: "Conversation identity is (listing, otherUser) — current key is too coarse. Adds a read column.", dep: "AX-110" },
+  ]},
+  { num: "2", title: "Wire the browse surface", goal: "Replace each mock import with a hook; delete the fake loading.", tickets: [
+    { id: "AX-201", size: "M", status: "todo", title: "HomeScreen on real data", why: "Flagship. Kill LISTINGS + local savedIds + the fake 1.2s setTimeout; drive off query state.", dep: "AX-111, AX-112" },
+    { id: "AX-202", size: "S", status: "todo", title: "SavedScreen on real data", why: "useSavedListings; unsave updates Home + Saved caches.", dep: "AX-111" },
+    { id: "AX-203", size: "M", status: "todo", title: "ListingDetail on real data + views", why: "Drops hardcoded SELLER_ARIA; nav param full-object → { listingId }. Increments views.", dep: "AX-111, AX-112" },
+    { id: "AX-204", size: "M", status: "todo", title: "SearchScreen on real data", why: "Server-side title/category/price search, debounced.", dep: "AX-111" },
+    { id: "AX-205", size: "S", status: "todo", title: "SellerProfileScreen on real data", why: "nav param → { sellerId }; that seller’s live listings.", dep: "AX-111, AX-112" },
+    { id: "AX-299", size: "S", status: "todo", title: "Delete mockListings.ts + CI guard", why: "The file is a landmine once data is live. Add a grep-guard against reintroduction.", dep: "all screen migrations" },
+  ]},
+  { num: "3", title: "Selling, profile & onboarding", goal: "The write path and the missing first-run step.", tickets: [
+    { id: "AX-301", size: "M", status: "decision", title: "Onboarding / first-run profile capture", why: "verifyOtp signs users in immediately, so SetupProfile is bypassed — new users have no profiles row. Gate on profile existence.", dep: "AX-112, AX-003" },
+    { id: "AX-302", size: "M", status: "todo", title: "CreateListing submit (the real thing)", why: "handlePost currently just goBack() — nothing is saved. Wire useCreateListing + block on image upload.", dep: "AX-111, AX-401" },
+    { id: "AX-303", size: "S", status: "todo", title: "ProfileScreen on real data", why: "Own profile + own listings; stats computed from real rows.", dep: "AX-111, AX-112" },
+    { id: "AX-304", size: "L", status: "todo", title: "ManageListings + edit/delete/mark-sold", why: "MY_LISTINGS mock, and the CRUD verbs don’t exist yet.", dep: "AX-111" },
+    { id: "AX-305", size: "S", status: "todo", title: "EditProfileScreen wired", why: "Load + save via useUpsertProfile, optimistic.", dep: "AX-112" },
+  ]},
+  { num: "4", title: "Images (Supabase Storage)", goal: "Real photos instead of imageColor placeholders.", tickets: [
+    { id: "AX-401", size: "L", status: "todo", title: "Image upload pipeline", why: "CreateListing collects local URIs that upload nowhere. Bucket + compress + upload → public URLs.", dep: "AX-101" },
+    { id: "AX-402", size: "M", status: "todo", title: "Render real listing images", why: "Cards + detail use imageColor. Show image_urls with graceful fallback; expo-image caching.", dep: "AX-401" },
+    { id: "AX-403", size: "M", status: "todo", title: "Avatar images", why: "Optional profile photo; keep initials+color fallback.", dep: "AX-401, AX-112" },
+  ]},
+  { num: "5", title: "Messaging (Realtime)", goal: "MessagesScreen and ChatScreen are fully static today.", tickets: [
+    { id: "AX-501", size: "L", status: "todo", title: "Realtime message subscription", why: "Supabase Realtime on messages; push new rows into the query cache.", dep: "AX-113" },
+    { id: "AX-502", size: "L", status: "todo", title: "ChatScreen + MessagesScreen wired", why: "useConversations / useMessages / useSendMessage; nav params → IDs.", dep: "AX-113, AX-501" },
+    { id: "AX-503", size: "M", status: "todo", title: "Unread badges & read receipts", why: "Mark-read on open; accurate unread count on the Messages tab.", dep: "AX-113, AX-502" },
+  ]},
+  { num: "6", title: "Notifications", goal: "Table drafted, nothing writes to it.", tickets: [
+    { id: "AX-601", size: "M", status: "decision", title: "Notification generation strategy", why: "DB triggers vs Edge Functions; the RLS insert policy is a wrong placeholder (owner-only).", dep: "AX-113" },
+    { id: "AX-602", size: "M", status: "todo", title: "NotificationsScreen wired + badge", why: "Real events, mark-read, deep links; wire the Home bell dot to real unread count.", dep: "AX-601" },
+    { id: "AX-603", size: "L", status: "todo", title: "Push notifications (v1.1)", why: "expo-notifications; store push tokens; send from the trigger.", dep: "AX-601" },
+  ]},
+  { num: "7", title: "Trust, safety & product polish", goal: "Student-marketplace specifics that carry the trust model.", tickets: [
+    { id: "AX-701", size: "M", status: "todo", title: "Restrict signups to @uwo.ca", why: "Decided: @uwo.ca only (covers Huron/King’s/Brescia — they get @uwo.ca addresses). Client check + a server-side Auth hook as the real gate.", dep: "AX-003" },
+    { id: "AX-702", size: "L", status: "todo", title: "Reviews & ratings", why: "SellerProfile shows rating/reviewCount with no reviews table — it’s fabricated. Hide fake stars until built.", dep: "AX-112" },
+    { id: "AX-703", size: "M", status: "todo", title: "Report & block are functional", why: "ReportModal UI exists but isn’t persisted; add reports + blocks tables and filter blocked users.", dep: "AX-101" },
+    { id: "AX-704", size: "M", status: "todo", title: "Account deletion actually deletes", why: "Verify the existing branch deletes the auth user + cascades, not just signs out.", dep: "AX-101" },
+    { id: "AX-705", size: "S", status: "todo", title: "VerifyEmail resend wired", why: "The resend button is UI-only — wire supabase.auth.resend.", dep: "AX-003" },
+    { id: "AX-706", size: "S", status: "todo", title: "Legal pages content review", why: "Confirm Privacy/Terms/Community are real copy, not lorem.", dep: "—" },
+  ]},
+  { num: "8", title: "Quality, tooling & release", goal: "Zero tests and no CI exist today.", tickets: [
+    { id: "AX-901", size: "M", status: "todo", title: "Test harness", why: "The mapper and repositories are exactly the logic worth testing. Land before/with AX-110.", dep: "—" },
+    { id: "AX-902", size: "S", status: "todo", title: "CI pipeline + architecture guards", why: "tsc + tests + grep-guards on mock imports and supabase-in-screens.", dep: "AX-901" },
+    { id: "AX-903", size: "M", status: "todo", title: "Error tracking & logging", why: "Sentry; define the real error shape the 401 handler is guessing at.", dep: "AX-111" },
+    { id: "AX-904", size: "M", status: "todo", title: "Env & release config", why: "EAS profiles; separate dev vs prod Supabase; document the .env matrix.", dep: "AX-001" },
+    { id: "AX-905", size: "M", status: "todo", title: "Performance pass on the feed", why: "FlatList tuning, image caching, pagination — getAll fetches everything today.", dep: "AX-201, AX-402" },
+  ]},
+];
+
+const decisions = [
+  ["AX-701 ✓", "Email domain — RESOLVED", "@uwo.ca only. Affiliate-college students (Huron / King’s / Brescia) get @uwo.ca addresses, so one rule covers them — no separate domain list."],
+  ["AX-101", "Category storage?", "CHECK constraint against LISTING_CATEGORIES, or a lookup table for future admin-editable categories?"],
+  ["AX-301", "Profile creation?", "DB trigger auto-creates a bare row, or the app creates it in onboarding? Affects RLS + routing."],
+  ["AX-702", "Reviews at launch?", "Ship v1 with reviews, or hide the rating UI and add them in v1.1?"],
+  ["AX-601", "Notification generation?", "DB triggers vs Edge Functions — any preference or existing infra?"],
+  ["AX-101b", "Migration workflow?", "Adopt the Supabase CLI (version-controlled, recommended) or manage schema in the dashboard?"],
+];
+
+const statusLabel = { blocked: "blocked", decision: "decision", todo: "ready" };
+
+// ---- stats ----
+let counts = { total: 0, blocked: 0, decision: 0, todo: 0 };
+epics.forEach(e => e.tickets.forEach(t => { counts.total++; counts[t.status]++; }));
+document.getElementById("stats").innerHTML = [
+  [counts.total, "accent", "Tickets across 9 epics"],
+  [counts.blocked, "blocked", "Blocked on setup"],
+  [counts.decision, "decision", "Need a decision"],
+  [counts.todo, "todo", "Ready to build"],
+].map(([n, cls, l]) => `<div class="stat"><span class="n">${n}</span><span class="l"><span class="dot ${cls}"></span>${l}</span></div>`).join("");
+
+// ---- reality ----
+document.getElementById("reality").innerHTML = reality.map(([l, s, state, tag]) =>
+  `<div class="rcard"><div class="rl">${l}<span class="badge-state s-${state}">${tag}</span></div><div class="rs">${s}</div></div>`
+).join("");
+
+// ---- sprints ----
+document.getElementById("sprints").innerHTML = sprints.map(([n, t, ids]) =>
+  `<div class="sprint"><div class="sn">${n}</div><div class="st">${t}</div><div class="sids">${ids.replace(/\n/g, "<br>")}</div></div>`
+).join("");
+
+// ---- epics ----
+document.getElementById("epics").innerHTML = epics.map(e => `
+  <div class="epic">
+    <div class="epic-head">
+      <span class="num">EPIC ${e.num}</span>
+      <h3>${e.title}</h3>
+      <span class="goal">${e.goal}</span>
+    </div>
+    <div class="tickets">
+      ${e.tickets.map(t => `
+        <div class="ticket ${t.keystone ? "keystone" : ""}" data-status="${t.status}">
+          <div class="t-top">
+            <span class="t-id">${t.id}</span>
+            <div class="t-chips">
+              ${t.keystone ? '<span class="chip keystoneflag">◆ KEYSTONE</span>' : ""}
+              <span class="chip size">${t.size}</span>
+              <span class="chip status ${t.status}"><span class="dot ${t.status}"></span>${statusLabel[t.status]}</span>
+            </div>
+          </div>
+          <div class="t-title">${t.title}</div>
+          <p class="t-why">${t.why}</p>
+          <div class="t-dep"><b>Depends on</b> · ${t.dep}</div>
+        </div>
+      `).join("")}
+    </div>
+  </div>
+`).join("");
+
+// ---- decisions ----
+document.getElementById("decisions").innerHTML = decisions.map(([ref, q, p]) =>
+  `<div class="decision-card"><p class="q"><span class="tref">${ref}</span> · ${q}</p><p>${p}</p></div>`
+).join("");
+
+// ---- filter ----
+const btns = [...document.querySelectorAll(".chip-btn")];
+btns.forEach(btn => btn.addEventListener("click", () => {
+  const f = btn.dataset.filter;
+  btns.forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+  document.querySelectorAll(".ticket").forEach(t => {
+    t.classList.toggle("hidden", f !== "all" && t.dataset.status !== f);
+  });
+  document.querySelectorAll(".epic").forEach(ep => {
+    const anyVisible = [...ep.querySelectorAll(".ticket")].some(t => !t.classList.contains("hidden"));
+    ep.classList.toggle("hidden", !anyVisible);
+  });
+}));
+</script>

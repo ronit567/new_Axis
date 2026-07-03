@@ -26,9 +26,10 @@ After the tables exist, regenerate app types:
 
 - **`profiles` are readable by any authenticated user** — sellers' names/programs
   are shown to buyers. All other tables are private to the owner/participants.
-- **No `CHECK` on `listings.category`** — the canonical category list is still an
-  open decision (Home browse vs CreateListing mismatch; see AI_context Known
-  Issues). Left as free text until that's resolved.
+- **No `CHECK` on `listings.category`** — the canonical list now lives in
+  `src/constants/categories.ts` (`LISTING_CATEGORIES`) and is enforced at the app
+  level. Left as free text in the DB for flexibility (adding a category shouldn't
+  require a migration); add a `CHECK` here later if you want DB-level enforcement.
 - **`condition` is nullable** with a `CHECK` for `'Like new' | 'Good' | 'Fair'`
   so free/trade items can omit it.
 - **`notifications` insert policy is a placeholder** (owner-scoped). Real
