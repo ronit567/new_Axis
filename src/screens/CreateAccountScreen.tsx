@@ -36,8 +36,19 @@ export default function CreateAccountScreen({ navigation }: Props) {
     const trimmedEmail = email.trim();
     setSubmitting(true);
     try {
-      await signUp(trimmedEmail, password);
-      navigation.navigate('VerifyEmail', { email: trimmedEmail });
+      const result = await signUp(trimmedEmail, password);
+      if (result === 'exists') {
+        Alert.alert(
+          'Account already exists',
+          'An account with this email already exists. Try signing in instead.',
+        );
+        return;
+      }
+      // 'signed-in': the session swap navigates for us — don't push VerifyEmail
+      // onto a stack that's being torn down.
+      if (result === 'verify') {
+        navigation.navigate('VerifyEmail', { email: trimmedEmail });
+      }
     } catch (e) {
       Alert.alert(
         'Sign up failed',

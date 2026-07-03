@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  MutationCache,
   QueryCache,
   QueryClient,
   QueryClientProvider,
@@ -13,24 +14,26 @@ function isUnauthorized(error: unknown): boolean {
   return status === 401 || code === '401' || code === 'PGRST301'
 }
 
-// On any 401, flush the session and cache so a stale/expired token can't leave
-// the app in a half-authenticated state or leak data across sign-ins.
-const queryCache = new QueryCache({
-  onError: (error) => {
-    if (isUnauthorized(error)) {
-      void supabase.auth.signOut()
-      queryClient.clear()
-    }
-  },
-})
+// On any 401 — from a query OR a mutation — flush the session and cache so a
+// stale/expired token can't leave the app half-authenticated or leak data
+// across sign-ins.
+function handleAuthError(error: unknown) {
+  if (isUnauthorized(error)) {
+    void supabase.auth.signOut()
+    queryClient.clear()
+  }
+}
 
 const queryClient = new QueryClient({
-  queryCache,
+  queryCache: new QueryCache({ onError: handleAuthError }),
+  mutationCache: new MutationCache({ onError: handleAuthError }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 2,
       gcTime: 1000 * 60 * 10,
-      retry: 2,
+      // Don't waste retries on an expired token — fail fast so the 401 handler
+      // signs the user out immediately instead of after seconds of backoff.
+      retry: (failureCount, error) => !isUnauthorized(error) && failureCount < 2,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     },
