@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { COLORS } from '../constants/theme';
 
 export type ReportTarget = 'listing' | 'user' | 'chat';
@@ -61,7 +62,9 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+      <Pressable style={styles.backdrop} onPress={handleClose}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+      </Pressable>
       <View style={styles.sheet}>
         {/* Handle */}
         <View style={styles.handle} />
@@ -198,7 +201,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 24, // concentric: icon radius (10) + row padding (14)
     borderWidth: 1.5,
     borderColor: '#EBEBF0',
     backgroundColor: '#FAFAFA',

@@ -13,8 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import PressableScale from '../components/PressableScale';
 import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -110,12 +112,14 @@ export default function SettingsScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <PressableScale
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          scaleTo={0.9}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
@@ -201,6 +205,7 @@ export default function SettingsScreen({ navigation }: Props) {
         onRequestClose={closeDeleteModal}
       >
         <View style={styles.modalOverlay}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Delete account</Text>
             <Text style={styles.modalBody}>

@@ -13,11 +13,13 @@ import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, GRADIENTS, SHADOWS } from '../constants/theme';
+import { COLORS, GRADIENTS, SHADOWS, FONTS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import PressableScale from '../components/PressableScale';
+import FadeInItem from '../components/FadeInItem';
 import { LISTINGS } from '../data/mockListings';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
@@ -69,13 +71,14 @@ export default function HomeScreen({ navigation }: Props) {
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
     );
 
-  const renderItem = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={{ ...item, saved: savedIds.includes(item.id) || item.saved }}
-      onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-      onSave={() => toggleSave(item.id)}
-      style={styles.card}
-    />
+  const renderItem = ({ item, index }: { item: Listing; index: number }) => (
+    <FadeInItem index={index} style={styles.card}>
+      <ListingCard
+        item={{ ...item, saved: savedIds.includes(item.id) || item.saved }}
+        onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+        onSave={() => toggleSave(item.id)}
+      />
+    </FadeInItem>
   );
 
   const ListHeader = (
@@ -111,10 +114,15 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
+          <PressableScale
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('Notifications')}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            scaleTo={0.9}
+          >
             <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
             <View style={styles.bellDot} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Search Bar */}
@@ -127,13 +135,13 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
             <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          <PressableScale
             style={styles.filterBtn}
             onPress={() => navigation.navigate('Search')}
-            activeOpacity={0.85}
+            scaleTo={0.92}
           >
             <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </LinearGradient>
 
@@ -145,14 +153,14 @@ export default function HomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.categoryRow}
       >
         {CATEGORIES.map(cat => (
-          <TouchableOpacity
+          <PressableScale
             key={cat}
             style={[
               styles.catChip,
               activeCategory === cat ? styles.catChipActive : null,
             ]}
             onPress={() => setActiveCategory(cat)}
-            activeOpacity={0.8}
+            scaleTo={0.94}
           >
             <Text
               style={[
@@ -162,7 +170,7 @@ export default function HomeScreen({ navigation }: Props) {
             >
               {cat}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         ))}
       </ScrollView>
 
@@ -247,7 +255,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.white,
   },
   locationRow: {
@@ -351,7 +359,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   seeAll: {

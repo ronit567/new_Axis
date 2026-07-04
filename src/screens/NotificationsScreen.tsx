@@ -14,6 +14,7 @@ import { COLORS, SIZES } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import PressableScale from '../components/PressableScale';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -134,9 +135,9 @@ export default function NotificationsScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <PressableScale onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.title}>Notifications</Text>
         <TouchableOpacity onPress={markAllRead}>
           <Text style={styles.markAll}>Mark all read</Text>

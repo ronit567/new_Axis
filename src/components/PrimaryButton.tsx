@@ -17,14 +17,14 @@ export default function PrimaryButton({ title, onPress, loading = false, style, 
   const isInactive = disabled || loading;
 
   const animateTo = (value: number) => {
-    Animated.spring(scale, { toValue: value, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+    Animated.timing(scale, { toValue: value, duration: 150, useNativeDriver: true }).start();
   };
 
   return (
     <Animated.View style={[styles.wrapper, { transform: [{ scale }] }, style]}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => !isInactive && animateTo(0.97)}
+        onPressIn={() => !isInactive && animateTo(0.96)}
         onPressOut={() => !isInactive && animateTo(1)}
         disabled={isInactive}
         style={styles.pressable}

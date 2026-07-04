@@ -1,9 +1,10 @@
 import React, { ComponentProps } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, GRADIENTS, SHADOWS } from '../constants/theme';
+import PressableScale from './PressableScale';
 
 export type TabName = 'Home' | 'Saved' | 'Create' | 'Messages' | 'Profile';
 
@@ -39,11 +40,11 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
         const isCreate = tab.name === 'Create';
 
         return (
-          <TouchableOpacity
+          <PressableScale
             key={tab.name}
             style={styles.tabItem}
             onPress={() => onTabPress(tab.name)}
-            activeOpacity={0.75}
+            scaleTo={isCreate ? 0.93 : 0.9}
           >
             {isCreate ? (
               <LinearGradient
@@ -66,7 +67,7 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
                 </Text>
               </>
             )}
-          </TouchableOpacity>
+          </PressableScale>
         );
       })}
     </View>

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -119,9 +120,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <PressableScale onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={[styles.headerAvatar, { backgroundColor: contact.avatarColor }]}>
           <Text style={styles.headerAvatarText}>{contact.initials}</Text>
         </View>
@@ -138,9 +139,9 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Text style={styles.viewBtnText}>View</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.flagBtn} onPress={() => setReportVisible(true)}>
+        <PressableScale style={styles.flagBtn} onPress={() => setReportVisible(true)} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
           <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Listing preview banner */}
@@ -313,6 +314,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     color: COLORS.textMuted,
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   viewBannerBtn: {
     paddingHorizontal: 14,
@@ -383,6 +385,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   dealStatus: {
     fontSize: 12,

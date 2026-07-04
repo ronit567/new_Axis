@@ -49,6 +49,16 @@ export const GRADIENTS = {
   primaryRadiant: ['#6E3AAE', COLORS.primary, COLORS.primaryDark] as [string, string, string],
 } as const;
 
+// DM Sans, loaded in App.tsx via @expo-google-fonts/dm-sans. Reserved for
+// hero moments (wordmark, screen titles, prices, section headings) — body
+// copy stays on the system font.
+export const FONTS = {
+  medium: 'DMSans_500Medium',
+  semibold: 'DMSans_600SemiBold',
+  bold: 'DMSans_700Bold',
+  extraBold: 'DMSans_800ExtraBold',
+} as const;
+
 // Layered shadow presets so elevation reads consistently across cards, sheets, and floating controls.
 export const SHADOWS = {
   card: {

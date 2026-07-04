@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 10,
     textAlign: 'center',
@@ -260,6 +260,7 @@ const styles = StyleSheet.create({
   timerText: {
     color: COLORS.primary,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   resendActive: {
     textDecorationLine: 'underline',

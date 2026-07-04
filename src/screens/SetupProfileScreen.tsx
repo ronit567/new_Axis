@@ -12,9 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
+import RotatingChevron from '../components/RotatingChevron';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
@@ -79,11 +80,7 @@ export default function SetupProfileScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{program}</Text>
-            <Ionicons
-              name={showProgramPicker ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={COLORS.textMuted}
-            />
+            <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
           {showProgramPicker && (
@@ -167,7 +164,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },

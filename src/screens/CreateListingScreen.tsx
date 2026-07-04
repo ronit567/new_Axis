@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { LISTING_CATEGORIES } from '../constants/categories';
+import RotatingChevron from '../components/RotatingChevron';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
@@ -197,11 +198,7 @@ export default function CreateListingScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{category}</Text>
-            <Ionicons
-              name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={COLORS.textMuted}
-            />
+            <RotatingChevron open={showCategoryPicker} size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
           {showCategoryPicker && (
             <View style={styles.dropdownList}>
@@ -363,6 +360,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: SIZES.borderRadiusSm,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   photoThumbImage: {
     width: '100%',

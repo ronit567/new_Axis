@@ -12,7 +12,7 @@ import { RootStackParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SIZES, GRADIENTS } from '../constants/theme';
+import { COLORS, SIZES, GRADIENTS, FONTS } from '../constants/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 48,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.white,
     letterSpacing: 0.3,
     marginBottom: 14,

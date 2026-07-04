@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import RotatingChevron from '../components/RotatingChevron';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -98,11 +99,7 @@ export default function EditProfileScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{program}</Text>
-            <Ionicons
-              name={showProgramPicker ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={COLORS.textMuted}
-            />
+            <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
           {showProgramPicker && (
             <View style={styles.dropdownList}>

@@ -38,13 +38,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(20, 12, 36, 0.05)',
     ...SHADOWS.card,
   },
   imageArea: {
     height: 128,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   heartPlaceholder: {
     position: 'absolute',

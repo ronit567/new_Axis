@@ -12,8 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
-import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import PressableScale from '../components/PressableScale';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -71,12 +72,14 @@ export default function ProfileScreen({ navigation }: Props) {
       >
         {/* ── Top bar (gear icon) ── */}
         <View style={styles.topBar}>
-          <TouchableOpacity
+          <PressableScale
             style={styles.gearBtn}
             onPress={() => navigation.navigate('Settings')}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
           >
             <Ionicons name="settings-outline" size={18} color={COLORS.textSecondary} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* ── Profile info ── */}
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   programText: {
@@ -264,8 +267,9 @@ const styles = StyleSheet.create({
   },
   statNum: {
     fontSize: SIZES.xl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: SIZES.xs,
@@ -306,6 +310,8 @@ const styles = StyleSheet.create({
     height: THUMB_HEIGHT,
     borderRadius: SIZES.borderRadiusSm,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     marginBottom: 6,
   },
   hatchLine: {
@@ -332,6 +338,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     fontWeight: '700',
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   priceTextSold: {
     color: COLORS.textMuted,

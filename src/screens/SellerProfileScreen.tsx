@@ -14,6 +14,7 @@ import ListingCard from '../components/ListingCard';
 import { ARIA_LISTINGS } from '../data/mockListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
 
@@ -29,12 +30,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Nav bar */}
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <PressableScale style={styles.iconBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+        </PressableScale>
+        <PressableScale style={styles.iconBtn} onPress={() => setReportVisible(true)} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
           <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -222,6 +223,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.text,
     marginBottom: 3,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,

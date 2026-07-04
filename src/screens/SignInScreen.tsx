@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
+import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
@@ -56,9 +57,9 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-          </TouchableOpacity>
+          </PressableScale>
 
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>Sign in to your Axis account.</Text>
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },

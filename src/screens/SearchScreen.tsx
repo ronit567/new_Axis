@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS } from "../constants/theme";
@@ -182,7 +183,9 @@ export default function SearchScreen({ navigation }: Props) {
             style={styles.overlayBg}
             activeOpacity={1}
             onPress={() => setShowFilters(false)}
-          />
+          >
+            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          </TouchableOpacity>
           <View
             style={[
               styles.filterSheet,
@@ -450,6 +453,7 @@ const styles = StyleSheet.create({
   priceLabel: {
     fontSize: 12,
     color: COLORS.textMuted,
+    fontVariant: ["tabular-nums"],
   },
   sliderTrack: {
     height: 4,
@@ -508,6 +512,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     minWidth: 60,
     textAlign: "center",
+    fontVariant: ["tabular-nums"],
   },
   conditionRow: {
     flexDirection: "row",

@@ -298,6 +298,8 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: SIZES.borderRadiusSm,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   soldOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -332,6 +334,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '700',
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   soldLabel: {
     fontSize: SIZES.xs,

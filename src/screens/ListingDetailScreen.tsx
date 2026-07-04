@@ -9,10 +9,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, FONTS } from '../constants/theme';
 import { SELLER_ARIA } from '../data/mockListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
+import AnimatedIconToggle from '../components/AnimatedIconToggle';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
@@ -30,23 +32,26 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Top controls */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <PressableScale style={styles.iconBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={styles.topRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <PressableScale style={styles.iconBtn} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
             <Ionicons name="share-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setSaved(s => !s)}>
-            <Ionicons
-              name={saved ? 'heart' : 'heart-outline'}
+          </PressableScale>
+          <PressableScale style={styles.iconBtn} onPress={() => setSaved(s => !s)} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
+            <AnimatedIconToggle
+              active={saved}
+              activeName="heart"
+              inactiveName="heart-outline"
+              activeColor="#E63946"
+              inactiveColor={COLORS.text}
               size={20}
-              color={saved ? '#E63946' : COLORS.text}
             />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+          </PressableScale>
+          <PressableScale style={styles.iconBtn} onPress={() => setReportVisible(true)} hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }} scaleTo={0.9}>
             <Ionicons name="flag-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
 
@@ -190,6 +195,8 @@ const styles = StyleSheet.create({
     height: 260,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   dotsRow: {
     flexDirection: 'row',
@@ -218,8 +225,9 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   conditionBadge: {
     backgroundColor: '#F0EAFF',
