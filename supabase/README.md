@@ -45,8 +45,10 @@ After the tables exist, regenerate app types:
   conversation either side may still need (e.g. a pickup arrangement).
   `is_blocked()` is `SECURITY DEFINER` so it can see the reverse direction (you
   can't `select` rows where someone blocked you, but the policy still needs to
-  honor them). This is the enforcement layer; the ReportModal UI wiring is
-  AX-703.
+  honor them), and `EXECUTE` is granted to `authenticated` only — anon never
+  needs it, and granting it would let PostgREST expose it as a callable RPC that
+  lets an unauthenticated caller probe block relationships directly. This is the
+  enforcement layer; the ReportModal UI wiring is AX-703.
 - **No `CHECK` on `listings.category`** — the canonical list now lives in
   `src/constants/categories.ts` (`LISTING_CATEGORIES`) and is enforced at the app
   level. Left as free text in the DB for flexibility (adding a category shouldn't

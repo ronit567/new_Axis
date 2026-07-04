@@ -190,6 +190,21 @@ select pg_temp.assert(
 select pg_temp.assert(
   (select count(*) from public.saved_listings) = 0,
   'anon must not see any saved_listings');
+-- anon has no EXECUTE grant on is_blocked(): it's SECURITY DEFINER and
+-- PostgREST exposes any EXECUTE-granted function as an RPC, so granting it
+-- to anon would let an unauthenticated caller probe block relationships
+-- directly, bypassing RLS on the blocks table.
+do $$
+begin
+  perform public.is_blocked(
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333');
+  raise exception 'RLS TEST FAILED: anon was able to execute is_blocked() directly';
+exception
+  when insufficient_privilege then
+    null; -- expected: no EXECUTE grant for anon
+end;
+$$;
 reset role;
 
 -- If we got here, every assertion passed.

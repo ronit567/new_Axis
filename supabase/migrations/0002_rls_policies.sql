@@ -19,6 +19,13 @@
 -- of the caller's RLS (a user must be able to tell that someone blocked *them*,
 -- which the blocks_select_own policy alone would not reveal). STABLE + a pinned
 -- search_path per Supabase's SECURITY DEFINER guidance.
+--
+-- EXECUTE is granted to `authenticated` only. anon never legitimately needs
+-- it (listings_select_public short-circuits on auth.uid() is null via a CASE
+-- before it would call this), and PostgREST exposes any EXECUTE-granted
+-- function as a callable RPC — granting it to anon would let an unauthed
+-- caller probe `is_blocked(a, b)` directly and learn block relationships
+-- that bypass RLS on the blocks table.
 -- ---------------------------------------------------------------------------
 create or replace function public.is_blocked(a uuid, b uuid)
   returns boolean
@@ -36,7 +43,7 @@ as $$
 $$;
 
 revoke all on function public.is_blocked(uuid, uuid) from public;
-grant execute on function public.is_blocked(uuid, uuid) to anon, authenticated;
+grant execute on function public.is_blocked(uuid, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- profiles: public seller info — readable by anyone (needed to render listing
@@ -68,20 +75,28 @@ create policy "profiles_update_own"
 -- ---------------------------------------------------------------------------
 -- listings: active listings are browsable by anyone; the seller additionally
 -- sees their own listings in any status (e.g. 'sold' in ManageListings).
--- Blocked relationships are hidden in both directions. Only the seller mutates.
+-- Blocked relationships are hidden in both directions for signed-in viewers.
+-- Only the seller mutates.
 --
--- Predicate reads as:
---   (status='active' AND (anon OR not blocked-with-seller))  OR  own listing
--- `and` binds tighter than `or`, so owners always see their own rows and the
--- public only sees active, non-blocked ones.
+-- Predicate reads as: own listing, OR (active AND not blocked-with-seller).
+-- The not-blocked check uses CASE rather than `auth.uid() is null or
+-- not is_blocked(...)`: Postgres does not guarantee left-to-right
+-- short-circuiting of OR, but CASE WHEN/THEN *is* guaranteed to evaluate in
+-- order, so anon callers (auth.uid() is null) never actually invoke
+-- is_blocked() — which matters now that anon has no EXECUTE grant on it.
 -- ---------------------------------------------------------------------------
 create policy "listings_select_public"
   on public.listings for select
   to anon, authenticated
   using (
-    status = 'active'
-      and (auth.uid() is null or not public.is_blocked(auth.uid(), seller_id))
-    or auth.uid() = seller_id
+    auth.uid() = seller_id
+    or (
+      status = 'active'
+      and case
+            when auth.uid() is null then true
+            else not public.is_blocked(auth.uid(), seller_id)
+          end
+    )
   );
 
 create policy "listings_insert_own"
