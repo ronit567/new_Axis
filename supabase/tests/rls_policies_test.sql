@@ -21,11 +21,27 @@ begin;
 
 -- ── Fixtures ────────────────────────────────────────────────────────────────
 -- Three users: OWNER, OTHER (unrelated), BLOCKED (OWNER has blocked them).
-insert into auth.users (id, aud, role, email)
+-- Beyond (id, aud, role, email), several GoTrue versions added NOT NULL
+-- columns with no default (instance_id, encrypted_password, the
+-- confirmation/recovery/email-change tokens). These users never actually log
+-- in — identity is forced below via request.jwt.claims — so the values are
+-- inert placeholders, just present so the insert satisfies NOT NULL.
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+  created_at, updated_at,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+)
 values
-  ('11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'owner@test.uwo.ca'),
-  ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'other@test.uwo.ca'),
-  ('33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'blocked@test.uwo.ca');
+  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111',
+   'authenticated', 'authenticated', 'owner@test.uwo.ca', 'test-fixture-not-a-real-hash',
+   now(), '{}', '{}', now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '22222222-2222-2222-2222-222222222222',
+   'authenticated', 'authenticated', 'other@test.uwo.ca', 'test-fixture-not-a-real-hash',
+   now(), '{}', '{}', now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '33333333-3333-3333-3333-333333333333',
+   'authenticated', 'authenticated', 'blocked@test.uwo.ca', 'test-fixture-not-a-real-hash',
+   now(), '{}', '{}', now(), now(), '', '', '', '');
 
 insert into public.profiles (id, name) values
   ('11111111-1111-1111-1111-111111111111', 'Owner'),
