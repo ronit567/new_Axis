@@ -8,8 +8,9 @@ against a live database yet — review before applying.
 
 | File | Purpose |
 |---|---|
-| `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`), indexes, and `enable row level security` on each. |
-| `migrations/0002_rls_policies.sql` | RLS policies. Apply **after** 0001. |
+| `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`), indexes, and `enable row level security` on each. |
+| `migrations/0002_rls_policies.sql` | RLS policies + the `is_blocked()` helper. Apply **after** 0001. |
+| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests. Run **after** 0001+0002. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
@@ -19,13 +20,30 @@ against a live database yet — review before applying.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 
+After applying, run `tests/rls_policies_test.sql` (SQL editor or psql). It runs
+inside a transaction and `rollback`s, so it leaves nothing behind; it raises on
+the first failed assertion and prints `ALL RLS TESTS PASSED` on success.
+
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
 
 ## Design decisions baked in (flag if you disagree)
 
-- **`profiles` are readable by any authenticated user** — sellers' names/programs
-  are shown to buyers. All other tables are private to the owner/participants.
+- **Public read is `anon` + `authenticated`** — active listings and profiles are
+  readable even signed-out (the ticket AC: "anonymous/authed users can read
+  public/active listings"). Only `status = 'active'` listings are public; a seller
+  additionally sees their own listings in any status (e.g. `sold` in
+  ManageListings). ⚠️ This exposes student names/programs to anonymous callers —
+  to require sign-in instead, change `to anon, authenticated` → `to authenticated`
+  on the `profiles_select_public` and `listings_select_public` policies. All other
+  tables are private to the owner/participants.
+- **Blocks are enforced at the query layer.** `public.blocks` is a directed table
+  (`blocker_id` blocked `blocked_id`), but `is_blocked(a, b)` treats it as
+  **mutual** for visibility: a block hides each user's listings from the other and
+  prevents messages in either direction. `is_blocked()` is `SECURITY DEFINER` so it
+  can see the reverse direction (you can't `select` rows where someone blocked you,
+  but the policy still needs to honor them). This is the enforcement layer; the
+  ReportModal UI wiring is AX-703.
 - **No `CHECK` on `listings.category`** — the canonical list now lives in
   `src/constants/categories.ts` (`LISTING_CATEGORIES`) and is enforced at the app
   level. Left as free text in the DB for flexibility (adding a category shouldn't

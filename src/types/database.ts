@@ -2,6 +2,11 @@
 // Regenerate: npx supabase gen types typescript --project-id fznliobjdeeyhictbepl > src/types/database.ts
 // AX-102 complete: replaces the hand-written stopgap now that the project is provisioned.
 //
+// MANUAL ADDITION (pending regen): the `blocks` table + BlockRow alias were
+// hand-added alongside migration 0001/0002 (RLS block support). Re-running the
+// generator after the migration is applied will reproduce them; drop this note
+// once it does.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -16,6 +21,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           category: string | null
@@ -265,6 +303,7 @@ export type ListingRow = DefaultSchema['Tables']['listings']['Row']
 export type SavedListingRow = DefaultSchema['Tables']['saved_listings']['Row']
 export type MessageRow = DefaultSchema['Tables']['messages']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
+export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 
 export type ListingCondition = 'Like new' | 'Good' | 'Fair'
 export type ListingStatus = 'active' | 'sold'

@@ -1,15 +1,57 @@
 -- Axis — Phase 2 RLS policies (DRAFT — review before applying)
 -- Assumes 0001_initial_schema.sql has run (RLS already enabled per table).
--- Principle: authenticated users can browse public marketplace data (profiles,
--- listings) but can only write/read their own private rows.
+--
+-- Principles:
+--   * Public marketplace data (profiles + *active* listings) is readable by
+--     anyone, signed in or not (anon + authenticated).
+--   * Private rows (saved, messages, notifications, blocks) are readable and
+--     writable only by their owner/participants.
+--   * Only the owner can mutate their own profile/listing.
+--   * Blocked relationships are enforced here, at the query layer, so a block
+--     hides content even if the app forgets to filter (defense in depth).
+--
+-- Policy tests live in supabase/tests/rls_policies_test.sql (owner vs
+-- non-owner vs anon vs blocked).
 
 -- ---------------------------------------------------------------------------
--- profiles: readable by any authenticated user (seller info is shown to
--- buyers); writable only by the owner.
+-- is_blocked(a, b): true if a and b have blocked each other in *either*
+-- direction. SECURITY DEFINER so it can read the whole blocks table regardless
+-- of the caller's RLS (a user must be able to tell that someone blocked *them*,
+-- which the blocks_select_own policy alone would not reveal). STABLE + a pinned
+-- search_path per Supabase's SECURITY DEFINER guidance.
 -- ---------------------------------------------------------------------------
-create policy "profiles_select_authenticated"
+create or replace function public.is_blocked(a uuid, b uuid)
+  returns boolean
+  language sql
+  security definer
+  set search_path = public
+  stable
+as $$
+  select exists (
+    select 1
+    from public.blocks
+    where (blocker_id = a and blocked_id = b)
+       or (blocker_id = b and blocked_id = a)
+  );
+$$;
+
+revoke all on function public.is_blocked(uuid, uuid) from public;
+grant execute on function public.is_blocked(uuid, uuid) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- profiles: public seller info — readable by anyone (needed to render listing
+-- cards and seller pages, including for signed-out browsing). Writable only by
+-- the owner.
+--
+-- PRIVACY NOTE: this exposes student names/programs to fully anonymous callers.
+-- The ticket AC requires anon read of public listings, and listings show seller
+-- info, so profiles are anon-readable too. To lock browsing behind auth instead,
+-- change `to anon, authenticated` -> `to authenticated` on the two _select_
+-- policies below (profiles + listings).
+-- ---------------------------------------------------------------------------
+create policy "profiles_select_public"
   on public.profiles for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
 create policy "profiles_insert_own"
@@ -24,12 +66,23 @@ create policy "profiles_update_own"
   with check (auth.uid() = id);
 
 -- ---------------------------------------------------------------------------
--- listings: browsable by any authenticated user; only the seller can mutate.
+-- listings: active listings are browsable by anyone; the seller additionally
+-- sees their own listings in any status (e.g. 'sold' in ManageListings).
+-- Blocked relationships are hidden in both directions. Only the seller mutates.
+--
+-- Predicate reads as:
+--   (status='active' AND (anon OR not blocked-with-seller))  OR  own listing
+-- `and` binds tighter than `or`, so owners always see their own rows and the
+-- public only sees active, non-blocked ones.
 -- ---------------------------------------------------------------------------
-create policy "listings_select_authenticated"
+create policy "listings_select_public"
   on public.listings for select
-  to authenticated
-  using (true);
+  to anon, authenticated
+  using (
+    status = 'active'
+      and (auth.uid() is null or not public.is_blocked(auth.uid(), seller_id))
+    or auth.uid() = seller_id
+  );
 
 create policy "listings_insert_own"
   on public.listings for insert
@@ -66,17 +119,25 @@ create policy "saved_delete_own"
   using (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
--- messages: visible only to the two participants; only the sender can write.
+-- messages: visible only to the two participants, and only while neither has
+-- blocked the other; only the sender can write, and cannot message across a
+-- block. Deletes are the sender's own.
 -- ---------------------------------------------------------------------------
 create policy "messages_select_participant"
   on public.messages for select
   to authenticated
-  using (auth.uid() = sender_id or auth.uid() = receiver_id);
+  using (
+    (auth.uid() = sender_id or auth.uid() = receiver_id)
+    and not public.is_blocked(sender_id, receiver_id)
+  );
 
 create policy "messages_insert_sender"
   on public.messages for insert
   to authenticated
-  with check (auth.uid() = sender_id);
+  with check (
+    auth.uid() = sender_id
+    and not public.is_blocked(sender_id, receiver_id)
+  );
 
 create policy "messages_delete_sender"
   on public.messages for delete
@@ -87,7 +148,8 @@ create policy "messages_delete_sender"
 -- notifications: private to the recipient.
 -- NOTE: inserts are scoped to the owner as a placeholder. In practice
 -- notifications are usually created by DB triggers / service-role code on
--- behalf of another user — revisit when notification generation is designed.
+-- behalf of another user — revisit when notification generation is designed
+-- (AX-601/602).
 -- ---------------------------------------------------------------------------
 create policy "notifications_select_own"
   on public.notifications for select
@@ -109,3 +171,23 @@ create policy "notifications_delete_own"
   on public.notifications for delete
   to authenticated
   using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- blocks: a user manages only their own outgoing blocks. Reads are limited to
+-- rows you created (you can list who *you* blocked, not who blocked you — that
+-- asymmetry is intentional; is_blocked() enforces the reverse direction).
+-- ---------------------------------------------------------------------------
+create policy "blocks_select_own"
+  on public.blocks for select
+  to authenticated
+  using (auth.uid() = blocker_id);
+
+create policy "blocks_insert_own"
+  on public.blocks for insert
+  to authenticated
+  with check (auth.uid() = blocker_id and blocker_id <> blocked_id);
+
+create policy "blocks_delete_own"
+  on public.blocks for delete
+  to authenticated
+  using (auth.uid() = blocker_id);
