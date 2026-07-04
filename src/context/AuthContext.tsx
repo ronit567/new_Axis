@@ -42,7 +42,7 @@ async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-async function signUp(email: string, password: string): Promise<SignUpResult> {
+export async function signUp(email: string, password: string): Promise<SignUpResult> {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   // Auto-confirm projects return a live session; onAuthStateChange will swap
@@ -64,12 +64,18 @@ async function resend(email: string): Promise<void> {
   if (error) throw error;
 }
 
-// Surface a failed sign-out (e.g. offline) instead of swallowing it: if the
-// session wasn't actually cleared, don't wipe the cache and leave the user
-// stranded looking signed-out while still authenticated.
-async function signOut(): Promise<void> {
+// Logging out must ALWAYS clear the on-device session and tokens, even offline.
+// The default (global) sign-out revokes the session server-side, but that
+// network round-trip fails with no connection — and supabase-js then leaves the
+// tokens in storage, stranding the user "signed in". So on a failed global
+// sign-out, fall back to a purely-local one (no server call) to guarantee the
+// device is cleared. Only a failed *local* clear is surfaced to the caller.
+export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  if (error) {
+    const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
+    if (localError) throw localError;
+  }
   // Clear the query cache on the way out so the next user on this device can't
   // briefly see the previous user's cached data.
   queryClient.clear();
