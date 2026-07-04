@@ -105,6 +105,15 @@ select pg_temp.assert(
   (select count(*) from public.messages
     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') = 1,
   'owner must still see pre-block message history with a now-blocked user');
+-- Profiles are hidden across a block too: owner sees self + OTHER, not the
+-- now-blocked user's profile.
+select pg_temp.assert(
+  (select count(*) from public.profiles) = 2,
+  'owner should see own + unrelated profile, and NOT the blocked user''s profile');
+select pg_temp.assert(
+  (select count(*) from public.profiles
+    where id = '33333333-3333-3333-3333-333333333333') = 0,
+  'owner must not see a blocked user''s profile');
 reset role;
 
 -- ── Scenario 2: OTHER (unrelated) sees all active, non-blocked listings:
@@ -134,6 +143,10 @@ end $$;
 select pg_temp.assert(
   (select count(*) from public.saved_listings) = 0,
   'non-owner must not see another user''s saved_listings');
+-- OTHER isn't party to the owner/blocked block, so all profiles stay visible.
+select pg_temp.assert(
+  (select count(*) from public.profiles) = 3,
+  'unrelated user should see all profiles (not a party to the block)');
 reset role;
 
 -- ── Scenario 3: BLOCKED user. Mutual block hides the OWNER's active listing
@@ -153,6 +166,14 @@ select pg_temp.assert(
   (select count(*) from public.messages
     where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') = 1,
   'blocked user must still see pre-block message history with the blocker');
+-- Same profile hiding from the blocked side.
+select pg_temp.assert(
+  (select count(*) from public.profiles) = 2,
+  'blocked user should see own + unrelated profile, and NOT the blocker''s profile');
+select pg_temp.assert(
+  (select count(*) from public.profiles
+    where id = '11111111-1111-1111-1111-111111111111') = 0,
+  'blocked user must not see the blocker''s profile (mutual)');
 reset role;
 
 -- ── Scenario 4: message across a block is rejected at INSERT (WITH CHECK).
@@ -184,6 +205,9 @@ select pg_temp.assert(
 select pg_temp.assert(
   (select count(*) from public.listings where status = 'sold') = 0,
   'anon must not see sold listings');
+select pg_temp.assert(
+  (select count(*) from public.profiles) = 3,
+  'anon should see all profiles (block enforcement only applies to signed-in viewers)');
 select pg_temp.assert(
   (select count(*) from public.messages) = 0,
   'anon must not see any messages');

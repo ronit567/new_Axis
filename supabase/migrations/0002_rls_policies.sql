@@ -47,8 +47,14 @@ grant execute on function public.is_blocked(uuid, uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- profiles: public seller info — readable by anyone (needed to render listing
--- cards and seller pages, including for signed-out browsing). Writable only by
--- the owner.
+-- cards and seller pages, including for signed-out browsing), except a signed-
+-- in viewer never sees a blocked counterpart's profile (mutual, mirrors
+-- listings). Writable only by the owner.
+--
+-- NOTE: a preserved historical message thread with a now-blocked user (see
+-- messages_select_participant) will therefore render without a name/avatar
+-- for that party, since the profile lookup for their id is denied — an
+-- accepted trade-off of hiding profiles across a block.
 --
 -- PRIVACY NOTE: this exposes student names/programs to fully anonymous callers.
 -- The ticket AC requires anon read of public listings, and listings show seller
@@ -59,7 +65,13 @@ grant execute on function public.is_blocked(uuid, uuid) to authenticated;
 create policy "profiles_select_public"
   on public.profiles for select
   to anon, authenticated
-  using (true);
+  using (
+    id = auth.uid()
+    or case
+         when auth.uid() is null then true
+         else not public.is_blocked(auth.uid(), id)
+       end
+  );
 
 create policy "profiles_insert_own"
   on public.profiles for insert

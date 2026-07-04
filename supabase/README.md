@@ -39,10 +39,12 @@ After the tables exist, regenerate app types:
   tables are private to the owner/participants.
 - **Blocks are enforced at the query layer.** `public.blocks` is a directed table
   (`blocker_id` blocked `blocked_id`), but `is_blocked(a, b)` treats it as
-  **mutual** for visibility: a block hides each user's listings from the other and
-  prevents *new* messages in either direction. Existing message history between
-  the two stays readable to both — blocking stops new contact, it doesn't erase a
-  conversation either side may still need (e.g. a pickup arrangement).
+  **mutual** for visibility: a block hides each user's listings and profile from
+  the other, and prevents *new* messages in either direction. Existing message
+  history between the two stays readable to both — blocking stops new contact,
+  it doesn't erase a conversation either side may still need (e.g. a pickup
+  arrangement) — though since profiles are also hidden, that preserved thread
+  will render without a name/avatar for the now-blocked party.
   `is_blocked()` is `SECURITY DEFINER` so it can see the reverse direction (you
   can't `select` rows where someone blocked you, but the policy still needs to
   honor them), and `EXECUTE` is granted to `authenticated` only — anon never
