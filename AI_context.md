@@ -162,24 +162,28 @@ package.json               ← NO Supabase, NO TanStack Query installed yet
 ## Installed Packages (package.json — what's actually there)
 
 ```json
-"@react-navigation/bottom-tabs": "^7.18.3",
+"@react-native-async-storage/async-storage": "2.2.0",
 "@react-navigation/native": "^7.0.0",
 "@react-navigation/native-stack": "^7.0.0",
+"@supabase/supabase-js": "^2.110.0",
+"@tanstack/react-query": "^5.101.2",
+"aes-js": "^3.1.2",
 "expo": "~54.0.0",
+"expo-crypto": "~15.0.9",
 "expo-image-picker": "~17.0.11",
-"expo-linear-gradient": "~15.0.8",
+"expo-secure-store": "~15.0.8",
 "expo-status-bar": "~3.0.0",
 "react": "19.1.0",
 "react-native": "0.81.5",
 "react-native-safe-area-context": "~5.6.0",
-"react-native-screens": "~4.16.0"
+"react-native-screens": "~4.16.0",
+"react-native-url-polyfill": "^3.0.0"
 ```
 
-**These are NOT installed yet and must be added:**
-- `@supabase/supabase-js`
-- `@tanstack/react-query`
-- `expo-secure-store` (for session persistence)
-- `react-native-url-polyfill` (required by Supabase on React Native)
+Notes:
+- `react-native-screens` has no direct import — it's a required peer of `@react-navigation/native-stack`. Do not remove.
+- `aes-js` + `expo-crypto` back the `LargeSecureStore` in `src/lib/supabase.ts` (SecureStore 2KB cap workaround).
+- `@react-navigation/bottom-tabs` and `expo-linear-gradient` were removed (2026-07-04) — tabs are a custom component (`src/components/BottomTabBar.tsx`) and nothing uses gradients. Re-add only if a screen actually needs them.
 
 ---
 
