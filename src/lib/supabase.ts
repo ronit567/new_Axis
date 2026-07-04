@@ -1,4 +1,5 @@
 import 'react-native-url-polyfill/auto'
+import { AppState } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 import * as Crypto from 'expo-crypto'
@@ -78,4 +79,16 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+})
+
+// autoRefreshToken schedules background timers to keep the access token fresh so
+// a session survives cold starts and long foreground stretches. Those timers
+// should only run while the app is foregrounded — Supabase's RN guidance is to
+// drive them off AppState (this also silences the "no active AppState" warning).
+AppState.addEventListener('change', (state) => {
+  if (state === 'active') {
+    supabase.auth.startAutoRefresh()
+  } else {
+    supabase.auth.stopAutoRefresh()
+  }
 })
