@@ -119,16 +119,17 @@ create policy "saved_delete_own"
   using (auth.uid() = user_id);
 
 -- ---------------------------------------------------------------------------
--- messages: visible only to the two participants, and only while neither has
--- blocked the other; only the sender can write, and cannot message across a
--- block. Deletes are the sender's own.
+-- messages: visible to the two participants regardless of a later block —
+-- blocking stops new contact, not access to a conversation you already had
+-- (e.g. a pickup arrangement one side may still need to reference). Only the
+-- sender can write, and cannot message across a block. Deletes are the
+-- sender's own.
 -- ---------------------------------------------------------------------------
 create policy "messages_select_participant"
   on public.messages for select
   to authenticated
   using (
-    (auth.uid() = sender_id or auth.uid() = receiver_id)
-    and not public.is_blocked(sender_id, receiver_id)
+    auth.uid() = sender_id or auth.uid() = receiver_id
   );
 
 create policy "messages_insert_sender"

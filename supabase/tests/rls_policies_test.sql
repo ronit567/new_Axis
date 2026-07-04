@@ -48,6 +48,15 @@ insert into public.messages (id, listing_id, sender_id, receiver_id, body) value
    '22222222-2222-2222-2222-222222222222',
    'hi from owner to other');
 
+-- A conversation between OWNER and BLOCKED that predates the block below —
+-- used to assert the block does not retroactively erase message history.
+insert into public.messages (id, listing_id, sender_id, receiver_id, body) values
+  ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+   'cccccccc-cccc-cccc-cccc-cccccccccccc',
+   '33333333-3333-3333-3333-333333333333',
+   '11111111-1111-1111-1111-111111111111',
+   'hi before the block, e.g. a pickup arrangement');
+
 -- OWNER blocks BLOCKED.
 insert into public.blocks (blocker_id, blocked_id)
   values ('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333');
@@ -74,6 +83,12 @@ select pg_temp.assert(
   (select count(*) from public.listings
     where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc') = 0,
   'owner must not see a blocked user''s listing');
+-- Blocking hides new contact, not history: the owner can still read the
+-- pre-block conversation with the now-blocked user.
+select pg_temp.assert(
+  (select count(*) from public.messages
+    where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') = 1,
+  'owner must still see pre-block message history with a now-blocked user');
 reset role;
 
 -- ── Scenario 2: OTHER (unrelated) sees all active, non-blocked listings:
@@ -117,6 +132,11 @@ select pg_temp.assert(
   (select count(*) from public.listings
     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 0,
   'blocked user must not see the blocker''s listing (mutual)');
+-- Same history preserved from the blocked side.
+select pg_temp.assert(
+  (select count(*) from public.messages
+    where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee') = 1,
+  'blocked user must still see pre-block message history with the blocker');
 reset role;
 
 -- ── Scenario 4: message across a block is rejected at INSERT (WITH CHECK).

@@ -40,10 +40,13 @@ After the tables exist, regenerate app types:
 - **Blocks are enforced at the query layer.** `public.blocks` is a directed table
   (`blocker_id` blocked `blocked_id`), but `is_blocked(a, b)` treats it as
   **mutual** for visibility: a block hides each user's listings from the other and
-  prevents messages in either direction. `is_blocked()` is `SECURITY DEFINER` so it
-  can see the reverse direction (you can't `select` rows where someone blocked you,
-  but the policy still needs to honor them). This is the enforcement layer; the
-  ReportModal UI wiring is AX-703.
+  prevents *new* messages in either direction. Existing message history between
+  the two stays readable to both — blocking stops new contact, it doesn't erase a
+  conversation either side may still need (e.g. a pickup arrangement).
+  `is_blocked()` is `SECURITY DEFINER` so it can see the reverse direction (you
+  can't `select` rows where someone blocked you, but the policy still needs to
+  honor them). This is the enforcement layer; the ReportModal UI wiring is
+  AX-703.
 - **No `CHECK` on `listings.category`** — the canonical list now lives in
   `src/constants/categories.ts` (`LISTING_CATEGORIES`) and is enforced at the app
   level. Left as free text in the DB for flexibility (adding a category shouldn't
