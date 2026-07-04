@@ -21,6 +21,7 @@ export default function PressableScale({ scaleTo = 0.96, style, children, disabl
 
   return (
     <Pressable
+      style={style}
       onPressIn={(e) => {
         if (!disabled) animateTo(scaleTo);
         rest.onPressIn?.(e);
@@ -32,7 +33,7 @@ export default function PressableScale({ scaleTo = 0.96, style, children, disabl
       disabled={disabled}
       {...rest}
     >
-      <Animated.View style={[style, { transform: [{ scale }] }]}>
+      <Animated.View style={{ transform: [{ scale }] }}>
         {children}
       </Animated.View>
     </Pressable>
