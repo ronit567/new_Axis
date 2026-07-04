@@ -1,12 +1,13 @@
 // Auth action tests: sign-up result routing and offline-safe sign-out.
 //
-// The action functions close over the `supabase` and `queryClient` singletons,
-// so we mock both modules and assert the observable effects (what supabase call
-// was made, whether the cache was cleared).
+// signUp closes over the `supabase` singleton. signOut is defined in
+// QueryProvider (re-exported from AuthContext) since it also needs the real
+// queryClient — we mock supabase and spy on queryClient.clear to assert the
+// observable effects (what supabase call was made, whether the cache was
+// cleared) without touching a live network or device keychain.
 
 const mockSignOut = jest.fn();
 const mockSignUp = jest.fn();
-const mockClear = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -17,16 +18,17 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-jest.mock('../../providers/QueryProvider', () => ({
-  queryClient: { clear: () => mockClear() },
-}));
-
 import { signUp, signOut } from '../AuthContext';
+import { queryClient } from '../../providers/QueryProvider';
 
 beforeEach(() => {
   mockSignOut.mockReset();
   mockSignUp.mockReset();
-  mockClear.mockReset();
+  jest.spyOn(queryClient, 'clear').mockImplementation(() => {});
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('signUp result routing', () => {
@@ -57,7 +59,7 @@ describe('signOut clears the device and cache', () => {
     await signOut();
     expect(mockSignOut).toHaveBeenCalledTimes(1);
     expect(mockSignOut).toHaveBeenCalledWith(); // global scope = no args
-    expect(mockClear).toHaveBeenCalledTimes(1);
+    expect(queryClient.clear).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to a local sign-out when the global (server) call fails offline, and still clears the cache', async () => {
@@ -66,7 +68,7 @@ describe('signOut clears the device and cache', () => {
       .mockResolvedValueOnce({ error: null }); // local fallback
     await signOut();
     expect(mockSignOut).toHaveBeenNthCalledWith(2, { scope: 'local' });
-    expect(mockClear).toHaveBeenCalledTimes(1);
+    expect(queryClient.clear).toHaveBeenCalledTimes(1);
   });
 
   it('throws and does NOT clear the cache when even the local clear fails', async () => {
@@ -74,6 +76,6 @@ describe('signOut clears the device and cache', () => {
       .mockResolvedValueOnce({ error: new Error('network request failed') }) // global
       .mockResolvedValueOnce({ error: new Error('keychain locked') }); // local fallback
     await expect(signOut()).rejects.toThrow('keychain locked');
-    expect(mockClear).not.toHaveBeenCalled();
+    expect(queryClient.clear).not.toHaveBeenCalled();
   });
 });

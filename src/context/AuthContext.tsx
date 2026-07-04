@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { queryClient } from '../providers/QueryProvider';
+import { signOut } from '../providers/QueryProvider';
 
 /**
  * Outcome of a sign-up attempt, so the caller can route correctly instead of
@@ -34,8 +34,9 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
 };
 
-// Auth actions close only over module singletons (supabase, queryClient), so
-// they're defined once at module scope rather than rebuilt on every render.
+// Auth actions close only over module singletons (supabase, and — for
+// signOut, imported above — queryClient), so they're defined once at module
+// scope rather than rebuilt on every render.
 
 async function signIn(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -64,22 +65,12 @@ async function resend(email: string): Promise<void> {
   if (error) throw error;
 }
 
-// Logging out must ALWAYS clear the on-device session and tokens, even offline.
-// The default (global) sign-out revokes the session server-side, but that
-// network round-trip fails with no connection — and supabase-js then leaves the
-// tokens in storage, stranding the user "signed in". So on a failed global
-// sign-out, fall back to a purely-local one (no server call) to guarantee the
-// device is cleared. Only a failed *local* clear is surfaced to the caller.
-export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
-    if (localError) throw localError;
-  }
-  // Clear the query cache on the way out so the next user on this device can't
-  // briefly see the previous user's cached data.
-  queryClient.clear();
-}
+// The offline-safe signOut (global call with a local-only fallback, then a
+// query-cache clear) is defined in QueryProvider — it owns queryClient, and
+// its 401 handler needs to call this exact function too, so a 401 while
+// offline gets the same guarantee-cleared treatment as an explicit sign-out.
+// Re-exported here as part of the public auth API.
+export { signOut };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
