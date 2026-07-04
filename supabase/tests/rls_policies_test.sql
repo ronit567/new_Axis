@@ -114,6 +114,19 @@ select pg_temp.assert(
   (select count(*) from public.profiles
     where id = '33333333-3333-3333-3333-333333333333') = 0,
   'owner must not see a blocked user''s profile');
+-- Sanity check on is_blocked()'s caller-must-be-a-party gate: a legitimate
+-- caller who *is* one of the two parties still gets the real answer, in
+-- either argument order.
+select pg_temp.assert(
+  (select public.is_blocked(
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333')) = true,
+  'owner (as first arg) must get the real block status with a party they''re blocking');
+select pg_temp.assert(
+  (select public.is_blocked(
+    '33333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111')) = true,
+  'owner (as second arg) must get the real block status with a party they''re blocking');
 reset role;
 
 -- ── Scenario 2: OTHER (unrelated) sees all active, non-blocked listings:
@@ -147,6 +160,14 @@ select pg_temp.assert(
 select pg_temp.assert(
   (select count(*) from public.profiles) = 3,
   'unrelated user should see all profiles (not a party to the block)');
+-- OTHER cannot probe the OWNER/BLOCKED relationship: is_blocked() requires
+-- the caller to be one of the two parties, so this must return false even
+-- though OWNER and BLOCKED really are blocked.
+select pg_temp.assert(
+  (select public.is_blocked(
+    '11111111-1111-1111-1111-111111111111',
+    '33333333-3333-3333-3333-333333333333')) = false,
+  'unrelated caller must not learn the block status of two other users');
 reset role;
 
 -- ── Scenario 3: BLOCKED user. Mutual block hides the OWNER's active listing

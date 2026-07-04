@@ -20,12 +20,21 @@
 -- which the blocks_select_own policy alone would not reveal). STABLE + a pinned
 -- search_path per Supabase's SECURITY DEFINER guidance.
 --
+-- Requires the caller to be one of the two parties (auth.uid() = a or b): every
+-- policy that calls this always passes the caller as one side (auth.uid() vs.
+-- seller_id/id, or sender_id which the WITH CHECK also pins to auth.uid()), so
+-- this is a no-op for legitimate use. Without it, PostgREST exposes this
+-- EXECUTE-granted function as a callable RPC, and any authenticated user could
+-- call is_blocked(userB, userC) for two arbitrary *other* users and learn
+-- their block relationship, bypassing blocks_select_own entirely. When the
+-- caller isn't a party, this returns false unconditionally rather than the
+-- real relationship.
+--
 -- EXECUTE is granted to `authenticated` only. anon never legitimately needs
--- it (listings_select_public short-circuits on auth.uid() is null via a CASE
--- before it would call this), and PostgREST exposes any EXECUTE-granted
--- function as a callable RPC — granting it to anon would let an unauthed
--- caller probe `is_blocked(a, b)` directly and learn block relationships
--- that bypass RLS on the blocks table.
+-- it (listings/profiles select policies short-circuit on auth.uid() is null
+-- via a CASE before it would call this), and PostgREST exposes any
+-- EXECUTE-granted function as a callable RPC — granting it to anon would let
+-- an unauthed caller probe `is_blocked(a, b)` directly.
 -- ---------------------------------------------------------------------------
 create or replace function public.is_blocked(a uuid, b uuid)
   returns boolean
@@ -37,8 +46,11 @@ as $$
   select exists (
     select 1
     from public.blocks
-    where (blocker_id = a and blocked_id = b)
-       or (blocker_id = b and blocked_id = a)
+    where (auth.uid() = a or auth.uid() = b)
+      and (
+        (blocker_id = a and blocked_id = b)
+        or (blocker_id = b and blocked_id = a)
+      )
   );
 $$;
 
