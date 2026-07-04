@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -15,12 +15,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { COLORS } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
+import { ListingCondition } from "../types/database";
+import { useSearchListings } from "../hooks/useListings";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
 import EmptyState from "../components/EmptyState";
-import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
@@ -34,28 +35,17 @@ export default function SearchScreen({ navigation }: Props) {
   const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
   const [condition, setCondition] = useState("Like new");
   const [priceMax, setPriceMax] = useState(80);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
-  };
-
-  const results = LISTINGS.filter((l) => {
-    const matchQuery =
-      !query || l.title.toLowerCase().includes(query.toLowerCase());
-    const matchCat =
-      selectedCategories.length === 0 ||
-      selectedCategories.includes(l.category);
-    return matchQuery && matchCat;
+  const {
+    data: results = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useSearchListings(query, {
+    categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+    priceMax,
+    condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
 
   const toggleCategory = (cat: string) =>
@@ -138,10 +128,10 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
-      ) : hasError ? (
+      ) : isError ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : (
         <FlatList
