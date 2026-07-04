@@ -1,0 +1,161 @@
+// ListingRepository.getAll (AX-201): the only real query in this repository so
+// far. Mocks `supabase.from(...)` as a thenable chain (mirrors how the real
+// PostgrestFilterBuilder resolves) so we can assert the query shape — active
+// only, newest first, category filter, offset pagination — without a live DB.
+
+import type { ListingRow, ProfileRow } from '../../types/database';
+
+type QueryResult<T> = { data: T | null; error: unknown };
+
+function makeQueryBuilder<T>(result: QueryResult<T>) {
+  const builder: any = {
+    select: jest.fn(() => builder),
+    eq: jest.fn(() => builder),
+    order: jest.fn(() => builder),
+    range: jest.fn(() => builder),
+    in: jest.fn(() => builder),
+    then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
+  };
+  return builder;
+}
+
+const mockFrom = jest.fn();
+
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+  },
+}));
+
+import { ListingRepository, LISTINGS_PAGE_SIZE } from '../ListingRepository';
+
+const seller: ProfileRow = {
+  id: 'seller-1',
+  name: 'Aria K.',
+  initials: 'AK',
+  program: 'BMOS',
+  year: 2,
+  location: 'Elgin Hall',
+  avatar_url: null,
+  avatar_color: '#5C2D91',
+  verified: true,
+  reply_time: '~1h',
+  created_at: '2024-09-15T10:00:00.000Z',
+};
+
+function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
+  return {
+    id: 'l1',
+    seller_id: seller.id,
+    title: 'Organic Chem 2 textbook',
+    description: 'Great condition.',
+    price: 45,
+    is_free: false,
+    is_trade: false,
+    condition: 'Good',
+    category: 'Textbooks',
+    pickup: 'UCC, Room 110',
+    image_urls: [],
+    status: 'active',
+    views: 22,
+    created_at: '2026-06-29T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function mockQueries(opts: {
+  listings: QueryResult<ListingRow[]>;
+  sellers?: QueryResult<ProfileRow[]>;
+  saved?: QueryResult<{ listing_id: string }[]>;
+}) {
+  const listingsBuilder = makeQueryBuilder(opts.listings);
+  const sellersBuilder = makeQueryBuilder(opts.sellers ?? { data: [], error: null });
+  const savedBuilder = makeQueryBuilder(opts.saved ?? { data: [], error: null });
+
+  mockFrom.mockImplementation((table: string) => {
+    if (table === 'listings') return listingsBuilder;
+    if (table === 'profiles') return sellersBuilder;
+    if (table === 'saved_listings') return savedBuilder;
+    throw new Error(`Unexpected table: ${table}`);
+  });
+
+  return { listingsBuilder, sellersBuilder, savedBuilder };
+}
+
+beforeEach(() => {
+  mockFrom.mockReset();
+});
+
+describe('ListingRepository.getAll', () => {
+  it('queries active listings newest-first with default pagination', async () => {
+    const { listingsBuilder } = mockQueries({
+      listings: { data: [makeListingRow()], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    await ListingRepository.getAll('user-1');
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+    expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(listingsBuilder.range).toHaveBeenCalledWith(0, LISTINGS_PAGE_SIZE - 1);
+    expect(listingsBuilder.eq).not.toHaveBeenCalledWith('category', expect.anything());
+  });
+
+  it('filters by category when provided and offsets by page', async () => {
+    const { listingsBuilder } = mockQueries({
+      listings: { data: [], error: null },
+    });
+
+    await ListingRepository.getAll('user-1', { category: 'Furniture', offset: 40, limit: 20 });
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('category', 'Furniture');
+    expect(listingsBuilder.range).toHaveBeenCalledWith(40, 59);
+  });
+
+  it('maps rows to Listings with per-user saved status', async () => {
+    const rowA = makeListingRow({ id: 'l1' });
+    const rowB = makeListingRow({ id: 'l2', title: 'Desk lamp' });
+    mockQueries({
+      listings: { data: [rowA, rowB], error: null },
+      sellers: { data: [seller], error: null },
+      saved: { data: [{ listing_id: 'l2' }], error: null },
+    });
+
+    const result = await ListingRepository.getAll('user-1');
+
+    expect(result).toHaveLength(2);
+    expect(result.find((l) => l.id === 'l1')?.saved).toBe(false);
+    expect(result.find((l) => l.id === 'l2')?.saved).toBe(true);
+  });
+
+  it('returns an empty array without querying sellers/saved when there are no listings', async () => {
+    const { sellersBuilder, savedBuilder } = mockQueries({
+      listings: { data: [], error: null },
+    });
+
+    const result = await ListingRepository.getAll('user-1');
+
+    expect(result).toEqual([]);
+    expect(sellersBuilder.select).not.toHaveBeenCalled();
+    expect(savedBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('skips rows whose seller lookup is missing instead of throwing', async () => {
+    mockQueries({
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: [], error: null },
+    });
+
+    const result = await ListingRepository.getAll('user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('throws when the listings query errors', async () => {
+    mockQueries({
+      listings: { data: null, error: new Error('network down') },
+    });
+
+    await expect(ListingRepository.getAll('user-1')).rejects.toThrow('network down');
+  });
+});

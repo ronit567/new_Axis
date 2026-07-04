@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase'
+import { toListing } from './mappers'
 import { Listing } from '../types'
 
 export type CreateListingInput = {
@@ -12,11 +14,63 @@ export type CreateListingInput = {
   image_urls: string[]
 }
 
-// Placeholder methods — real Supabase queries land in Phase 2. The shape here
-// is the contract screens/hooks build against so nothing imports supabase directly.
+export type GetAllListingsOptions = {
+  category?: string
+  limit?: number
+  offset?: number
+}
+
+// AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
+export const LISTINGS_PAGE_SIZE = 20
+
+// getAll is real (AX-201); the rest stay placeholders until their tickets
+// (AX-203, AX-202, AX-302) land. The shape here is the contract screens/hooks
+// build against so nothing imports supabase directly.
 export const ListingRepository = {
-  async getAll(category?: string): Promise<Listing[]> {
-    return []
+  async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<Listing[]> {
+    const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
+
+    let query = supabase
+      .from('listings')
+      .select('*')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (category) {
+      query = query.eq('category', category)
+    }
+
+    const { data: rows, error } = await query
+    if (error) throw error
+    if (!rows || rows.length === 0) return []
+
+    const sellerIds = [...new Set(rows.map((row) => row.seller_id))]
+    const [{ data: sellers, error: sellersError }, { data: savedRows, error: savedError }] =
+      await Promise.all([
+        supabase.from('profiles').select('*').in('id', sellerIds),
+        supabase
+          .from('saved_listings')
+          .select('listing_id')
+          .eq('user_id', userId)
+          .in(
+            'listing_id',
+            rows.map((row) => row.id),
+          ),
+      ])
+    if (sellersError) throw sellersError
+    if (savedError) throw savedError
+
+    const sellerById = new Map((sellers ?? []).map((seller) => [seller.id, seller]))
+    const savedIds = new Set((savedRows ?? []).map((row) => row.listing_id))
+
+    // seller_id is a NOT NULL FK, so a missing seller would mean a broken
+    // reference — skip rather than crash the whole feed over one bad row.
+    return rows.reduce<Listing[]>((acc, row) => {
+      const seller = sellerById.get(row.seller_id)
+      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
+      return acc
+    }, [])
   },
   async getById(id: string): Promise<Listing | null> {
     return null

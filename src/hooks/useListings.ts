@@ -1,17 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ListingRepository,
   CreateListingInput,
+  LISTINGS_PAGE_SIZE,
 } from '../repositories/ListingRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
-// Browse feed. Gated on auth because listings RLS requires an authenticated user.
+// Home feed. Gated on auth because listings RLS requires an authenticated user.
+// Offset-paginated so pull-to-refresh/onEndReached hit real queries instead of
+// fetching everything at once (further FlatList/perf tuning is AX-905).
 export function useListings(category?: string) {
   const { user } = useAuth()
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.listings(category),
-    queryFn: () => ListingRepository.getAll(category),
+    queryFn: ({ pageParam }) => {
+      if (!user) return []
+      return ListingRepository.getAll(user.id, {
+        category,
+        limit: LISTINGS_PAGE_SIZE,
+        offset: pageParam,
+      })
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
     enabled: !!user,
   })
 }

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -17,7 +19,7 @@ import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import { LISTINGS } from '../data/mockListings';
+import { useListings } from '../hooks/useListings';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -31,14 +33,21 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const category = activeCategory === 'All' ? undefined : activeCategory;
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useListings(category);
+
+  const listings = data?.pages.flat() ?? [];
 
   useEffect(() => {
     const anim = Animated.loop(
@@ -52,16 +61,9 @@ export default function HomeScreen({ navigation }: Props) {
     return () => anim.stop();
   }, [isLoading, pulseAnim]);
 
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
-
-  const filtered =
-    activeCategory === 'All'
-      ? LISTINGS
-      : LISTINGS.filter(l => l.category === activeCategory);
 
   const toggleSave = (id: string) =>
     setSavedIds(prev =>
@@ -85,6 +87,12 @@ export default function HomeScreen({ navigation }: Props) {
       </TouchableOpacity>
     </View>
   );
+
+  const ListFooter = isFetchingNextPage ? (
+    <View style={styles.footerLoading}>
+      <ActivityIndicator color={COLORS.primary} />
+    </View>
+  ) : null;
 
   return (
     <View style={styles.safe}>
@@ -171,22 +179,23 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           ))}
         </ScrollView>
-      ) : hasError ? (
+      ) : isError && listings.length === 0 ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : (
         <FlatList
           style={styles.contentArea}
-          data={filtered}
+          data={listings}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={filtered.length > 0 ? ListHeader : null}
+          ListHeaderComponent={listings.length > 0 ? ListHeader : null}
+          ListFooterComponent={ListFooter}
           ListEmptyComponent={
             <EmptyState
               icon="storefront-outline"
@@ -195,6 +204,16 @@ export default function HomeScreen({ navigation }: Props) {
               onCta={() => setActiveCategory('All')}
             />
           }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching && !isFetchingNextPage}
+              onRefresh={refetch}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
+          onEndReachedThreshold={0.4}
+          onEndReached={loadMore}
         />
       )}
     </View>
@@ -366,5 +385,9 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  footerLoading: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
 });
