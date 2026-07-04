@@ -10,11 +10,12 @@ against a live database yet — review before applying.
 |---|---|
 | `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`), indexes, and `enable row level security` on each. |
 | `migrations/0002_rls_policies.sql` | RLS policies. Apply **after** 0001. |
+| `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets and their `storage.objects` policies (authenticated upload to own prefix, public read, owner-only delete). |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
-- **Via the Supabase MCP server** (preferred): run `0001` then `0002`, then
+- **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, then
   `health_check.sql`. I can drive this directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
@@ -44,4 +45,11 @@ After the tables exist, regenerate app types:
   insert the profile explicitly (via `ProfileRepository.upsert`). If you'd rather
   auto-create a stub profile on `auth.users` insert, that's a one-trigger add —
   say the word.
-- No Storage bucket for listing images yet (Phase 2, item 6).
+- Buckets are created `public` (unsigned public URLs work) *and* carry an
+  explicit `select` policy on `storage.objects`, since the storage API itself
+  is still subject to RLS regardless of the bucket's public flag.
+- No update policy on either bucket — a replaced image/avatar is a delete +
+  insert client-side, not an in-place overwrite.
+- `StorageRepository.uploadListingImages`, compression, upload progress, and
+  the avatar upload UI are separate (AX-401 / AX-403) — this migration is only
+  the bucket + policy layer.
