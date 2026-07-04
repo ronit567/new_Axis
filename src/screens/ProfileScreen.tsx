@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: SIZES.xl,
     fontWeight: '700',
-    color: '#5C2D91',
+    color: COLORS.primary,
   },
   nameRow: {
     flexDirection: 'row',

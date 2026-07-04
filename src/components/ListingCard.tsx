@@ -30,7 +30,7 @@ export default function ListingCard({ item, onPress, onSave, style }: Props) {
             active={!!item.saved}
             activeName="heart"
             inactiveName="heart-outline"
-            activeColor="#E63946"
+            activeColor={COLORS.like}
             inactiveColor="rgba(0,0,0,0.28)"
             size={16}
           />
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#E63946',
+    backgroundColor: COLORS.like,
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,

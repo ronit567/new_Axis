@@ -218,7 +218,7 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
   },
   purpleHeader: {
     borderBottomLeftRadius: 28,
@@ -277,13 +277,13 @@ const styles = StyleSheet.create({
   },
   bellDot: {
     position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-    borderWidth: 1.5,
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.error,
+    borderWidth: 2,
     borderColor: COLORS.primary,
   },
   searchRow: {
@@ -301,11 +301,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    ...SHADOWS.card,
   },
   searchPlaceholder: {
     flex: 1,
@@ -336,7 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E4E4E4',
+    borderColor: COLORS.inputBorder,
   },
   catChipActive: {
     backgroundColor: COLORS.primary,

@@ -18,6 +18,8 @@ export const COLORS = {
   success: '#34C759',
   error: '#FF3B30',
   warning: '#F5A623',
+  like: '#E63946',
+  successSoft: '#E8F5E9',
   divider: '#F0F0F0',
   stepActive: '#5C2D91',
   stepInactive: '#D9D9D9',

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import BottomTabBar, { TabName } from '../components/BottomTabBar';
+import { COLORS } from '../constants/theme';
 import HomeScreen from './HomeScreen';
 import SavedScreen from './SavedScreen';
 import MessagesScreen from './MessagesScreen';
@@ -47,7 +48,7 @@ export default function MainScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
   },
   content: {
     flex: 1,

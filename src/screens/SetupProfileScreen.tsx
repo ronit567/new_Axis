@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   dropdownItemSelected: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
   },
   dropdownItemText: {
     fontSize: SIZES.base,

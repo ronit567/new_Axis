@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Switch,
   Modal,
@@ -13,13 +12,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { ComponentProps } from 'react';
 import { BlurView } from 'expo-blur';
-import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import { useAuth } from '../context/AuthContext';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
+
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
 function SectionLabel({ title, highlight }: { title: string; highlight?: boolean }) {
   if (highlight) {
@@ -40,28 +44,68 @@ function SectionLabel({ title, highlight }: { title: string; highlight?: boolean
   );
 }
 
-function RowItem({ label, value, onPress }: { label: string; value?: string; onPress?: () => void }) {
+function RowItem({
+  icon,
+  label,
+  value,
+  onPress,
+}: {
+  icon: IoniconsName;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+}) {
   return (
-    <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={onPress}>
-      <Text style={styles.rowLabel}>{label}</Text>
+    <PressableScale
+      style={styles.row}
+      onPress={() => {
+        haptics.tap();
+        onPress?.();
+      }}
+      scaleTo={0.98}
+    >
+      <View style={styles.rowLeft}>
+        <View style={styles.rowIconBox}>
+          <Ionicons name={icon} size={16} color={COLORS.primary} />
+        </View>
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
       <View style={styles.rowRight}>
         {value != null && <Text style={styles.rowValue}>{value}</Text>}
         <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
-function ToggleRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+function ToggleRow({
+  icon,
+  label,
+  value,
+  onValueChange,
+}: {
+  icon: IoniconsName;
+  label: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowLeft}>
+        <View style={styles.rowIconBox}>
+          <Ionicons name={icon} size={16} color={COLORS.primary} />
+        </View>
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
       <Switch
         value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: '#E0E0E0', true: COLORS.primary }}
+        onValueChange={v => {
+          haptics.tap();
+          onValueChange(v);
+        }}
+        trackColor={{ false: COLORS.inputBorder, true: COLORS.primary }}
         thumbColor={COLORS.white}
-        ios_backgroundColor="#E0E0E0"
+        ios_backgroundColor={COLORS.inputBorder}
       />
     </View>
   );
@@ -110,6 +154,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
       {/* ── Header ── */}
       <View style={styles.header}>
         <PressableScale
@@ -117,10 +162,13 @@ export default function SettingsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
         <Text style={styles.headerTitle}>Settings</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -130,70 +178,88 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* ── ACCOUNT ── */}
         <SectionLabel title="ACCOUNT" />
         <View style={styles.card}>
-          <RowItem label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
+          <RowItem icon="create-outline" label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
           <RowDivider />
-          <RowItem label="Change password" />
+          <RowItem icon="key-outline" label="Change password" />
           <RowDivider />
-          <RowItem label="Payment & payouts" />
+          <RowItem icon="card-outline" label="Payment & payouts" />
         </View>
 
         {/* ── PREFERENCES ── */}
         <SectionLabel title="PREFERENCES" highlight />
         <View style={styles.card}>
           <ToggleRow
+            icon="notifications-outline"
             label="Push notifications"
             value={pushNotif}
             onValueChange={setPushNotif}
           />
           <RowDivider />
-          <RowItem label="Default pickup area" value="UCC" />
+          <RowItem icon="location-outline" label="Default pickup area" value="UCC" />
         </View>
 
         {/* ── PRIVACY & SAFETY ── */}
         <SectionLabel title="PRIVACY & SAFETY" />
         <View style={styles.card}>
-          <RowItem label="Blocked users" />
+          <RowItem icon="ban-outline" label="Blocked users" />
         </View>
 
         {/* ── LEGAL ── */}
         <SectionLabel title="LEGAL" />
         <View style={styles.card}>
           <RowItem
+            icon="document-text-outline"
             label="Privacy policy"
             onPress={() => navigation.navigate('PrivacyPolicy')}
           />
           <RowDivider />
           <RowItem
+            icon="reader-outline"
             label="Terms of service"
             onPress={() => navigation.navigate('TermsOfService')}
           />
           <RowDivider />
           <RowItem
+            icon="people-outline"
             label="Community guidelines"
             onPress={() => navigation.navigate('CommunityGuidelines')}
           />
         </View>
 
         {/* ── Log out ── */}
-        <TouchableOpacity
+        <PressableScale
           style={styles.logoutCard}
-          activeOpacity={0.8}
-          onPress={handleSignOut}
+          onPress={() => {
+            haptics.impact();
+            handleSignOut();
+          }}
+          scaleTo={0.98}
         >
+          <View style={styles.logoutIconBox}>
+            <Ionicons name="log-out-outline" size={16} color={COLORS.error} />
+          </View>
           <Text style={styles.logoutText}>Log out</Text>
-        </TouchableOpacity>
+        </PressableScale>
 
         {/* ── DANGER ZONE ── */}
         <SectionLabel title="DANGER ZONE" />
         <View style={styles.card}>
-          <TouchableOpacity
+          <PressableScale
             style={styles.row}
-            activeOpacity={0.7}
-            onPress={() => setDeleteModalVisible(true)}
+            onPress={() => {
+              haptics.tap();
+              setDeleteModalVisible(true);
+            }}
+            scaleTo={0.98}
           >
-            <Text style={styles.dangerRowLabel}>Delete account</Text>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
+            <View style={styles.rowLeft}>
+              <View style={styles.dangerIconBox}>
+                <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+              </View>
+              <Text style={styles.dangerRowLabel}>Delete account</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.error} />
+          </PressableScale>
         </View>
       </ScrollView>
 
@@ -224,22 +290,28 @@ export default function SettingsScreen({ navigation }: Props) {
               autoCorrect={false}
             />
 
-            <TouchableOpacity
+            <PressableScale
               style={[styles.deleteButton, !canDelete && styles.deleteButtonDisabled]}
-              activeOpacity={0.8}
               disabled={!canDelete}
-              onPress={handleDeleteAccount}
+              onPress={() => {
+                haptics.impact();
+                handleDeleteAccount();
+              }}
+              scaleTo={0.97}
             >
               <Text style={styles.deleteButtonText}>Permanently delete account</Text>
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               style={styles.cancelButton}
-              activeOpacity={0.7}
-              onPress={closeDeleteModal}
+              onPress={() => {
+                haptics.tap();
+                closeDeleteModal();
+              }}
+              scaleTo={0.97}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </Modal>
@@ -250,13 +322,14 @@ export default function SettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F7F7F7',
+    backgroundColor: COLORS.background,
   },
 
   /* header */
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
     backgroundColor: COLORS.white,
@@ -264,11 +337,19 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   backBtn: {
-    marginRight: 6,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSpacer: {
+    width: 38,
   },
   headerTitle: {
     fontSize: SIZES.lg,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
 
@@ -285,12 +366,12 @@ const styles = StyleSheet.create({
   },
   sectionLabelText: {
     fontSize: SIZES.xs,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
   sectionLabelPill: {
-    backgroundColor: '#EDE8FF',
+    backgroundColor: COLORS.primaryTint,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -304,7 +385,7 @@ const styles = StyleSheet.create({
   /* card */
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 16,
     paddingHorizontal: 16,
     marginBottom: 20,
     ...SHADOWS.card,
@@ -315,7 +396,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 13,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  rowIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowLabel: {
     fontSize: SIZES.base,
@@ -338,12 +433,23 @@ const styles = StyleSheet.create({
 
   /* logout */
   logoutCard: {
+    flexDirection: 'row',
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     marginBottom: 28,
     ...SHADOWS.card,
+  },
+  logoutIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,59,48,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
     fontSize: SIZES.base,
@@ -352,6 +458,14 @@ const styles = StyleSheet.create({
   },
 
   /* danger zone */
+  dangerIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,59,48,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dangerRowLabel: {
     fontSize: SIZES.base,
     fontWeight: '600',
@@ -362,7 +476,7 @@ const styles = StyleSheet.create({
   /* delete modal */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -370,12 +484,12 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 20,
     padding: 20,
   },
   modalTitle: {
     fontSize: SIZES.lg,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 10,
   },
@@ -410,7 +524,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteButtonDisabled: {
-    opacity: 0.4,
+    opacity: 0.5,
   },
   deleteButtonText: {
     fontSize: SIZES.base,

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -12,9 +11,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
+import PressableScale from '../components/PressableScale';
+import InputField from '../components/InputField';
+import PrimaryButton from '../components/PrimaryButton';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -41,21 +45,37 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [pickupArea, setPickupArea] = useState('UCC');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
+  const [bioFocused, setBioFocused] = useState(false);
+
   const handleSave = () => {
+    haptics.impact();
     navigation.goBack();
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <PressableScale
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
         <Text style={styles.headerTitle}>Edit profile</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.headerBtn}>
+        <PressableScale
+          style={styles.saveHeaderBtn}
+          onPress={handleSave}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          scaleTo={0.92}
+        >
           <Text style={styles.saveText}>Save</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <KeyboardAvoidingView
@@ -75,47 +95,54 @@ export default function EditProfileScreen({ navigation }: Props) {
                 <Ionicons name="camera" size={13} color={COLORS.white} />
               </View>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <PressableScale
+              onPress={() => haptics.tap()}
+              scaleTo={0.94}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <Text style={styles.changePhoto}>Change photo</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           {/* Full name */}
-          <Text style={styles.fieldLabel}>Full name</Text>
-          <TextInput
-            style={styles.input}
+          <InputField
+            label="Full name"
             value={name}
             onChangeText={setName}
             placeholder="Your name"
-            placeholderTextColor={COLORS.textMuted}
             autoCapitalize="words"
           />
 
           {/* Program */}
           <Text style={styles.fieldLabel}>Program</Text>
-          <TouchableOpacity
+          <PressableScale
             style={styles.dropdown}
-            onPress={() => setShowProgramPicker(!showProgramPicker)}
-            activeOpacity={0.8}
+            onPress={() => {
+              haptics.tap();
+              setShowProgramPicker(!showProgramPicker);
+            }}
+            scaleTo={0.98}
           >
             <Text style={styles.dropdownText}>{program}</Text>
             <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          </PressableScale>
           {showProgramPicker && (
             <View style={styles.dropdownList}>
               {PROGRAMS.map(p => (
-                <TouchableOpacity
+                <PressableScale
                   key={p}
                   style={[styles.dropdownItem, p === program ? styles.dropdownItemActive : null]}
                   onPress={() => {
+                    haptics.tap();
                     setProgram(p);
                     setShowProgramPicker(false);
                   }}
+                  scaleTo={0.98}
                 >
                   <Text style={[styles.dropdownItemText, p === program ? styles.dropdownItemTextActive : null]}>
                     {p}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
             </View>
           )}
@@ -124,16 +151,19 @@ export default function EditProfileScreen({ navigation }: Props) {
           <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Year of study</Text>
           <View style={styles.yearsRow}>
             {YEARS.map(y => (
-              <TouchableOpacity
+              <PressableScale
                 key={y}
                 style={[styles.yearBtn, year === y ? styles.yearBtnActive : null]}
-                onPress={() => setYear(y)}
-                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.tap();
+                  setYear(y);
+                }}
+                scaleTo={0.94}
               >
                 <Text style={[styles.yearBtnText, year === y ? styles.yearBtnTextActive : null]}>
                   {y}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
@@ -142,29 +172,34 @@ export default function EditProfileScreen({ navigation }: Props) {
             <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Bio</Text>
             <Text style={styles.charCount}>{bio.length}/{BIO_MAX}</Text>
           </View>
-          <TextInput
-            style={styles.bioInput}
-            value={bio}
-            onChangeText={t => setBio(t.slice(0, BIO_MAX))}
-            placeholder="Tell buyers a bit about yourself."
-            placeholderTextColor={COLORS.textMuted}
-            multiline
-            textAlignVertical="top"
-          />
+          {/*
+            InputField (shared component) doesn't support multiline, so the
+            bio field reproduces its border/focus styling locally instead of
+            editing the shared component.
+          */}
+          <View style={[styles.bioWrapper, bioFocused ? styles.bioWrapperFocused : null]}>
+            <TextInput
+              style={styles.bioInput}
+              value={bio}
+              onChangeText={t => setBio(t.slice(0, BIO_MAX))}
+              placeholder="Tell buyers a bit about yourself."
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              textAlignVertical="top"
+              onFocus={() => setBioFocused(true)}
+              onBlur={() => setBioFocused(false)}
+            />
+          </View>
 
           {/* Default pickup area */}
-          <Text style={styles.fieldLabel}>Default pickup area</Text>
-          <TextInput
-            style={styles.input}
+          <InputField
+            label="Default pickup area"
             value={pickupArea}
             onChangeText={setPickupArea}
             placeholder="e.g. UCC, Richmond Row"
-            placeholderTextColor={COLORS.textMuted}
           />
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-            <Text style={styles.saveBtnText}>Save changes</Text>
-          </TouchableOpacity>
+          <PrimaryButton title="Save changes" onPress={handleSave} style={styles.saveBtn} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -180,39 +215,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  headerBtn: {
-    minWidth: 56,
-    height: 32,
-    alignItems: 'flex-start',
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveHeaderBtn: {
+    minWidth: 44,
+    minHeight: 38,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: SIZES.base,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   saveText: {
     fontSize: SIZES.base,
     fontWeight: '700',
     color: COLORS.primary,
-    textAlign: 'right',
-    width: '100%',
   },
   body: {
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 24,
     paddingBottom: 48,
   },
 
   /* avatar */
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   avatar: {
     width: 84,
@@ -222,6 +263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    ...SHADOWS.raised,
   },
   avatarText: {
     color: COLORS.white,
@@ -240,6 +282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: COLORS.white,
+    ...SHADOWS.card,
   },
   changePhoto: {
     fontSize: SIZES.sm,
@@ -253,17 +296,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: '500',
     marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
-    height: SIZES.inputHeight,
-    paddingHorizontal: 14,
-    fontSize: SIZES.base,
-    color: COLORS.text,
-    backgroundColor: COLORS.white,
-    marginBottom: 16,
   },
   dropdown: {
     flexDirection: 'row',
@@ -295,7 +327,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   dropdownItemActive: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
   },
   dropdownItemText: {
     fontSize: SIZES.base,
@@ -342,32 +374,29 @@ const styles = StyleSheet.create({
   charCount: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
   },
-  bioInput: {
+  bioWrapper: {
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    backgroundColor: COLORS.white,
+    marginBottom: 16,
+  },
+  bioWrapperFocused: {
+    borderColor: COLORS.inputBorderFocused,
+    backgroundColor: COLORS.primaryTint,
+  },
+  bioInput: {
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 12,
     fontSize: SIZES.base,
     color: COLORS.text,
-    backgroundColor: COLORS.white,
     minHeight: 90,
-    marginBottom: 16,
     textAlignVertical: 'top',
   },
   saveBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.borderRadius,
-    height: SIZES.buttonHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 12,
-  },
-  saveBtnText: {
-    color: COLORS.white,
-    fontSize: SIZES.base,
-    fontWeight: '600',
   },
 });

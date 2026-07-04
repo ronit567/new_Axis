@@ -15,13 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import { COLORS, GRADIENTS, SHADOWS } from "../constants/theme";
+import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
 import EmptyState from "../components/EmptyState";
+import PressableScale from "../components/PressableScale";
+import { haptics } from "../lib/haptics";
 import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -112,13 +114,18 @@ export default function SearchScreen({ navigation }: Props) {
               </TouchableOpacity>
             ) : null}
           </View>
-          <TouchableOpacity
+          <PressableScale
             style={styles.filterBtn}
-            onPress={() => setShowFilters(true)}
-            activeOpacity={0.85}
+            onPress={() => {
+              haptics.tap();
+              setShowFilters(true);
+            }}
+            scaleTo={0.92}
+            accessibilityRole="button"
+            accessibilityLabel="Filters"
           >
             <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </LinearGradient>
 
@@ -158,7 +165,10 @@ export default function SearchScreen({ navigation }: Props) {
           numColumns={2}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <EmptyState
@@ -192,15 +202,19 @@ export default function SearchScreen({ navigation }: Props) {
               { paddingBottom: Math.max(insets.bottom, 20) },
             ]}
           >
+            <View style={styles.grabber} />
+
             {/* Sheet Header */}
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Filters</Text>
               <TouchableOpacity
                 onPress={() => {
+                  haptics.tap();
                   setSelectedCategories([]);
                   setCondition("Any");
                   setPriceMax(200);
                 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Text style={styles.resetText}>Reset</Text>
               </TouchableOpacity>
@@ -210,30 +224,34 @@ export default function SearchScreen({ navigation }: Props) {
               {/* Category */}
               <Text style={styles.filterLabel}>Category</Text>
               <View style={styles.chipWrap}>
-                {FILTER_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.filterChip,
-                      selectedCategories.includes(cat)
-                        ? styles.filterChipActive
-                        : null,
-                    ]}
-                    onPress={() => toggleCategory(cat)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
+                {FILTER_CATEGORIES.map((cat) => {
+                  const selected = selectedCategories.includes(cat);
+                  return (
+                    <PressableScale
+                      key={cat}
                       style={[
-                        styles.filterChipText,
-                        selectedCategories.includes(cat)
-                          ? styles.filterChipTextActive
-                          : null,
+                        styles.filterChip,
+                        selected ? styles.filterChipActive : null,
                       ]}
+                      onPress={() => {
+                        haptics.tap();
+                        toggleCategory(cat);
+                      }}
+                      scaleTo={0.94}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
                     >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          selected ? styles.filterChipTextActive : null,
+                        ]}
+                      >
+                        {cat}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
               </View>
 
               {/* Price Range */}
@@ -247,57 +265,81 @@ export default function SearchScreen({ navigation }: Props) {
                 <View style={styles.sliderThumb} />
               </View>
               <View style={styles.priceAdjustRow}>
-                <TouchableOpacity
+                <PressableScale
                   style={styles.priceBtn}
-                  onPress={() => setPriceMax((m) => Math.max(10, m - 10))}
+                  onPress={() => {
+                    haptics.tap();
+                    setPriceMax((m) => Math.max(10, m - 10));
+                  }}
+                  scaleTo={0.9}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease maximum price"
                 >
                   <Text style={styles.priceBtnText}>−</Text>
-                </TouchableOpacity>
+                </PressableScale>
                 <Text style={styles.priceDisplay}>${priceMax}</Text>
-                <TouchableOpacity
+                <PressableScale
                   style={styles.priceBtn}
-                  onPress={() => setPriceMax((m) => Math.min(500, m + 10))}
+                  onPress={() => {
+                    haptics.tap();
+                    setPriceMax((m) => Math.min(500, m + 10));
+                  }}
+                  scaleTo={0.9}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase maximum price"
                 >
                   <Text style={styles.priceBtnText}>+</Text>
-                </TouchableOpacity>
+                </PressableScale>
               </View>
 
               {/* Condition */}
               <Text style={styles.filterLabel}>Condition</Text>
               <View style={styles.conditionRow}>
-                {CONDITIONS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[
-                      styles.conditionBtn,
-                      condition === c ? styles.conditionBtnActive : null,
-                    ]}
-                    onPress={() => setCondition(c)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
+                {CONDITIONS.map((c) => {
+                  const selected = condition === c;
+                  return (
+                    <PressableScale
+                      key={c}
                       style={[
-                        styles.conditionText,
-                        condition === c ? styles.conditionTextActive : null,
+                        styles.conditionBtn,
+                        selected ? styles.conditionBtnActive : null,
                       ]}
+                      onPress={() => {
+                        haptics.tap();
+                        setCondition(c);
+                      }}
+                      scaleTo={0.96}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
                     >
-                      {c}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.conditionText,
+                          selected ? styles.conditionTextActive : null,
+                        ]}
+                      >
+                        {c}
+                      </Text>
+                    </PressableScale>
+                  );
+                })}
               </View>
             </ScrollView>
 
             {/* CTA */}
-            <TouchableOpacity
+            <PressableScale
               style={styles.showResultsBtn}
-              onPress={() => setShowFilters(false)}
-              activeOpacity={0.85}
+              onPress={() => {
+                haptics.impact();
+                setShowFilters(false);
+              }}
+              scaleTo={0.97}
+              accessibilityRole="button"
             >
               <Text style={styles.showResultsText}>
                 Show {results.length} results
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </Modal>
@@ -364,9 +406,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   resultsCount: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: "500",
+    fontSize: 15,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    fontVariant: ["tabular-nums"],
   },
   listContent: {
     paddingHorizontal: 20,
@@ -385,15 +428,24 @@ const styles = StyleSheet.create({
   },
   overlayBg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.38)",
+    backgroundColor: COLORS.overlay,
   },
   filterSheet: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: SIZES.borderRadiusXl,
+    borderTopRightRadius: SIZES.borderRadiusXl,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 12,
     maxHeight: "80%",
+    ...SHADOWS.floating,
+  },
+  grabber: {
+    alignSelf: "center",
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: COLORS.inputBorder,
+    marginBottom: 14,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -402,8 +454,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   resetText: {
@@ -413,7 +465,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FONTS.semibold,
     color: COLORS.text,
     marginBottom: 10,
     marginTop: 4,
@@ -427,9 +479,9 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: SIZES.borderRadiusLg,
     borderWidth: 1.5,
-    borderColor: "#E4E4E4",
+    borderColor: COLORS.inputBorder,
     backgroundColor: COLORS.white,
   },
   filterChipActive: {
@@ -457,7 +509,7 @@ const styles = StyleSheet.create({
   },
   sliderTrack: {
     height: 4,
-    backgroundColor: "#E4E4E4",
+    backgroundColor: COLORS.inputBorder,
     borderRadius: 2,
     marginBottom: 8,
     position: "relative",
@@ -522,9 +574,9 @@ const styles = StyleSheet.create({
   conditionBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
-    borderColor: "#E4E4E4",
+    borderColor: COLORS.inputBorder,
     alignItems: "center",
     backgroundColor: COLORS.white,
   },
@@ -543,15 +595,16 @@ const styles = StyleSheet.create({
   },
   showResultsBtn: {
     backgroundColor: COLORS.primary,
-    borderRadius: 14,
-    height: 52,
+    borderRadius: SIZES.borderRadius,
+    height: SIZES.buttonHeight,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 8,
+    ...SHADOWS.brand,
   },
   showResultsText: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: FONTS.semibold,
   },
 });

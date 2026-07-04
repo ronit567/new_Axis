@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.background,
     borderWidth: 1.5,
-    borderColor: '#E4E4E4',
+    borderColor: COLORS.inputBorder,
   },
   filterChipActive: {
     backgroundColor: COLORS.text,
