@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -56,7 +57,7 @@ export default function SignInScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backArrow}>‹</Text>
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </TouchableOpacity>
 
           <Text style={styles.title}>Welcome back</Text>
@@ -96,7 +97,7 @@ export default function SignInScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity style={styles.westernBtn} onPress={handleSSO} activeOpacity={0.85}>
-              <Text style={styles.westernBtnIcon}>🏛</Text>
+              <Ionicons name="school-outline" size={19} color={COLORS.text} />
               <Text style={styles.westernBtnText}>Continue with Western SSO</Text>
             </TouchableOpacity>
           </View>
@@ -132,12 +133,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
-  },
-  backArrow: {
-    fontSize: 24,
-    color: COLORS.text,
-    lineHeight: 28,
-    marginTop: -2,
   },
   title: {
     fontSize: SIZES.xxl,
@@ -190,9 +185,6 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     height: SIZES.buttonHeight,
     gap: 10,
-  },
-  westernBtnIcon: {
-    fontSize: 18,
   },
   westernBtnText: {
     color: COLORS.text,

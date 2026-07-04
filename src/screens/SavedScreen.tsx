@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
@@ -124,9 +125,9 @@ export default function SavedScreen({ navigation }: Props) {
         <View style={styles.savedSearches}>
           {['calc 1000 textbook', 'IKEA desk'].map(s => (
             <TouchableOpacity key={s} style={styles.savedSearchRow} activeOpacity={0.8}>
-              <Text style={styles.savedSearchIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} />
               <Text style={styles.savedSearchText}>{s}</Text>
-              <Text style={styles.savedSearchDelete}>✕</Text>
+              <Ionicons name="close" size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -223,16 +224,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 12,
   },
-  savedSearchIcon: {
-    fontSize: 14,
-  },
   savedSearchText: {
     flex: 1,
     fontSize: 14,
     color: COLORS.text,
-  },
-  savedSearchDelete: {
-    fontSize: 12,
-    color: COLORS.textMuted,
   },
 });

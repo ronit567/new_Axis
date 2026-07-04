@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -43,7 +44,7 @@ function RowItem({ label, value, onPress }: { label: string; value?: string; onP
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowRight}>
         {value != null && <Text style={styles.rowValue}>{value}</Text>}
-        <Text style={styles.rowChevron}>›</Text>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -113,7 +114,7 @@ export default function SettingsScreen({ navigation }: Props) {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backArrow}>‹</Text>
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -187,7 +188,7 @@ export default function SettingsScreen({ navigation }: Props) {
             onPress={() => setDeleteModalVisible(true)}
           >
             <Text style={styles.dangerRowLabel}>Delete account</Text>
-            <Text style={styles.rowChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -260,12 +261,6 @@ const styles = StyleSheet.create({
   backBtn: {
     marginRight: 6,
   },
-  backArrow: {
-    fontSize: 28,
-    color: COLORS.text,
-    lineHeight: 32,
-    marginTop: -2,
-  },
   headerTitle: {
     fontSize: SIZES.lg,
     fontWeight: '700',
@@ -307,11 +302,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: 16,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    ...SHADOWS.card,
   },
 
   /* rows */
@@ -335,11 +326,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
   },
-  rowChevron: {
-    fontSize: 20,
-    color: COLORS.textMuted,
-    lineHeight: 22,
-  },
   rowDivider: {
     height: 1,
     backgroundColor: COLORS.divider,
@@ -352,11 +338,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    ...SHADOWS.card,
   },
   logoutText: {
     fontSize: SIZES.base,

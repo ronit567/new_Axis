@@ -1,8 +1,9 @@
 import React, { ComponentProps } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/theme';
+import { COLORS, GRADIENTS, SHADOWS } from '../constants/theme';
 
 export type TabName = 'Home' | 'Saved' | 'Create' | 'Messages' | 'Profile';
 
@@ -45,9 +46,14 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
             activeOpacity={0.75}
           >
             {isCreate ? (
-              <View style={styles.createBtn}>
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.createBtn}
+              >
                 <Ionicons name="add" size={28} color={COLORS.white} />
-              </View>
+              </LinearGradient>
             ) : (
               <>
                 <Ionicons
@@ -74,6 +80,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#EBEBEB',
     paddingTop: 10,
+    shadowColor: '#150A2E',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 8,
   },
   tabItem: {
     flex: 1,
@@ -95,14 +106,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -18,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 6,
+    ...SHADOWS.brand,
   },
 });

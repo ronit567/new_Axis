@@ -11,13 +11,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SIZES, GRADIENTS } from '../constants/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
   return (
-    <View style={styles.bg}>
+    <LinearGradient colors={GRADIENTS.primaryRadiant} start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }} style={styles.bg}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <SafeAreaView style={styles.safe}>
         <View style={styles.inner}>
@@ -69,14 +70,13 @@ export default function WelcomeScreen({ navigation }: Props) {
 
         </View>
       </SafeAreaView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   bg: {
     flex: 1,
-    backgroundColor: COLORS.primary,
   },
   safe: {
     flex: 1,

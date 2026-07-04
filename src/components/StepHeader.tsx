@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 
 type Props = {
@@ -12,7 +13,7 @@ export default function StepHeader({ currentStep, totalSteps = 3, onBack }: Prop
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-        <Text style={styles.backArrow}>‹</Text>
+        <Ionicons name="chevron-back" size={22} color={COLORS.text} />
       </TouchableOpacity>
       <View style={styles.stepsRow}>
         {Array.from({ length: totalSteps }).map((_, i) => (
@@ -45,12 +46,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.divider,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 24,
-    color: COLORS.text,
-    lineHeight: 28,
-    marginTop: -2,
   },
   stepsRow: {
     flexDirection: 'row',

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
@@ -66,7 +67,7 @@ export default function SetupProfileScreen({ navigation }: Props) {
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarInitials}>RS</Text>
               <View style={styles.cameraBtn}>
-                <Text style={styles.cameraIcon}>📷</Text>
+                <Ionicons name="camera" size={12} color={COLORS.text} />
               </View>
             </View>
           </View>
@@ -78,7 +79,11 @@ export default function SetupProfileScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{program}</Text>
-            <Text style={styles.dropdownChevron}>{showProgramPicker ? '▲' : '▼'}</Text>
+            <Ionicons
+              name={showProgramPicker ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={COLORS.textMuted}
+            />
           </TouchableOpacity>
 
           {showProgramPicker && (
@@ -205,9 +210,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
   },
-  cameraIcon: {
-    fontSize: 11,
-  },
   sectionLabel: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
@@ -232,10 +234,6 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: SIZES.base,
     color: COLORS.text,
-  },
-  dropdownChevron: {
-    fontSize: 12,
-    color: COLORS.textMuted,
   },
   dropdownList: {
     borderWidth: 1.5,

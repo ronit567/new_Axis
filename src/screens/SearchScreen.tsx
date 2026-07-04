@@ -12,8 +12,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import { COLORS } from "../constants/theme";
+import { COLORS, GRADIENTS, SHADOWS } from "../constants/theme";
 import { RootStackParamList, Listing } from "../types";
 
 import ListingCard from "../components/ListingCard";
@@ -77,7 +78,12 @@ export default function SearchScreen({ navigation }: Props) {
       <StatusBar style="light" />
 
       {/* Purple curved header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <LinearGradient
+        colors={GRADIENTS.primaryRadiant}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 12 }]}
+      >
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
             <Ionicons
@@ -113,7 +119,7 @@ export default function SearchScreen({ navigation }: Props) {
             <Ionicons name="options-outline" size={20} color={COLORS.white} />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Results count + cancel */}
       <View style={styles.resultsRow}>
@@ -302,11 +308,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F5FA",
   },
   header: {
-    backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingHorizontal: 16,
     paddingBottom: 18,
+    ...SHADOWS.floating,
   },
   searchRow: {
     flexDirection: "row",
@@ -337,7 +343,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: "#4A2070",
+    backgroundColor: COLORS.primaryDark,
     alignItems: "center",
     justifyContent: "center",
   },

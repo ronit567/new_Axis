@@ -53,7 +53,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Image Carousel Placeholder */}
         <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || '#EBE4F8' }]}>
-          <Text style={styles.imagePlaceholderText}>📷</Text>
+          <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
         </View>
 
         {/* Carousel Dots */}
@@ -190,10 +190,6 @@ const styles = StyleSheet.create({
     height: 260,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  imagePlaceholderText: {
-    fontSize: 48,
-    opacity: 0.3,
   },
   dotsRow: {
     flexDirection: 'row',

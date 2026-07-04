@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -113,7 +114,7 @@ export default function CreateAccountScreen({ navigation }: Props) {
               activeOpacity={0.8}
             >
               <View style={[styles.checkbox, agreed ? styles.checkboxChecked : null]}>
-                {agreed && <Text style={styles.checkMark}>✓</Text>}
+                {agreed && <Ionicons name="checkmark" size={13} color={COLORS.white} />}
               </View>
               <Text style={styles.checkboxLabel}>
                 I agree to the{' '}
@@ -198,11 +199,6 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-  },
-  checkMark: {
-    color: COLORS.white,
-    fontSize: 11,
-    fontWeight: '700',
   },
   checkboxLabel: {
     flex: 1,

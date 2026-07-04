@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, SHADOWS } from '../constants/theme';
 import { Listing } from '../types';
 
 type Props = {
@@ -50,13 +50,11 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(20, 12, 36, 0.05)',
+    ...SHADOWS.card,
   },
   imageArea: {
     height: 128,
