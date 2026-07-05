@@ -27,7 +27,6 @@ export default function PrimaryButton({ title, onPress, loading = false, style, 
         onPressIn={() => !isInactive && animateTo(0.96)}
         onPressOut={() => !isInactive && animateTo(1)}
         disabled={isInactive}
-        style={styles.pressable}
       >
         <LinearGradient
           colors={GRADIENTS.primary}
@@ -52,15 +51,11 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     ...SHADOWS.brand,
   },
-  pressable: {
-    width: '100%',
-  },
   button: {
     borderRadius: SIZES.borderRadius,
     height: SIZES.buttonHeight,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
   },
   disabled: {
     opacity: 0.55,

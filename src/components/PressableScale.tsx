@@ -8,6 +8,8 @@ type Props = PressableProps & {
 };
 
 // 0.96 is the floor before press feedback starts reading as exaggerated.
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export default function PressableScale({ scaleTo = 0.96, style, children, disabled, ...rest }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -20,8 +22,8 @@ export default function PressableScale({ scaleTo = 0.96, style, children, disabl
   };
 
   return (
-    <Pressable
-      style={style}
+    <AnimatedPressable
+      style={[style, { transform: [{ scale }] }]}
       onPressIn={(e) => {
         if (!disabled) animateTo(scaleTo);
         rest.onPressIn?.(e);
@@ -33,9 +35,7 @@ export default function PressableScale({ scaleTo = 0.96, style, children, disabl
       disabled={disabled}
       {...rest}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>
-        {children}
-      </Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedPressable>
   );
 }

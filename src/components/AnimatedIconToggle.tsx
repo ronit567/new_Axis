@@ -44,14 +44,14 @@ export default function AnimatedIconToggle({
   };
 
   return (
-    <>
+    <Animated.View style={{ width: size, height: size }}>
       <Animated.View style={[styles.layer, inactiveStyle]}>
         <Ionicons name={inactiveName} size={size} color={inactiveColor} />
       </Animated.View>
-      <Animated.View style={activeStyle}>
+      <Animated.View style={[styles.layer, activeStyle]}>
         <Ionicons name={activeName} size={size} color={activeColor} />
       </Animated.View>
-    </>
+    </Animated.View>
   );
 }
 
