@@ -1,8 +1,10 @@
 -- Axis — RLS policy tests (owner vs non-owner vs anon vs blocked).
 --
--- Runs 0001 + 0002 must already be applied. Execute this whole file in the
--- Supabase SQL editor or via psql against the project DB. It:
---   * runs inside BEGIN ... ROLLBACK, so it leaves NO data behind;
+-- 0001 + 0002 + 0003 must already be applied (the storage scenarios need the
+-- buckets created in 0003 to exist). Execute this whole file in the Supabase
+-- SQL editor or via psql against the project DB. It:
+--   * runs inside BEGIN ... ROLLBACK, so it leaves NO data behind (storage
+--     objects inserted below roll back with the surrounding transaction);
 --   * seeds 3 users + fixtures;
 --   * switches identity with `set local role` + a fake JWT claim (so auth.uid()
 --     resolves to each user) and asserts what each identity can see/do;
@@ -251,6 +253,179 @@ exception
 end;
 $$;
 reset role;
+
+-- ══ Storage policies (0003_storage_buckets.sql) ═════════════════════════════
+-- The buckets ('listing-images', 'avatars') must already exist from 0003.
+-- Objects inserted here are rolled back with the surrounding transaction.
+-- Security boundary: (storage.foldername(name))[1] = auth.uid()::text on
+-- INSERT/DELETE, and owner-scoped SELECT. "Public read" itself is served by the
+-- bucket's public flag via getPublicUrl() (a non-RLS route), so it is out of
+-- scope for these RLS assertions.
+--
+-- Note: this assumes the `authenticated`/`anon` roles carry Supabase's standard
+-- table grants on storage.objects (they do on a real project). If a hardened
+-- project has revoked them, the "rejected"/"0 rows" assertions still hold.
+
+-- ── Scenario 6: OWNER may upload only under their own uid prefix.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+-- own prefix → allowed. listing-images: {uid}/{listingId}/file; avatars: {uid}/file.
+-- (Only bucket_id + name matter to the policy; owner/owner_id are left to their
+-- defaults so the test isn't coupled to storage's deprecated `owner` column.)
+do $$
+begin
+  insert into storage.objects (bucket_id, name) values
+    ('listing-images',
+     '11111111-1111-1111-1111-111111111111/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/photo.jpg'),
+    ('avatars',
+     '11111111-1111-1111-1111-111111111111/avatar.png');
+exception
+  when insufficient_privilege then
+    raise exception 'RLS TEST FAILED: owner was blocked from uploading under their own prefix';
+end $$;
+-- another user's prefix → rejected by WITH CHECK.
+do $$
+begin
+  insert into storage.objects (bucket_id, name) values
+    ('listing-images',
+     '22222222-2222-2222-2222-222222222222/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/photo.jpg');
+  raise exception 'RLS TEST FAILED: owner uploaded under another user''s prefix';
+exception
+  when insufficient_privilege then
+    null; -- expected: WITH CHECK rejected the cross-prefix insert
+end $$;
+reset role;
+
+-- ── Scenario 7: SELECT is owner-scoped — a signed-in user cannot enumerate
+--    another user's objects (no bucket-wide listing). OTHER uploads their own,
+--    then must see only theirs.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+insert into storage.objects (bucket_id, name) values
+  ('listing-images',
+   '22222222-2222-2222-2222-222222222222/ffffffff-ffff-ffff-ffff-ffffffffffff/pic.jpg');
+select pg_temp.assert(
+  (select count(*) from storage.objects where bucket_id = 'listing-images') = 1,
+  'owner-scoped SELECT: OTHER should see only their own listing-image, not OWNER''s');
+select pg_temp.assert(
+  (select count(*) from storage.objects
+     where name like '11111111-1111-1111-1111-111111111111/%') = 0,
+  'OTHER must not be able to enumerate OWNER''s storage objects');
+reset role;
+
+-- ── Scenario 8: DELETE is owner-only.
+-- non-owner delete of OWNER's object → 0 rows (invisible + unauthorized).
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+do $$
+declare n int;
+begin
+  delete from storage.objects
+    where bucket_id = 'listing-images'
+      and name = '11111111-1111-1111-1111-111111111111/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/photo.jpg';
+  get diagnostics n = row_count;
+  if n <> 0 then
+    raise exception 'RLS TEST FAILED: non-owner DELETE removed % storage object(s), expected 0', n;
+  end if;
+end $$;
+reset role;
+-- owner delete of their own object → 1 row.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+do $$
+declare n int;
+begin
+  delete from storage.objects
+    where bucket_id = 'avatars'
+      and name = '11111111-1111-1111-1111-111111111111/avatar.png';
+  get diagnostics n = row_count;
+  if n <> 1 then
+    raise exception 'RLS TEST FAILED: owner DELETE of own avatar removed % row(s), expected 1', n;
+  end if;
+end $$;
+reset role;
+
+-- ── Scenario 9: anon is locked out of the RLS-gated paths. (Public read via
+--    getPublicUrl() is a non-RLS route and can't be exercised in SQL.)
+set local role anon;
+select set_config('request.jwt.claims', '', true);
+select pg_temp.assert(
+  (select count(*) from storage.objects) = 0,
+  'anon must not enumerate any storage objects via the RLS-gated path');
+do $$
+begin
+  insert into storage.objects (bucket_id, name)
+    values ('avatars', 'anon/sneaky.png');
+  raise exception 'RLS TEST FAILED: anon was able to insert a storage object';
+exception
+  when insufficient_privilege then
+    null; -- expected: no insert policy/grant for anon
+end $$;
+reset role;
+
+-- ── Scenario 10: bucket guardrails survive a pre-existing bucket.
+--    Regression test for 0003's `on conflict (id) do update` (previously
+--    `do nothing`, which silently left a dashboard-created bucket without a
+--    size cap or mime allowlist). Weaken the buckets as an operator might,
+--    replay 0003's upsert verbatim, and assert the guardrails are forced back
+--    on. Under the old `do nothing` these assertions would fail. Rolled back
+--    with the surrounding transaction.
+update storage.buckets
+  set file_size_limit = null, allowed_mime_types = null
+  where id in ('listing-images', 'avatars');
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('listing-images', 'listing-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
+  ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+select pg_temp.assert(
+  (select file_size_limit from storage.buckets where id = 'listing-images') = 5242880
+    and (select file_size_limit from storage.buckets where id = 'avatars') = 2097152,
+  'replaying 0003 must restore file_size_limit on a pre-existing bucket');
+select pg_temp.assert(
+  (select allowed_mime_types from storage.buckets where id = 'listing-images')
+      = array['image/jpeg', 'image/png', 'image/webp']
+    and (select allowed_mime_types from storage.buckets where id = 'avatars')
+      = array['image/jpeg', 'image/png', 'image/webp'],
+  'replaying 0003 must restore the mime allowlist on a pre-existing bucket');
+
+-- ── Scenario 11: a stray PERMISSIVE policy must not broaden these buckets.
+--    PostgreSQL OR's permissive policies per (command, role), so a pre-existing
+--    "allow all authenticated" default (as Supabase projects sometimes ship)
+--    would otherwise defeat the owner-scoped SELECT above. The RESTRICTIVE
+--    storage_owner_prefix_restrict policy (0003) AND's owner-scoping onto every
+--    permissive grant. Simulate such a default and confirm OTHER still cannot
+--    read OWNER's object in these buckets (while OWNER still reads their own).
+--    The stray policy is dropped again; all of this rolls back with the txn.
+insert into storage.objects (bucket_id, name) values
+  ('listing-images', '11111111-1111-1111-1111-111111111111/restrict-check/owner.jpg'),
+  ('listing-images', '22222222-2222-2222-2222-222222222222/restrict-check/other.jpg');
+create policy test_stray_permissive_select_all
+  on storage.objects for select to authenticated using (true);
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.assert(
+  (select count(*) from storage.objects
+     where bucket_id = 'listing-images'
+       and name = '11111111-1111-1111-1111-111111111111/restrict-check/owner.jpg') = 0,
+  'RESTRICTIVE owner-scoping must hold even when a permissive select-all policy exists');
+select pg_temp.assert(
+  (select count(*) from storage.objects
+     where bucket_id = 'listing-images'
+       and name = '22222222-2222-2222-2222-222222222222/restrict-check/other.jpg') = 1,
+  'owner must still read their own object under the RESTRICTIVE policy');
+reset role;
+drop policy test_stray_permissive_select_all on storage.objects;
 
 -- If we got here, every assertion passed.
 do $$ begin raise notice 'ALL RLS TESTS PASSED'; end $$;
