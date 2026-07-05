@@ -16,6 +16,7 @@ import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
+import { useToggleSaved } from '../hooks/useSavedListings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
@@ -28,6 +29,20 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [activeDot, setActiveDot] = useState(0);
   const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const toggleSavedMutation = useToggleSaved();
+
+  // This screen renders from a static route param, not a live query cache, so
+  // it can't pick up the optimistic update useToggleSaved applies elsewhere —
+  // it optimistically flips `saved` itself and rolls back only on failure.
+  const handleToggleSave = () => {
+    haptics.tap();
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    toggleSavedMutation.mutate(
+      { ...listing, saved: wasSaved },
+      { onError: () => setSaved(wasSaved) },
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -55,10 +70,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           </PressableScale>
           <PressableScale
             style={styles.iconBtn}
-            onPress={() => {
-              haptics.tap();
-              setSaved(s => !s);
-            }}
+            onPress={handleToggleSave}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             scaleTo={0.9}
             accessibilityRole="button"

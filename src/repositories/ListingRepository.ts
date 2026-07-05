@@ -108,7 +108,45 @@ export const ListingRepository = {
       .insert({ user_id: userId, listing_id: listingId })
     if (insertError) throw insertError
   },
+  // AX-202: saved listings, most-recently-saved first. Two round trips (saved
+  // ids, then the listings/sellers themselves) since saved_listings has no
+  // listing columns of its own to select alongside.
   async getSavedByUser(userId: string): Promise<Listing[]> {
-    return []
+    const { data: savedRows, error: savedError } = await supabase
+      .from('saved_listings')
+      .select('listing_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    if (savedError) throw savedError
+    if (!savedRows || savedRows.length === 0) return []
+
+    const listingIds = savedRows.map((row) => row.listing_id)
+    const { data: rows, error: listingsError } = await supabase
+      .from('listings')
+      .select('*')
+      .in('id', listingIds)
+    if (listingsError) throw listingsError
+    if (!rows || rows.length === 0) return []
+
+    const sellerIds = [...new Set(rows.map((row) => row.seller_id))]
+    const { data: sellers, error: sellersError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', sellerIds)
+    if (sellersError) throw sellersError
+
+    const sellerById = new Map((sellers ?? []).map((seller) => [seller.id, seller]))
+    const rowById = new Map(rows.map((row) => [row.id, row]))
+
+    // Walk listingIds (already ordered by save recency) rather than rows, so
+    // the result preserves save order instead of the `in (...)` query's order.
+    // seller_id is a NOT NULL FK, so a missing seller means a broken
+    // reference — skip rather than crash the whole list over one bad row.
+    return listingIds.reduce<Listing[]>((acc, id) => {
+      const row = rowById.get(id)
+      const seller = row && sellerById.get(row.seller_id)
+      if (row && seller) acc.push(toListing(row, seller, true))
+      return acc
+    }, [])
   },
 }
