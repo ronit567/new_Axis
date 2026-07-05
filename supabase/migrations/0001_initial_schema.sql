@@ -90,6 +90,23 @@ create table if not exists public.notifications (
 
 create index if not exists notifications_user_id_idx on public.notifications (user_id);
 
+-- ---------------------------------------------------------------------------
+-- blocks: directed "blocker_id blocked blocked_id". The row is directed, but
+-- for *visibility* the relationship is treated as mutual — see is_blocked()
+-- in 0002, which hides content in both directions. Backs AX-703 (report/block)
+-- and is enforced at the query layer by the listings/messages RLS policies.
+-- ---------------------------------------------------------------------------
+create table if not exists public.blocks (
+  blocker_id  uuid not null references public.profiles (id) on delete cascade,
+  blocked_id  uuid not null references public.profiles (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  constraint blocks_no_self check (blocker_id <> blocked_id)
+);
+
+-- Reverse-direction lookups (who blocked me?) for is_blocked().
+create index if not exists blocks_blocked_id_idx on public.blocks (blocked_id);
+
 -- Enable RLS on every table (policies added in 0002). With RLS on and no
 -- policy, access is denied by default — safe until 0002 runs.
 alter table public.profiles       enable row level security;
@@ -97,3 +114,4 @@ alter table public.listings       enable row level security;
 alter table public.saved_listings enable row level security;
 alter table public.messages       enable row level security;
 alter table public.notifications  enable row level security;
+alter table public.blocks         enable row level security;

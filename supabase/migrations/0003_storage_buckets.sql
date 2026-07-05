@@ -24,9 +24,10 @@ on conflict (id) do nothing;
 -- Read note: the bucket's `public = true` flag (not this policy) is what lets
 -- `getPublicUrl()` serve a file to a signed-out request — that route bypasses
 -- RLS entirely. The `select` policy below only gates `list()`/authenticated
--- `download()`, so it's scoped `to authenticated` (matching every other
--- policy in this project) rather than `to public`, to stop an anonymous
--- caller from enumerating bucket contents.
+-- `download()`, so it's deliberately scoped `to authenticated` rather than
+-- `to anon, authenticated` (unlike 0002's anon-readable profiles/listings
+-- policies) to stop an anonymous caller from enumerating bucket contents;
+-- a known public image URL still resolves either way.
 -- ---------------------------------------------------------------------------
 create policy "listing_images_select_authenticated"
   on storage.objects for select
