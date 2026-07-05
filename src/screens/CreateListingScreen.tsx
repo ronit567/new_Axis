@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
@@ -12,12 +11,16 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { LISTING_CATEGORIES } from '../constants/categories';
+import RotatingChevron from '../components/RotatingChevron';
+import PressableScale from '../components/PressableScale';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
@@ -92,6 +95,7 @@ export default function CreateListingScreen({ navigation }: Props) {
   };
 
   const handleFree = () => {
+    haptics.tap();
     setIsFree(!isFree);
     if (!isFree) {
       setPrice('');
@@ -100,31 +104,48 @@ export default function CreateListingScreen({ navigation }: Props) {
   };
 
   const handleTrade = () => {
+    haptics.tap();
     setIsTrade(!isTrade);
     if (!isTrade) setIsFree(false);
   };
 
   const handlePost = () => {
-    if (canPost) navigation.goBack();
+    if (canPost) {
+      haptics.impact();
+      navigation.goBack();
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+        <PressableScale
+          onPress={() => navigation.goBack()}
+          style={styles.headerIconBtn}
+          scaleTo={0.9}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Close"
+          accessibilityRole="button"
+        >
           <Ionicons name="close" size={22} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <Text style={styles.headerTitle}>New listing</Text>
-        <TouchableOpacity
+        <PressableScale
           onPress={handlePost}
-          style={styles.headerBtn}
+          style={styles.headerPostBtn}
+          scaleTo={0.9}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           disabled={!canPost}
+          accessibilityLabel="Post listing"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canPost }}
         >
           <Text style={[styles.postText, canPost ? styles.postTextActive : null]}>
             Post
           </Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <KeyboardAvoidingView
@@ -137,33 +158,41 @@ export default function CreateListingScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           {/* Photos */}
+          <Text style={styles.sectionHeading}>Photos</Text>
           <View style={styles.photosRow}>
             {photos.map((uri, index) => (
               <View key={uri + index} style={styles.photoThumb}>
                 <Image source={{ uri }} style={styles.photoThumbImage} />
-                <TouchableOpacity
+                <PressableScale
                   style={styles.photoRemoveBtn}
                   onPress={() => handleRemovePhoto(index)}
-                  hitSlop={{ top: 4, right: 4, bottom: 4, left: 4 }}
+                  scaleTo={0.9}
+                  hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                  accessibilityLabel={`Remove photo ${index + 1}`}
+                  accessibilityRole="button"
                 >
-                  <Ionicons name="close-circle" size={20} color={COLORS.white} />
-                </TouchableOpacity>
+                  <View style={styles.photoRemoveInner}>
+                    <Ionicons name="close" size={13} color={COLORS.white} />
+                  </View>
+                </PressableScale>
               </View>
             ))}
             {photos.length < MAX_PHOTOS && (
-              <TouchableOpacity
+              <PressableScale
                 style={styles.addPhotoBox}
                 onPress={handleAddPhoto}
-                activeOpacity={0.8}
+                scaleTo={0.94}
+                accessibilityLabel="Add photo"
+                accessibilityRole="button"
               >
-                <Ionicons name="camera-outline" size={26} color={COLORS.textMuted} />
+                <Ionicons name="camera-outline" size={26} color={COLORS.primary} />
                 <Text style={styles.addPhotoLabel}>Add photo</Text>
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
 
           {/* Title */}
-          <Text style={styles.fieldLabel}>Title</Text>
+          <Text style={styles.sectionHeading}>Title</Text>
           <TextInput
             style={styles.input}
             value={title}
@@ -175,7 +204,7 @@ export default function CreateListingScreen({ navigation }: Props) {
 
           {/* Description */}
           <View style={styles.descHeader}>
-            <Text style={styles.fieldLabel}>Description</Text>
+            <Text style={styles.sectionHeading}>Description</Text>
             <Text style={styles.charCount}>{description.length}/{DESC_MAX}</Text>
           </View>
           <TextInput
@@ -190,29 +219,30 @@ export default function CreateListingScreen({ navigation }: Props) {
           />
 
           {/* Category */}
-          <Text style={styles.fieldLabel}>Category</Text>
-          <TouchableOpacity
+          <Text style={styles.sectionHeading}>Category</Text>
+          <PressableScale
             style={styles.dropdown}
-            onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-            activeOpacity={0.8}
+            onPress={() => {
+              haptics.tap();
+              setShowCategoryPicker(!showCategoryPicker);
+            }}
+            scaleTo={0.98}
           >
             <Text style={styles.dropdownText}>{category}</Text>
-            <Ionicons
-              name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={COLORS.textMuted}
-            />
-          </TouchableOpacity>
+            <RotatingChevron open={showCategoryPicker} size={16} color={COLORS.textMuted} />
+          </PressableScale>
           {showCategoryPicker && (
             <View style={styles.dropdownList}>
               {CATEGORIES.map(c => (
-                <TouchableOpacity
+                <PressableScale
                   key={c}
                   style={[
                     styles.dropdownItem,
                     c === category ? styles.dropdownItemActive : null,
                   ]}
+                  scaleTo={0.98}
                   onPress={() => {
+                    haptics.tap();
                     setCategory(c);
                     setShowCategoryPicker(false);
                   }}
@@ -225,13 +255,16 @@ export default function CreateListingScreen({ navigation }: Props) {
                   >
                     {c}
                   </Text>
-                </TouchableOpacity>
+                  {c === category && (
+                    <Ionicons name="checkmark" size={18} color={COLORS.primary} />
+                  )}
+                </PressableScale>
               ))}
             </View>
           )}
 
           {/* Price */}
-          <Text style={[styles.fieldLabel, { marginTop: 4 }]}>Price</Text>
+          <Text style={styles.sectionHeading}>Price</Text>
           <View style={styles.priceRow}>
             <View style={[styles.priceInputWrap, isFree ? styles.priceInputDisabled : null]}>
               <Text style={styles.priceDollar}>$</Text>
@@ -245,40 +278,49 @@ export default function CreateListingScreen({ navigation }: Props) {
                 editable={!isFree}
               />
             </View>
-            <TouchableOpacity
+            <PressableScale
               style={[styles.toggleBtn, isFree ? styles.toggleBtnActive : null]}
               onPress={handleFree}
-              activeOpacity={0.8}
+              scaleTo={0.94}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isFree }}
             >
               <Text style={[styles.toggleText, isFree ? styles.toggleTextActive : null]}>
                 Free
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PressableScale>
+            <PressableScale
               style={[styles.toggleBtn, isTrade ? styles.toggleBtnActive : null]}
               onPress={handleTrade}
-              activeOpacity={0.8}
+              scaleTo={0.94}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isTrade }}
             >
               <Text style={[styles.toggleText, isTrade ? styles.toggleTextActive : null]}>
                 Trade
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           {/* Condition */}
-          <Text style={[styles.fieldLabel, { marginTop: 4 }]}>Condition</Text>
+          <Text style={styles.sectionHeading}>Condition</Text>
           <View style={styles.conditionRow}>
             {CONDITIONS.map(c => (
-              <TouchableOpacity
+              <PressableScale
                 key={c}
                 style={[styles.condBtn, condition === c ? styles.condBtnActive : null]}
-                onPress={() => setCondition(c)}
-                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.tap();
+                  setCondition(c);
+                }}
+                scaleTo={0.94}
+                accessibilityRole="button"
+                accessibilityState={{ selected: condition === c }}
               >
                 <Text style={[styles.condText, condition === c ? styles.condTextActive : null]}>
                   {c}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
         </ScrollView>
@@ -286,14 +328,16 @@ export default function CreateListingScreen({ navigation }: Props) {
 
       {/* Post button */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <PressableScale
           style={[styles.postBtn, !canPost ? styles.postBtnDisabled : null]}
           onPress={handlePost}
-          activeOpacity={0.85}
           disabled={!canPost}
+          accessibilityLabel="Post listing"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canPost }}
         >
           <Text style={styles.postBtnText}>Post listing</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </SafeAreaView>
   );
@@ -309,23 +353,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  headerBtn: {
-    width: 44,
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerPostBtn: {
+    minWidth: 44,
+    height: 38,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: SIZES.base,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   postText: {
     fontSize: SIZES.base,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.textMuted,
   },
   postTextActive: {
@@ -334,35 +387,43 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: 140,
+  },
+  sectionHeading: {
+    fontSize: SIZES.md,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    marginBottom: 10,
   },
   photosRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   addPhotoBox: {
     width: 80,
     height: 80,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
+    borderColor: COLORS.primaryBorder,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.primaryTint,
   },
   addPhotoLabel: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: COLORS.primary,
     marginTop: 4,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   photoThumb: {
     width: 80,
     height: 80,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
   },
   photoThumbImage: {
     width: '100%',
@@ -370,48 +431,51 @@ const styles = StyleSheet.create({
   },
   photoRemoveBtn: {
     position: 'absolute',
-    top: 3,
-    right: 3,
+    top: 4,
+    right: 4,
   },
-  fieldLabel: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
-    height: SIZES.inputHeight,
-    paddingHorizontal: 14,
-    fontSize: SIZES.base,
-    color: COLORS.text,
-    backgroundColor: COLORS.white,
-    marginBottom: 16,
+  photoRemoveInner: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   descHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   charCount: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    borderRadius: SIZES.borderRadius,
+    height: SIZES.inputHeight,
+    paddingHorizontal: 16,
+    fontSize: SIZES.base,
+    color: COLORS.text,
+    backgroundColor: COLORS.white,
+    marginBottom: 24,
   },
   descInput: {
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 12,
+    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
     fontSize: SIZES.base,
     color: COLORS.text,
     backgroundColor: COLORS.white,
     minHeight: 110,
-    marginBottom: 16,
+    marginBottom: 24,
     textAlignVertical: 'top',
   },
   dropdown: {
@@ -420,11 +484,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     height: SIZES.inputHeight,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     backgroundColor: COLORS.white,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   dropdownText: {
     fontSize: SIZES.base,
@@ -433,19 +497,23 @@ const styles = StyleSheet.create({
   dropdownList: {
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.white,
-    marginBottom: 4,
+    marginBottom: 24,
     overflow: 'hidden',
+    ...SHADOWS.card,
   },
   dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 13,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   dropdownItemActive: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
   },
   dropdownItemText: {
     fontSize: SIZES.base,
@@ -453,13 +521,13 @@ const styles = StyleSheet.create({
   },
   dropdownItemTextActive: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
   priceRow: {
     flexDirection: 'row',
     gap: 10,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   priceInputWrap: {
     flex: 1,
@@ -467,57 +535,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     height: SIZES.inputHeight,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     backgroundColor: COLORS.white,
   },
   priceInputDisabled: {
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surfaceAlt,
   },
   priceDollar: {
     fontSize: SIZES.base,
     color: COLORS.text,
     marginRight: 4,
-    fontWeight: '500',
+    fontFamily: FONTS.semibold,
   },
   priceInput: {
     flex: 1,
     fontSize: SIZES.base,
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   toggleBtn: {
     paddingHorizontal: 18,
     height: SIZES.inputHeight,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadiusLg,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.white,
   },
   toggleBtnActive: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
     borderColor: COLORS.primary,
   },
   toggleText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   toggleTextActive: {
     color: COLORS.primary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   conditionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   condBtn: {
     flex: 1,
-    height: 42,
-    borderRadius: SIZES.borderRadiusSm,
+    height: 46,
+    borderRadius: SIZES.borderRadiusLg,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     alignItems: 'center',
@@ -527,15 +596,16 @@ const styles = StyleSheet.create({
   condBtnActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+    ...SHADOWS.brand,
   },
   condText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
   },
   condTextActive: {
     color: COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   footer: {
     position: 'absolute',
@@ -555,13 +625,16 @@ const styles = StyleSheet.create({
     height: SIZES.buttonHeight,
     alignItems: 'center',
     justifyContent: 'center',
+    ...SHADOWS.brand,
   },
   postBtnDisabled: {
     backgroundColor: '#C4B2E0',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   postBtnText: {
     color: COLORS.white,
     fontSize: SIZES.base,
-    fontWeight: '600',
+    fontFamily: FONTS.bold,
   },
 });

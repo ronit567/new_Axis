@@ -1,12 +1,23 @@
 import 'react-native-url-polyfill/auto';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+  DMSans_800ExtraBold,
+} from '@expo-google-fonts/dm-sans';
 import { RootStackParamList } from './src/types';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -91,6 +102,24 @@ function RootNavigator() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+    DMSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <AuthProvider>
       <QueryProvider>

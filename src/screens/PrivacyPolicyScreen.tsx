@@ -1,27 +1,43 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import PressableScale from '../components/PressableScale';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacyPolicy'>;
 
 export default function PrivacyPolicyScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <PressableScale
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+        </PressableScale>
         <Text style={styles.headerTitle}>Privacy policy</Text>
-        <View style={styles.headerBtn} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: insets.bottom + 32 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lastUpdated}>Last updated: July 1, 2026</Text>
@@ -90,50 +106,56 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  headerBtn: {
-    width: 40,
-    height: 32,
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: SIZES.base,
-    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+    fontSize: SIZES.lg,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
+    marginHorizontal: 8,
+  },
+  headerSpacer: {
+    width: 38,
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
+    paddingTop: 24,
   },
   lastUpdated: {
     fontSize: SIZES.sm,
     color: COLORS.textMuted,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   intro: {
-    fontSize: SIZES.md,
-    lineHeight: 22,
+    fontSize: SIZES.base,
+    lineHeight: 25,
     color: COLORS.textSecondary,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: SIZES.base,
-    fontWeight: '700',
+    fontSize: SIZES.lg,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 28,
+    marginBottom: 10,
   },
   paragraph: {
-    fontSize: SIZES.md,
-    lineHeight: 22,
+    fontSize: SIZES.base,
+    lineHeight: 25,
     color: COLORS.textSecondary,
   },
 });

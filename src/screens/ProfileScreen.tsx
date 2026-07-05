@@ -10,15 +10,20 @@ import {
 import { LISTINGS as MOCK_LISTINGS } from '../data/mockListings';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { ComponentProps } from 'react';
+import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import PressableScale from '../components/PressableScale';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
+
 type MenuItem = {
-  icon: string;
+  icon: IoniconsName;
   label: string;
   target: 'EditProfile' | 'Settings' | null;
 };
@@ -51,9 +56,9 @@ function HatchedThumb({ isSold }: { isSold: boolean }) {
 
 
 const MENU: MenuItem[] = [
-  { icon: '✎', label: 'Edit profile',   target: 'EditProfile' },
-  { icon: '⊙', label: 'Help & support', target: null          },
-  { icon: '⚙', label: 'Settings',       target: 'Settings'    },
+  { icon: 'create-outline', label: 'Edit profile', target: 'EditProfile' },
+  { icon: 'help-circle-outline', label: 'Help & support', target: null },
+  { icon: 'settings-outline', label: 'Settings', target: 'Settings' },
 ];
 
 const MY_LISTINGS = MOCK_LISTINGS.slice(0, 3);
@@ -67,12 +72,14 @@ export default function ProfileScreen({ navigation }: Props) {
       >
         {/* ── Top bar (gear icon) ── */}
         <View style={styles.topBar}>
-          <TouchableOpacity
+          <PressableScale
             style={styles.gearBtn}
             onPress={() => navigation.navigate('Settings')}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
           >
-            <Text style={styles.gearIcon}>⚙</Text>
-          </TouchableOpacity>
+            <Ionicons name="settings-outline" size={18} color={COLORS.textSecondary} />
+          </PressableScale>
         </View>
 
         {/* ── Profile info ── */}
@@ -85,7 +92,7 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
           <Text style={styles.programText}>Ivey HBA · Year 2</Text>
           <View style={styles.ratingRow}>
-            <Text style={styles.starText}>★</Text>
+            <Ionicons name="star" size={14} color={COLORS.warning} />
             <Text style={styles.ratingScore}> 5.0 </Text>
             <Text style={styles.ratingCount}>(18)</Text>
           </View>
@@ -151,11 +158,11 @@ export default function ProfileScreen({ navigation }: Props) {
             >
               <View style={styles.menuLeft}>
                 <View style={styles.menuIconBox}>
-                  <Text style={styles.menuIconChar}>{item.icon}</Text>
+                  <Ionicons name={item.icon} size={16} color={COLORS.primary} />
                 </View>
                 <Text style={styles.menuLabel}>{item.label}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -190,11 +197,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gearIcon: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
-  },
-
   /* profile */
   profileSection: {
     alignItems: 'center',
@@ -212,7 +214,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: SIZES.xl,
     fontWeight: '700',
-    color: '#5C2D91',
+    color: COLORS.primary,
   },
   nameRow: {
     flexDirection: 'row',
@@ -222,7 +224,7 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   programText: {
@@ -233,10 +235,6 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  starText: {
-    color: '#F5A623',
-    fontSize: SIZES.base,
   },
   ratingScore: {
     fontSize: SIZES.sm,
@@ -256,11 +254,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     paddingVertical: 16,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    ...SHADOWS.card,
   },
   statCell: {
     flex: 1,
@@ -273,8 +267,9 @@ const styles = StyleSheet.create({
   },
   statNum: {
     fontSize: SIZES.xl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: SIZES.xs,
@@ -315,6 +310,8 @@ const styles = StyleSheet.create({
     height: THUMB_HEIGHT,
     borderRadius: SIZES.borderRadiusSm,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     marginBottom: 6,
   },
   hatchLine: {
@@ -341,6 +338,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     fontWeight: '700',
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   priceTextSold: {
     color: COLORS.textMuted,
@@ -356,11 +354,7 @@ const styles = StyleSheet.create({
     marginHorizontal: H_PAD,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    ...SHADOWS.card,
   },
   menuRow: {
     flexDirection: 'row',
@@ -381,22 +375,12 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  menuIconChar: {
-    fontSize: 14,
-    color: COLORS.primary,
   },
   menuLabel: {
     fontSize: SIZES.base,
     color: COLORS.text,
   },
-  chevron: {
-    fontSize: 20,
-    color: COLORS.textMuted,
-    lineHeight: 22,
-  },
-
 });

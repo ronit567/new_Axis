@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { COLORS, SHADOWS, FONTS } from '../constants/theme';
 import { Listing } from '../types';
+import PressableScale from './PressableScale';
+import AnimatedIconToggle from './AnimatedIconToggle';
 
 type Props = {
   item: Listing;
@@ -13,24 +14,27 @@ type Props = {
 
 export default function ListingCard({ item, onPress, onSave, style }: Props) {
   return (
-    <TouchableOpacity style={[styles.card, style]} onPress={onPress} activeOpacity={0.92}>
+    <PressableScale style={[styles.card, style]} onPress={onPress} scaleTo={0.98}>
       <View style={[styles.imageArea, { backgroundColor: item.imageColor || '#EEE8F8' }]}>
         {item.badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{item.badge}</Text>
           </View>
         ) : null}
-        <TouchableOpacity
+        <PressableScale
           style={styles.heartBtn}
           onPress={onSave}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
-          <Ionicons
-            name={item.saved ? 'heart' : 'heart-outline'}
+          <AnimatedIconToggle
+            active={!!item.saved}
+            activeName="heart"
+            inactiveName="heart-outline"
+            activeColor={COLORS.like}
+            inactiveColor="rgba(0,0,0,0.28)"
             size={16}
-            color={item.saved ? '#E63946' : 'rgba(0,0,0,0.28)'}
           />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
       <View style={styles.info}>
         <Text style={styles.price}>${item.price}</Text>
@@ -42,7 +46,7 @@ export default function ListingCard({ item, onPress, onSave, style }: Props) {
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -50,23 +54,21 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 2,
+    ...SHADOWS.card,
   },
   imageArea: {
     height: 128,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   badge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#E63946',
+    backgroundColor: COLORS.like,
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -92,9 +94,10 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 2,
+    fontVariant: ['tabular-nums'],
   },
   title: {
     fontSize: 12,

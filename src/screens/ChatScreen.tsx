@@ -3,18 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   TextInput,
   FlatList,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, SIZES, GRADIENTS, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -49,6 +52,7 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 export default function ChatScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
   const listing = route?.params?.listing ?? null;
   const contact = route?.params?.contact ?? {
     initials: 'AK',
@@ -67,12 +71,19 @@ export default function ChatScreen({ navigation, route }: Props) {
   const sendMessage = () => {
     const text = inputText.trim();
     if (!text) return;
+    haptics.tap();
     setMessages(prev => [
       ...prev,
       { id: Date.now().toString(), text, sent: true, time: 'Now' },
     ]);
     setInputText('');
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+  };
+
+  const handleViewListing = () => {
+    if (!listing) return;
+    haptics.tap();
+    navigation.navigate('ListingDetail', { listing });
   };
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
@@ -85,16 +96,21 @@ export default function ChatScreen({ navigation, route }: Props) {
             item.sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived,
           ]}
         >
-          <View
-            style={[
-              styles.bubble,
-              item.sent ? styles.bubbleSent : styles.bubbleReceived,
-            ]}
-          >
-            <Text style={[styles.bubbleText, item.sent ? styles.bubbleTextSent : null]}>
-              {item.text}
-            </Text>
-          </View>
+          {item.sent ? (
+            <LinearGradient
+              colors={GRADIENTS.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.bubble, styles.bubbleSent]}
+            >
+              <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.text}</Text>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.bubble, styles.bubbleReceived]}>
+              <Text style={styles.bubbleText}>{item.text}</Text>
+            </View>
+          )}
+          <Text style={styles.timestamp}>{item.time}</Text>
         </View>
         {item.dealAmount && (
           <View style={styles.dealRow}>
@@ -116,31 +132,49 @@ export default function ChatScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <PressableScale
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.9}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
         <View style={[styles.headerAvatar, { backgroundColor: contact.avatarColor }]}>
           <Text style={styles.headerAvatarText}>{contact.initials}</Text>
         </View>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{contact.name}</Text>
+          <Text style={styles.headerName} numberOfLines={1}>{contact.name}</Text>
           <View style={styles.activeRow}>
             <View style={styles.activeDot} />
             <Text style={styles.activeText}>Active now</Text>
           </View>
         </View>
-        <TouchableOpacity
+        <PressableScale
           style={styles.viewBtn}
-          onPress={() => listing && navigation.navigate('ListingDetail', { listing })}
+          onPress={handleViewListing}
+          scaleTo={0.94}
+          accessibilityLabel="View listing"
         >
           <Text style={styles.viewBtnText}>View</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.flagBtn} onPress={() => setReportVisible(true)}>
+        </PressableScale>
+        <PressableScale
+          style={styles.flagBtn}
+          onPress={() => setReportVisible(true)}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.9}
+          accessibilityLabel="Report conversation"
+          accessibilityRole="button"
+        >
           <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Listing preview banner */}
@@ -150,12 +184,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.listingTitle}>iPad Air 64GB</Text>
           <Text style={styles.listingPrice}>$280</Text>
         </View>
-        <TouchableOpacity
-          style={styles.viewBannerBtn}
-          onPress={() => listing && navigation.navigate('ListingDetail', { listing })}
-        >
+        <PressableScale style={styles.viewBannerBtn} onPress={handleViewListing} scaleTo={0.94}>
           <Text style={styles.viewBannerBtnText}>View</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <KeyboardAvoidingView
@@ -175,10 +206,10 @@ export default function ChatScreen({ navigation, route }: Props) {
         />
 
         {/* Input bar */}
-        <View style={styles.inputBar}>
-          <TouchableOpacity style={styles.emojiBtn}>
+        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <PressableScale style={styles.emojiBtn} scaleTo={0.9} accessibilityLabel="Add emoji">
             <Ionicons name="happy-outline" size={24} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          </PressableScale>
           <TextInput
             style={styles.textInput}
             value={inputText}
@@ -189,17 +220,21 @@ export default function ChatScreen({ navigation, route }: Props) {
             returnKeyType="send"
             onSubmitEditing={sendMessage}
           />
-          <TouchableOpacity
+          <PressableScale
             style={[styles.sendBtn, inputText.trim() ? styles.sendBtnActive : null]}
             onPress={sendMessage}
             disabled={!inputText.trim()}
+            scaleTo={0.9}
+            accessibilityLabel="Send message"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !inputText.trim() }}
           >
             <Ionicons
               name="arrow-up"
-              size={18}
+              size={19}
               color={inputText.trim() ? COLORS.white : COLORS.textMuted}
             />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </KeyboardAvoidingView>
       <ReportModal
@@ -223,13 +258,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     gap: 10,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -243,14 +281,14 @@ const styles = StyleSheet.create({
   headerAvatarText: {
     color: COLORS.white,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   headerInfo: {
     flex: 1,
   },
   headerName: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   activeRow: {
@@ -271,7 +309,7 @@ const styles = StyleSheet.create({
   viewBtn: {
     paddingHorizontal: 16,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: SIZES.borderRadiusSm,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
@@ -298,8 +336,8 @@ const styles = StyleSheet.create({
   listingThumb: {
     width: 44,
     height: 44,
-    borderRadius: 8,
-    backgroundColor: '#EEE8F8',
+    borderRadius: SIZES.borderRadiusSm,
+    backgroundColor: COLORS.primarySoft,
   },
   listingInfo: {
     flex: 1,
@@ -313,6 +351,7 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     color: COLORS.textMuted,
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   viewBannerBtn: {
     paddingHorizontal: 14,
@@ -347,11 +386,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleSent: {
-    backgroundColor: COLORS.primary,
     borderBottomRightRadius: 4,
   },
   bubbleReceived: {
-    backgroundColor: '#F0F0F5',
+    backgroundColor: COLORS.surfaceAlt,
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
@@ -361,6 +399,12 @@ const styles = StyleSheet.create({
   },
   bubbleTextSent: {
     color: COLORS.white,
+  },
+  timestamp: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    marginHorizontal: 2,
   },
   dealRow: {
     flexDirection: 'row',
@@ -372,7 +416,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   dealTag: {
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -383,12 +427,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   dealStatus: {
     fontSize: 12,
   },
   dealStatusPending: {
-    color: '#F5A623',
+    color: COLORS.warning,
     fontWeight: '700',
   },
   meetRow: {
@@ -404,7 +449,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     gap: 8,
@@ -426,15 +471,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.background,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   sendBtnActive: {
     backgroundColor: COLORS.primary,
+    ...SHADOWS.brand,
   },
 });
