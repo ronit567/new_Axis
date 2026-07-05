@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { useCurrentProfile } from './src/hooks/useProfile';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
+import ErrorState from './src/components/ErrorState';
 
 // ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -44,7 +45,12 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 function RootNavigator() {
   const { isSignedIn, loading } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useCurrentProfile();
 
   // Gate here rather than in AuthProvider so the provider tree (and
   // NavigationContainer) stays mounted while the session/profile are loading.
@@ -52,7 +58,21 @@ function RootNavigator() {
     return <ActivitySpinner size="large" style={{ flex: 1 }} />;
   }
 
-  const needsOnboarding = isSignedIn && !profile;
+  // A failed fetch leaves `profile` as `undefined`, not `null` — treat that
+  // as "unknown" and show a retry, not as "no profile row" (which would
+  // wrongly force an existing user back through onboarding on e.g. a network
+  // blip). Only a successful fetch that actually found nothing (`null`)
+  // means onboarding is needed.
+  if (isSignedIn && profileError) {
+    return (
+      <ErrorState
+        message="Couldn't load your profile. Check your connection and try again."
+        onRetry={() => refetchProfile()}
+      />
+    );
+  }
+
+  const needsOnboarding = isSignedIn && profile === null;
 
   return (
     <Stack.Navigator
