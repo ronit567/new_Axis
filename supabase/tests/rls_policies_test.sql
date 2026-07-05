@@ -398,6 +398,35 @@ select pg_temp.assert(
       = array['image/jpeg', 'image/png', 'image/webp'],
   'replaying 0003 must restore the mime allowlist on a pre-existing bucket');
 
+-- ── Scenario 11: a stray PERMISSIVE policy must not broaden these buckets.
+--    PostgreSQL OR's permissive policies per (command, role), so a pre-existing
+--    "allow all authenticated" default (as Supabase projects sometimes ship)
+--    would otherwise defeat the owner-scoped SELECT above. The RESTRICTIVE
+--    storage_owner_prefix_restrict policy (0003) AND's owner-scoping onto every
+--    permissive grant. Simulate such a default and confirm OTHER still cannot
+--    read OWNER's object in these buckets (while OWNER still reads their own).
+--    The stray policy is dropped again; all of this rolls back with the txn.
+insert into storage.objects (bucket_id, name) values
+  ('listing-images', '11111111-1111-1111-1111-111111111111/restrict-check/owner.jpg'),
+  ('listing-images', '22222222-2222-2222-2222-222222222222/restrict-check/other.jpg');
+create policy test_stray_permissive_select_all
+  on storage.objects for select to authenticated using (true);
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.assert(
+  (select count(*) from storage.objects
+     where bucket_id = 'listing-images'
+       and name = '11111111-1111-1111-1111-111111111111/restrict-check/owner.jpg') = 0,
+  'RESTRICTIVE owner-scoping must hold even when a permissive select-all policy exists');
+select pg_temp.assert(
+  (select count(*) from storage.objects
+     where bucket_id = 'listing-images'
+       and name = '22222222-2222-2222-2222-222222222222/restrict-check/other.jpg') = 1,
+  'owner must still read their own object under the RESTRICTIVE policy');
+reset role;
+drop policy test_stray_permissive_select_all on storage.objects;
+
 -- If we got here, every assertion passed.
 do $$ begin raise notice 'ALL RLS TESTS PASSED'; end $$;
 

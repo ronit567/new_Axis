@@ -25,6 +25,20 @@ on conflict (id) do update set
   allowed_mime_types = excluded.allowed_mime_types;
 
 -- ---------------------------------------------------------------------------
+-- Idempotency. Drop our own policies first so re-applying this migration
+-- converges to exactly the set below. This does NOT remove *other* permissive
+-- policies (e.g. a Supabase dashboard "allow all authenticated" default) —
+-- those are neutralised by the RESTRICTIVE policy at the end of this file.
+-- ---------------------------------------------------------------------------
+drop policy if exists "listing_images_select_own" on storage.objects;
+drop policy if exists "listing_images_insert_own" on storage.objects;
+drop policy if exists "listing_images_delete_own" on storage.objects;
+drop policy if exists "avatars_select_own" on storage.objects;
+drop policy if exists "avatars_insert_own" on storage.objects;
+drop policy if exists "avatars_delete_own" on storage.objects;
+drop policy if exists "storage_owner_prefix_restrict" on storage.objects;
+
+-- ---------------------------------------------------------------------------
 -- listing-images: authenticated upload/delete/list scoped to the owner's own
 -- prefix. No update policy — clients replace an image via delete + insert.
 --
@@ -86,4 +100,32 @@ create policy "avatars_delete_own"
   using (
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- ---------------------------------------------------------------------------
+-- Defense-in-depth: RESTRICTIVE owner-scoping for these two buckets.
+--
+-- PostgreSQL OR's all PERMISSIVE policies for the same (command, role), so a
+-- pre-existing broad policy — e.g. a Supabase "allow authenticated access"
+-- default — would OR with the owner-scoped policies above and let any
+-- authenticated user read/modify the whole bucket, defeating the intent. A
+-- RESTRICTIVE policy is AND'ed instead: it can only narrow access, so it caps
+-- every command on listing-images/avatars to the caller's own prefix no matter
+-- what other permissive policies exist. Scoped `to authenticated` to mirror the
+-- policies above; other buckets are untouched (the bucket_id guard is true for
+-- them), and the public-read route (getPublicUrl) bypasses RLS entirely so it
+-- is unaffected.
+-- ---------------------------------------------------------------------------
+create policy "storage_owner_prefix_restrict"
+  on storage.objects
+  as restrictive
+  for all
+  to authenticated
+  using (
+    bucket_id not in ('listing-images', 'avatars')
+    or (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id not in ('listing-images', 'avatars')
+    or (storage.foldername(name))[1] = auth.uid()::text
   );
