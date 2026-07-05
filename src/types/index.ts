@@ -21,6 +21,11 @@ export type SellerProfile = {
   avatarColor: string;
 };
 
+// The finite set of condition values the UI offers (create-listing form,
+// search filters) — domain-level, not derived from the DB schema, so screens
+// and hooks can depend on it without reaching into src/types/database.
+export type ListingCondition = 'Like new' | 'Good' | 'Fair';
+
 export type Listing = {
   id: string;
   title: string;

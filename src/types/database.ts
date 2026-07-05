@@ -311,5 +311,4 @@ export type MessageRow = DefaultSchema['Tables']['messages']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 
-export type ListingCondition = 'Like new' | 'Good' | 'Fair'
 export type ListingStatus = 'active' | 'sold'

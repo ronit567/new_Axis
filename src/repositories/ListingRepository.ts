@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { toListing } from './mappers'
-import { Listing } from '../types'
-import type { ListingCondition, ListingRow, ProfileRow } from '../types/database'
+import { Listing, ListingCondition } from '../types'
+import type { ListingRow, ProfileRow } from '../types/database'
 
 export type CreateListingInput = {
   title: string
@@ -41,8 +41,10 @@ export type ListingSearchFilters = {
 
 // Cap search results so a broad query (no text, no filters) can't pull every
 // active listing — and feed every id into the saved-ids IN() — in one request.
-// A mobile search screen never renders more than a page at a time.
-const SEARCH_RESULT_LIMIT = 50
+// A mobile search screen never renders more than a page at a time. Exported
+// so the screen can tell "exactly N results" apart from "N or more" without
+// duplicating the number.
+export const SEARCH_RESULT_LIMIT = 50
 
 // Postgres ILIKE treats \, %, and _ as pattern metacharacters. Escape them in
 // user-supplied text before wrapping it in %...% so a search for "50%" or

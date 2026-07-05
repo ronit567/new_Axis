@@ -16,9 +16,9 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
-import { RootStackParamList, Listing } from "../types";
-import { ListingCondition } from "../types/database";
+import { RootStackParamList, Listing, ListingCondition } from "../types";
 import { useSearchListings } from "../hooks/useListings";
+import { SEARCH_RESULT_LIMIT } from "../repositories/ListingRepository";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -62,6 +62,13 @@ export default function SearchScreen({ navigation }: Props) {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
+
+  // The backend caps a single search response at SEARCH_RESULT_LIMIT, so
+  // hitting that cap doesn't mean there are exactly that many matches — there
+  // may be more that just aren't fetched. Say "50+" rather than implying an
+  // exact count we don't actually have.
+  const resultsCountLabel =
+    results.length === SEARCH_RESULT_LIMIT ? `${SEARCH_RESULT_LIMIT}+` : `${results.length}`;
 
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
@@ -128,7 +135,7 @@ export default function SearchScreen({ navigation }: Props) {
       {/* Results count + cancel */}
       <View style={styles.resultsRow}>
         <Text style={styles.resultsCount}>
-          {isLoading ? "Searching…" : `${results.length} results`}
+          {isLoading ? "Searching…" : `${resultsCountLabel} results`}
         </Text>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -333,7 +340,7 @@ export default function SearchScreen({ navigation }: Props) {
               accessibilityRole="button"
             >
               <Text style={styles.showResultsText}>
-                Show {results.length} results
+                Show {resultsCountLabel} results
               </Text>
             </PressableScale>
           </View>

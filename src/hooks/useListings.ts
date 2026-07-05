@@ -70,20 +70,25 @@ export function useListing(id: string) {
   })
 }
 
-// Debounces `query` so keystrokes don't each fire a request; `filters` apply
-// immediately since they come from discrete taps, not typing.
+// Debounces both `query` and `filters` on the same timer — filter taps come
+// in bursts (rapid category-chip toggling, holding the price +/- button)
+// just like keystrokes do, so firing a request per tap while the filter
+// sheet is still open would be wasteful. `filters` is a fresh object every
+// render (the caller builds it inline), so it's compared by serialized value
+// rather than reference for the effect to settle once taps stop.
 export function useSearchListings(query: string, filters: ListingSearchFilters) {
   const { user } = useAuth()
-  const [debouncedQuery, setDebouncedQuery] = useState(query)
+  const [debounced, setDebounced] = useState({ query, filters })
+  const filtersKey = JSON.stringify(filters)
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebounced({ query, filters }), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, filtersKey])
 
   return useQuery({
-    queryKey: queryKeys.search(debouncedQuery, filters),
-    queryFn: () => ListingRepository.search(debouncedQuery, filters, user?.id),
+    queryKey: queryKeys.search(debounced.query, debounced.filters),
+    queryFn: () => ListingRepository.search(debounced.query, debounced.filters, user?.id),
     enabled: !!user,
   })
 }
