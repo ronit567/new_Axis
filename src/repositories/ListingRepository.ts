@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import { toListing, toMyListing } from './mappers'
-import { Listing, MyListing } from '../types'
+import { Listing, ListingCondition, MyListing } from '../types'
+import type { ListingRow, ProfileRow } from '../types/database'
 
 export type CreateListingInput = {
   title: string
@@ -31,6 +32,58 @@ export type ListingsPage = {
 
 // AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
 export const LISTINGS_PAGE_SIZE = 20
+
+export type ListingSearchFilters = {
+  categories?: string[]
+  priceMax?: number
+  condition?: ListingCondition
+}
+
+export type SearchOptions = {
+  limit?: number
+  offset?: number
+}
+
+// One page of search results — offset-paginated the same way as the home
+// feed, so a broad query (no text, no filters) loads a bounded page instead
+// of pulling every active listing (and feeding every id into the saved-ids
+// IN()) in one request. Kept in sync with useSearchListings' getNextPageParam.
+export const SEARCH_PAGE_SIZE = 20
+
+// Postgres ILIKE treats \, %, and _ as pattern metacharacters. Escape them in
+// user-supplied text before wrapping it in %...% so a search for "50%" or
+// "intro_bio" matches literally instead of matching arbitrary characters.
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`)
+}
+
+// Build the PostgREST `or(...)` filter matching the text in EITHER title or
+// description. Unlike the single-column `.ilike()` builder (which fully
+// parameterizes its value), `.or()` embeds the value in PostgREST's own
+// filter-string grammar — so on top of LIKE-escaping we double-quote the
+// pattern and escape backslashes/quotes, otherwise a query containing a comma,
+// period, parenthesis, or quote would break the parse or alter the filter.
+function buildTextFilter(text: string): string {
+  const pattern = `%${escapeLikePattern(text)}%`
+  const quoted = `"${pattern.replace(/["\\]/g, (char) => `\\${char}`)}"`
+  return `title.ilike.${quoted},description.ilike.${quoted}`
+}
+
+// listing_id set the current user has saved, scoped to the given ids so the
+// IN() stays bounded to one page of search results instead of the user's
+// whole saved-listings history.
+async function getSavedIds(userId: string, listingIds: string[]): Promise<Set<string>> {
+  if (listingIds.length === 0) return new Set()
+
+  const { data, error } = await supabase
+    .from('saved_listings')
+    .select('listing_id')
+    .eq('user_id', userId)
+    .in('listing_id', listingIds)
+  if (error) throw error
+
+  return new Set((data ?? []).map((row) => row.listing_id))
+}
 
 // The shape here is the contract screens/hooks build against so nothing
 // imports supabase directly.
@@ -227,6 +280,51 @@ export const ListingRepository = {
       if (row && seller) acc.push(toListing(row, seller, true))
       return acc
     }, [])
+  },
+  // Server-side text/category/price/condition search (AX-204). All filters
+  // are optional and combine with AND — an unset filter is simply omitted
+  // from the query rather than matched against a wildcard. Text matches the
+  // title OR description (see buildTextFilter); results are offset-paginated
+  // and ordered newest-first, same shape as getAll.
+  async search(
+    query: string,
+    filters: ListingSearchFilters = {},
+    currentUserId?: string,
+    options: SearchOptions = {},
+  ): Promise<ListingsPage> {
+    const { limit = SEARCH_PAGE_SIZE, offset = 0 } = options
+    const trimmed = query.trim()
+
+    let request = supabase
+      .from('listings')
+      .select('*, seller:profiles!listings_seller_id_fkey(*)')
+      .eq('status', 'active')
+
+    if (trimmed) request = request.or(buildTextFilter(trimmed))
+    if (filters.categories?.length) request = request.in('category', filters.categories)
+    if (filters.priceMax != null) request = request.lte('price', filters.priceMax)
+    if (filters.condition) request = request.eq('condition', filters.condition)
+
+    const { data, error } = await request
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+    if (error) throw error
+    if (!data || data.length === 0) return { items: [], rawCount: 0 }
+
+    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
+    const savedIds = currentUserId
+      ? await getSavedIds(currentUserId, rows.map((row) => row.id))
+      : new Set<string>()
+
+    // seller_id is a NOT NULL FK, so a missing seller means a broken
+    // reference — skip rather than crash the whole search response over one
+    // bad row (mirrors the same guard in getAll). rawCount still reflects
+    // rows.length so pagination isn't thrown off by a dropped row.
+    const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
+      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
+      return acc
+    }, [])
+    return { items, rawCount: rows.length }
   },
   // Not yet called anywhere — wiring the view-count bump into
   // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views

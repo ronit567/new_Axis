@@ -21,9 +21,9 @@ export function useSavedListings() {
 // of truth for which direction to apply, and a full Listing is what's needed
 // to optimistically insert a newly-saved item into the saved-listings cache
 // (that query may not have been fetched yet, so we can't read the direction
-// back out of it). Both the saved-listings cache and every cached listings
-// page get updated in place so Home and Saved reflect the toggle together;
-// onError restores the exact snapshots taken in onMutate.
+// back out of it). The saved-listings cache and every cached listings AND
+// search page get updated in place so Home, Saved, and Search reflect the
+// toggle together; onError restores the exact snapshots taken in onMutate.
 export function useToggleSaved() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -38,15 +38,25 @@ export function useToggleSaved() {
       const savedKey = queryKeys.savedListings(user.id)
       const willSave = !listing.saved
 
+      // Search pages carry their own `saved` flags in the same ListingsPage
+      // shape as the home feed, so they get the same cancel/snapshot/patch
+      // treatment — without it a heart tapped on a search card only flips
+      // after the server round trip, unlike everywhere else.
       await Promise.all([
         queryClient.cancelQueries({ queryKey: savedKey }),
         queryClient.cancelQueries({ queryKey: ['listings'] }),
+        queryClient.cancelQueries({ queryKey: ['search'] }),
       ])
 
       const previousSaved = queryClient.getQueryData<Listing[]>(savedKey)
-      const previousListingsPages = queryClient.getQueriesData<InfiniteData<ListingsPage, number>>(
-        { queryKey: ['listings'] },
-      )
+      const previousListingsPages = [
+        ...queryClient.getQueriesData<InfiniteData<ListingsPage, number>>({
+          queryKey: ['listings'],
+        }),
+        ...queryClient.getQueriesData<InfiniteData<ListingsPage, number>>({
+          queryKey: ['search'],
+        }),
+      ]
 
       queryClient.setQueryData<Listing[]>(savedKey, (old = []) =>
         willSave
@@ -54,18 +64,23 @@ export function useToggleSaved() {
           : old.filter((l) => l.id !== listing.id),
       )
 
+      const flipSavedInPages = (old?: InfiniteData<ListingsPage, number>) =>
+        old && {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === listing.id ? { ...item, saved: willSave } : item,
+            ),
+          })),
+        }
       queryClient.setQueriesData<InfiniteData<ListingsPage, number>>(
         { queryKey: ['listings'] },
-        (old) =>
-          old && {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) =>
-                item.id === listing.id ? { ...item, saved: willSave } : item,
-              ),
-            })),
-          },
+        flipSavedInPages,
+      )
+      queryClient.setQueriesData<InfiniteData<ListingsPage, number>>(
+        { queryKey: ['search'] },
+        flipSavedInPages,
       )
 
       return { savedKey, previousSaved, previousListingsPages }
@@ -84,6 +99,10 @@ export function useToggleSaved() {
         })
       }
       queryClient.invalidateQueries({ queryKey: ['listings'] })
+      // Search results carry their own `saved` flag (ListingRepository.search),
+      // so a toggle from Home/Saved/Detail needs to bust the search cache too,
+      // not just the toggle done from search itself.
+      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }

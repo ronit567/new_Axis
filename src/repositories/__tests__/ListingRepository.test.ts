@@ -1,7 +1,8 @@
-// ListingRepository.getAll (AX-201): the only real query in this repository so
-// far. Mocks `supabase.from(...)` as a thenable chain (mirrors how the real
-// PostgrestFilterBuilder resolves) so we can assert the query shape — active
-// only, newest first, category filter, offset pagination — without a live DB.
+// ListingRepository tests. getAll + toggleSaved (AX-201, home feed) assert query
+// shape via jest.fn spies (makeQueryBuilder); search (AX-204) asserts the exact
+// filter arguments via a call-recording builder (createSearchBuilder). Both
+// suites drive the single mocked `supabase.from(...)`, which resolves as a
+// thenable chain the way the real PostgrestFilterBuilder does — no live DB.
 
 import type { ListingRow, ProfileRow } from '../../types/database';
 
@@ -42,6 +43,7 @@ jest.mock('../../lib/supabase', () => ({
 import {
   ListingRepository,
   LISTINGS_PAGE_SIZE,
+  SEARCH_PAGE_SIZE,
   type CreateListingInput,
 } from '../ListingRepository';
 
@@ -382,6 +384,228 @@ describe('ListingRepository.toggleSaved', () => {
     });
 
     await expect(ListingRepository.toggleSaved('l1', 'user-1')).rejects.toThrow('insert failed');
+  });
+});
+
+// ── search (AX-204): server-side text/category/price/condition filtering ─────
+// The search query is a single chain (embedded seller join), so this builder
+// records every filter call in `builder.calls` and resolves the configured
+// `result` when awaited — letting the tests assert the exact filter arguments.
+type SearchQueryResult = { data: any; error: any };
+
+function createSearchBuilder(result: SearchQueryResult) {
+  const calls: Record<string, any[][]> = {};
+  const record = (name: string, args: any[]) => {
+    calls[name] = calls[name] || [];
+    calls[name].push(args);
+  };
+  const builder: any = {
+    select: (...args: any[]) => { record('select', args); return builder; },
+    eq: (...args: any[]) => { record('eq', args); return builder; },
+    ilike: (...args: any[]) => { record('ilike', args); return builder; },
+    or: (...args: any[]) => { record('or', args); return builder; },
+    in: (...args: any[]) => { record('in', args); return builder; },
+    lte: (...args: any[]) => { record('lte', args); return builder; },
+    order: (...args: any[]) => { record('order', args); return builder; },
+    range: (...args: any[]) => { record('range', args); return builder; },
+    then: (resolve: (r: SearchQueryResult) => unknown) => resolve(result),
+    calls,
+  };
+  return builder;
+}
+
+let searchListingsResult: SearchQueryResult = { data: [], error: null };
+let searchSavedResult: SearchQueryResult = { data: [], error: null };
+let searchListingsBuilder: any;
+let searchSavedBuilder: any;
+
+const searchSeller = {
+  id: 's1',
+  name: 'Aria K.',
+  initials: 'AK',
+  program: 'BMOS',
+  year: 2,
+  location: 'Elgin Hall',
+  bio: null,
+  avatar_url: null,
+  avatar_color: '#5C2D91',
+  verified: true,
+  reply_time: '~1h',
+  created_at: '2024-09-15T10:00:00.000Z',
+};
+
+// search selects the seller embedded on each row (profiles join), so the mock
+// row carries `seller` inline rather than relying on a separate profiles query.
+function makeSearchRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'l1',
+    seller_id: 's1',
+    title: 'Organic Chem 2 textbook',
+    description: 'Great condition.',
+    price: 45,
+    is_free: false,
+    is_trade: false,
+    condition: 'Good',
+    category: 'Textbooks',
+    pickup: 'UCC, Room 110',
+    image_urls: [],
+    status: 'active',
+    views: 22,
+    created_at: '2026-06-29T12:00:00.000Z',
+    seller: searchSeller,
+    ...overrides,
+  };
+}
+
+describe('ListingRepository.search', () => {
+  beforeEach(() => {
+    searchListingsResult = { data: [], error: null };
+    searchSavedResult = { data: [], error: null };
+    searchListingsBuilder = undefined;
+    searchSavedBuilder = undefined;
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') {
+        searchListingsBuilder = createSearchBuilder(searchListingsResult);
+        return searchListingsBuilder;
+      }
+      if (table === 'saved_listings') {
+        searchSavedBuilder = createSearchBuilder(searchSavedResult);
+        return searchSavedBuilder;
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    });
+  });
+
+  it('always scopes to active listings, newest first, with default pagination', async () => {
+    await ListingRepository.search('', {});
+    expect(searchListingsBuilder.calls.eq).toEqual([['status', 'active']]);
+    expect(searchListingsBuilder.calls.order).toEqual([['created_at', { ascending: false }]]);
+    expect(searchListingsBuilder.calls.range).toEqual([[0, SEARCH_PAGE_SIZE - 1]]);
+    expect(searchListingsBuilder.calls.or).toBeUndefined();
+    expect(searchListingsBuilder.calls.in).toBeUndefined();
+    expect(searchListingsBuilder.calls.lte).toBeUndefined();
+  });
+
+  it('offsets by page when a later page is requested', async () => {
+    await ListingRepository.search('', {}, undefined, { offset: 40, limit: 20 });
+    expect(searchListingsBuilder.calls.range).toEqual([[40, 59]]);
+  });
+
+  it('matches a trimmed text query against title OR description', async () => {
+    await ListingRepository.search('  chem  ', {});
+    expect(searchListingsBuilder.calls.or).toEqual([
+      ['title.ilike."%chem%",description.ilike."%chem%"'],
+    ]);
+  });
+
+  it('omits the text filter for an empty/whitespace-only query', async () => {
+    await ListingRepository.search('   ', {});
+    expect(searchListingsBuilder.calls.or).toBeUndefined();
+  });
+
+  it('escapes LIKE metacharacters and quotes the value so commas/quotes cannot break the or() filter', async () => {
+    // Input contains a comma (PostgREST separator), a percent + underscore
+    // (LIKE wildcards), and a backslash — all of which must survive as literal
+    // characters inside the or() filter string.
+    await ListingRepository.search('a,b%c_d\\', {});
+    // LIKE-escaped:  a,b\%c\_d\\   ->  pattern  %a,b\%c\_d\\%
+    // then backslashes doubled for the quoted or() value.
+    const value = '"%a,b\\\\%c\\\\_d\\\\\\\\%"';
+    expect(searchListingsBuilder.calls.or).toEqual([
+      [`title.ilike.${value},description.ilike.${value}`],
+    ]);
+  });
+
+  it('applies the category filter via an IN clause', async () => {
+    await ListingRepository.search('', { categories: ['Textbooks', 'Electronics'] });
+    expect(searchListingsBuilder.calls.in).toEqual([['category', ['Textbooks', 'Electronics']]]);
+  });
+
+  it('applies the price-max filter', async () => {
+    await ListingRepository.search('', { priceMax: 50 });
+    expect(searchListingsBuilder.calls.lte).toEqual([['price', 50]]);
+  });
+
+  it('applies the condition filter', async () => {
+    await ListingRepository.search('', { condition: 'Good' });
+    expect(searchListingsBuilder.calls.eq).toEqual([['status', 'active'], ['condition', 'Good']]);
+  });
+
+  it('combines text, category, price-max, and condition filters together', async () => {
+    await ListingRepository.search('chem', {
+      categories: ['Textbooks'],
+      priceMax: 60,
+      condition: 'Good',
+    });
+    expect(searchListingsBuilder.calls.or).toEqual([
+      ['title.ilike."%chem%",description.ilike."%chem%"'],
+    ]);
+    expect(searchListingsBuilder.calls.in).toEqual([['category', ['Textbooks']]]);
+    expect(searchListingsBuilder.calls.lte).toEqual([['price', 60]]);
+    expect(searchListingsBuilder.calls.eq).toEqual([['status', 'active'], ['condition', 'Good']]);
+  });
+
+  it('returns an accurate, empty result with no matches (and skips the saved-ids lookup)', async () => {
+    searchListingsResult = { data: [], error: null };
+    const result = await ListingRepository.search('nonexistent', {});
+    expect(result).toEqual({ items: [], rawCount: 0 });
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+    expect(mockFrom).toHaveBeenCalledWith('listings');
+  });
+
+  it('maps matching rows into domain Listings with an accurate count', async () => {
+    searchListingsResult = {
+      data: [makeSearchRow({ id: 'l1' }), makeSearchRow({ id: 'l2', title: 'Calc textbook' })],
+      error: null,
+    };
+    const result = await ListingRepository.search('textbook', {});
+    expect(result.items).toHaveLength(2);
+    expect(result.rawCount).toBe(2);
+    expect(result.items.map((r) => r.id)).toEqual(['l1', 'l2']);
+    expect(result.items[0].seller.id).toBe('s1');
+  });
+
+  it('skips a row whose embedded seller is null (broken FK) instead of throwing, keeping rawCount at the fetched row count', async () => {
+    searchListingsResult = {
+      data: [makeSearchRow({ id: 'l1', seller: null }), makeSearchRow({ id: 'l2' })],
+      error: null,
+    };
+    const result = await ListingRepository.search('', {});
+    expect(result.items.map((r) => r.id)).toEqual(['l2']);
+    expect(result.rawCount).toBe(2);
+  });
+
+  it('defaults saved to false when no current user is given', async () => {
+    searchListingsResult = { data: [makeSearchRow({ id: 'l1' })], error: null };
+    const { items: [result] } = await ListingRepository.search('', {});
+    expect(result.saved).toBe(false);
+    expect(mockFrom).not.toHaveBeenCalledWith('saved_listings');
+  });
+
+  it('folds in the current user\'s saved-ids scoped to the result set', async () => {
+    searchListingsResult = {
+      data: [makeSearchRow({ id: 'l1' }), makeSearchRow({ id: 'l2' })],
+      error: null,
+    };
+    searchSavedResult = { data: [{ listing_id: 'l1' }], error: null };
+
+    const { items } = await ListingRepository.search('', {}, 'u1');
+
+    expect(items.find((r) => r.id === 'l1')?.saved).toBe(true);
+    expect(items.find((r) => r.id === 'l2')?.saved).toBe(false);
+    expect(searchSavedBuilder.calls.eq).toEqual([['user_id', 'u1']]);
+    expect(searchSavedBuilder.calls.in).toEqual([['listing_id', ['l1', 'l2']]]);
+  });
+
+  it('throws when the listings query errors', async () => {
+    searchListingsResult = { data: null, error: new Error('boom') };
+    await expect(ListingRepository.search('', {})).rejects.toThrow('boom');
+  });
+
+  it('throws when the saved-ids query errors', async () => {
+    searchListingsResult = { data: [makeSearchRow({ id: 'l1' })], error: null };
+    searchSavedResult = { data: null, error: new Error('saved-ids boom') };
+    await expect(ListingRepository.search('', {}, 'u1')).rejects.toThrow('saved-ids boom');
   });
 });
 
