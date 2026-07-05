@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import InputField from '../components/InputField';
+import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useUpsertProfile } from '../hooks/useProfile';
@@ -87,6 +88,12 @@ export default function SetupProfileScreen(_props: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* No onBack: this is a mandatory gate reached after auth, so there's
+              nothing to return to — but the step indicator is kept so the flow
+              still reads as "Step 3 of 3" like CreateAccount/VerifyEmail. */}
+          <StepHeader currentStep={3} totalSteps={3} />
+
+          <Text style={styles.stepLabel}>Step 3 of 3</Text>
           <Text style={styles.title}>Set up your profile</Text>
           <Text style={styles.subtitle}>
             A real name and photo build trust with buyers and sellers.
@@ -191,6 +198,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 40,
+  },
+  stepLabel: {
+    fontSize: SIZES.xs,
+    color: COLORS.textMuted,
+    marginBottom: 6,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   title: {
     fontSize: SIZES.xxl,

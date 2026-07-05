@@ -5,15 +5,21 @@ import { COLORS, SIZES } from '../constants/theme';
 type Props = {
   currentStep: number;
   totalSteps?: number;
-  onBack: () => void;
+  // Omit on a screen with nothing to go back to (e.g. a mandatory gate) — the
+  // back button is then replaced by a spacer so the step dots stay centered.
+  onBack?: () => void;
 };
 
 export default function StepHeader({ currentStep, totalSteps = 3, onBack }: Props) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-        <Text style={styles.backArrow}>‹</Text>
-      </TouchableOpacity>
+      {onBack ? (
+        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+          <Text style={styles.backArrow}>‹</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.placeholder} />
+      )}
       <View style={styles.stepsRow}>
         {Array.from({ length: totalSteps }).map((_, i) => (
           <View
