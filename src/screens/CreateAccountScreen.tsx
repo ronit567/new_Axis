@@ -18,6 +18,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { isWesternEmail } from '../lib/email';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
 
@@ -29,15 +30,15 @@ export default function CreateAccountScreen({ navigation }: Props) {
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isWesternEmail = email.endsWith('@uwo.ca') || email.endsWith('@alumni.uwo.ca');
-  const canContinue = fullName.trim() && email.trim() && password.trim() && agreed;
+  const canContinue =
+    fullName.trim() && email.trim() && password.trim() && agreed && isWesternEmail(email.trim());
 
   const handleContinue = async () => {
     if (!canContinue || submitting) return;
     const trimmedEmail = email.trim();
     setSubmitting(true);
     try {
-      const result = await signUp(trimmedEmail, password);
+      const result = await signUp(trimmedEmail, password, fullName.trim());
       if (result === 'exists') {
         Alert.alert(
           'Account already exists',
@@ -93,12 +94,12 @@ export default function CreateAccountScreen({ navigation }: Props) {
               keyboardType="email-address"
               hint={
                 email.length > 4
-                  ? isWesternEmail
+                  ? isWesternEmail(email)
                     ? 'Only @uwo.ca emails can join Axis.'
                     : 'Please use a @uwo.ca email address.'
                   : undefined
               }
-              hintType={email.length > 4 ? (isWesternEmail ? 'success' : 'error') : 'info'}
+              hintType={email.length > 4 ? (isWesternEmail(email) ? 'success' : 'error') : 'info'}
             />
             <InputField
               label="Password"
@@ -134,9 +135,9 @@ export default function CreateAccountScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>New to Axis? </Text>
+            <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-              <Text style={styles.footerLink}>Create account</Text>
+              <Text style={styles.footerLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

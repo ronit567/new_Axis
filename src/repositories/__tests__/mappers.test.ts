@@ -6,6 +6,7 @@ const sellerRow: ProfileRow = {
   name: 'Aria K.',
   initials: 'AK',
   program: 'BMOS',
+  bio: 'Loves campus food.',
   year: 2,
   location: 'Elgin Hall',
   avatar_url: null,
@@ -108,6 +109,7 @@ describe('toSellerProfile', () => {
       name: 'Aria K.',
       initials: 'AK',
       program: 'BMOS',
+      bio: 'Loves campus food.',
       year: 2,
       verified: true,
       rating: 0,
@@ -116,6 +118,10 @@ describe('toSellerProfile', () => {
       stats,
     });
     expect(profile.joinedDate).toBe('Sep 2024');
+  });
+
+  it('defaults bio to an empty string when null', () => {
+    expect(toSellerProfile({ ...sellerRow, bio: null }, stats).bio).toBe('');
   });
 
   it('derives initials from name when the column is null', () => {

@@ -7,6 +7,9 @@
 // generator after the migration is applied will reproduce them; drop this note
 // once it does.
 //
+// MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
+// migration 0003 (AX-301 onboarding). Drop this note once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -208,6 +211,7 @@ export type Database = {
         Row: {
           avatar_color: string | null
           avatar_url: string | null
+          bio: string | null
           created_at: string
           id: string
           initials: string | null
@@ -221,6 +225,7 @@ export type Database = {
         Insert: {
           avatar_color?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id: string
           initials?: string | null
@@ -234,6 +239,7 @@ export type Database = {
         Update: {
           avatar_color?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id?: string
           initials?: string | null
