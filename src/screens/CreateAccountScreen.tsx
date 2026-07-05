@@ -135,9 +135,9 @@ export default function CreateAccountScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>New to Axis? </Text>
+            <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
-              <Text style={styles.footerLink}>Create account</Text>
+              <Text style={styles.footerLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
