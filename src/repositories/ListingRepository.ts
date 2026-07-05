@@ -121,9 +121,15 @@ export const ListingRepository = {
     if (!savedRows || savedRows.length === 0) return []
 
     const listingIds = savedRows.map((row) => row.listing_id)
+    // Match getAll's active-only filter: there's no "sold"/"unavailable" badge
+    // in the UI yet, so a sold listing would look identical to a live one in
+    // the Saved list — excluding it here avoids a misleading duplicate-looking
+    // entry. Revisit once a status badge exists (users may want to see that a
+    // saved item sold rather than have it silently disappear).
     const { data: rows, error: listingsError } = await supabase
       .from('listings')
       .select('*')
+      .eq('status', 'active')
       .in('id', listingIds)
     if (listingsError) throw listingsError
     if (!rows || rows.length === 0) return []

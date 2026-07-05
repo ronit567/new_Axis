@@ -281,6 +281,18 @@ describe('ListingRepository.getSavedByUser', () => {
     expect(result.every((l) => l.saved)).toBe(true);
   });
 
+  it('filters saved listings to active status, same as the home feed', async () => {
+    const { listingsBuilder } = mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }], error: null },
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    await ListingRepository.getSavedByUser('user-1');
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+  });
+
   it('skips a saved listing whose seller is missing rather than throwing', async () => {
     const row = makeListingRow({ id: 'l1' });
     mockSavedQueries({
