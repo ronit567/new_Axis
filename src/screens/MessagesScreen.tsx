@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -13,125 +14,59 @@ import { COLORS, SIZES, FONTS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import { RootStackParamList } from '../types';
+import { useConversations } from '../hooks/useMessages';
+import { Conversation, RootStackParamList } from '../types';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
-type Conversation = {
-  id: string;
-  initials: string;
-  avatarColor: string;
-  name: string;
-  preview: string;
-  time: string;
-  unread: boolean;
-  type: string;
-};
-
 const FILTERS = ['All', 'Buying', 'Selling'];
-
-const CONVERSATIONS = [
-  {
-    id: '1',
-    initials: 'AK',
-    avatarColor: COLORS.primary,
-    name: 'Aria K.',
-    preview: 'Sounds good – UCC at 3pm w...',
-    time: '2m',
-    unread: true,
-    type: 'Buying',
-  },
-  {
-    id: '2',
-    initials: 'MP',
-    avatarColor: '#7B7BAF',
-    name: 'Maya P.',
-    preview: 'Is the textbook still available?',
-    time: '1h',
-    unread: true,
-    type: 'Selling',
-  },
-  {
-    id: '3',
-    initials: 'LT',
-    avatarColor: '#5E9E8F',
-    name: 'Liam T.',
-    preview: 'Can you do $25 for the desk?',
-    time: '3h',
-    unread: false,
-    type: 'Selling',
-  },
-  {
-    id: '4',
-    initials: 'NR',
-    avatarColor: '#B07A5A',
-    name: 'Noah R.',
-    preview: 'Thanks! Just use the e-transfer',
-    time: 'Yesterday',
-    unread: false,
-    type: 'Buying',
-  },
-  {
-    id: '5',
-    initials: 'PM',
-    avatarColor: '#A05CB5',
-    name: 'Priya M.',
-    preview: 'Where on campus works for you?',
-    time: 'Wed',
-    unread: false,
-    type: 'Selling',
-  },
-];
 
 export default function MessagesScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const { data, isPending, isError, refetch, isRefetching } = useConversations();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
-  };
-
+  const conversations = data ?? [];
   const filtered =
     activeFilter === 'All'
-      ? CONVERSATIONS
-      : CONVERSATIONS.filter(c => c.type === activeFilter);
+      ? conversations
+      : conversations.filter(c => c.type === activeFilter);
 
   const renderItem = ({ item, index }: { item: Conversation; index: number }) => (
     <TouchableOpacity
       style={[styles.row, index > 0 ? styles.rowBorder : null]}
       activeOpacity={0.75}
-      onPress={() => navigation.navigate('Chat', { contact: item })}
+      onPress={() =>
+        navigation.navigate('Chat', {
+          listingId: item.listingId,
+          partnerId: item.partnerId,
+          partner: item.partner,
+          listingTitle: item.listingTitle ?? undefined,
+          listingPrice: item.listingPrice ?? undefined,
+        })
+      }
     >
-      <View style={[styles.avatar, { backgroundColor: item.avatarColor }]}>
-        <Text style={styles.avatarText}>{item.initials}</Text>
+      <View style={[styles.avatar, { backgroundColor: item.partner.avatarColor }]}>
+        <Text style={styles.avatarText}>{item.partner.initials}</Text>
       </View>
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
-          <Text style={[styles.name, item.unread ? styles.nameUnread : null]}>
-            {item.name}
+          <Text style={[styles.name, item.unreadCount > 0 ? styles.nameUnread : null]}>
+            {item.partner.name}
           </Text>
-          <Text style={[styles.time, item.unread ? styles.timeUnread : null]}>
-            {item.time}
+          <Text style={[styles.time, item.unreadCount > 0 ? styles.timeUnread : null]}>
+            {item.lastMessageAt}
           </Text>
         </View>
         <View style={styles.rowBottom}>
           <Text
-            style={[styles.preview, item.unread ? styles.previewUnread : null]}
+            style={[styles.preview, item.unreadCount > 0 ? styles.previewUnread : null]}
             numberOfLines={1}
           >
-            {item.preview}
+            {item.lastMessage}
           </Text>
-          {item.unread && <View style={styles.unreadDot} />}
+          {item.unreadCount > 0 && <View style={styles.unreadDot} />}
         </View>
       </View>
     </TouchableOpacity>
@@ -164,7 +99,7 @@ export default function MessagesScreen({ navigation }: Props) {
       </View>
 
       {/* Conversation list */}
-      {isLoading ? (
+      {isPending ? (
         <View style={styles.listContent}>
           {[0, 1, 2, 3, 4].map(i => (
             <View key={i} style={[styles.row, i > 0 ? styles.rowBorder : null]}>
@@ -181,16 +116,16 @@ export default function MessagesScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
-      ) : hasError ? (
+      ) : isError ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : (
         <FlatList
           data={filtered}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={item => `${item.listingId ?? 'none'}|${item.partnerId}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
@@ -199,6 +134,14 @@ export default function MessagesScreen({ navigation }: Props) {
               title="No conversations yet. Start a chat by messaging a seller on any listing."
               ctaLabel="Browse listings"
               onCta={() => navigation.navigate('Main')}
+            />
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
             />
           }
         />

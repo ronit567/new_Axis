@@ -16,6 +16,8 @@ import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
+import { useAuth } from '../context/AuthContext';
+import { sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
@@ -28,6 +30,8 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [activeDot, setActiveDot] = useState(0);
   const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const isOwnListing = user?.id === listing.seller.id;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -181,37 +185,39 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       </ScrollView>
 
       {/* Bottom Action Bar */}
-      <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <PressableScale
-          style={styles.offerBtn}
-          onPress={() => haptics.tap()}
-          scaleTo={0.97}
-          accessibilityRole="button"
-          accessibilityLabel="Make offer"
-        >
-          <Text style={styles.offerText}>Make offer</Text>
-        </PressableScale>
-        <PressableScale
-          style={styles.messageBtn}
-          scaleTo={0.97}
-          accessibilityRole="button"
-          accessibilityLabel="Message seller"
-          onPress={() => {
-            haptics.impact();
-            navigation.navigate('Chat', {
-              contact: {
-                initials: 'AK',
-                name: listing.seller.name,
-                avatarColor: COLORS.primary,
-              },
-              listing,
-            });
-          }}
-        >
-          <Ionicons name="chatbubble-outline" size={17} color={COLORS.white} />
-          <Text style={styles.messageText}>Message</Text>
-        </PressableScale>
-      </View>
+      {!isOwnListing && (
+        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <PressableScale
+            style={styles.offerBtn}
+            onPress={() => haptics.tap()}
+            scaleTo={0.97}
+            accessibilityRole="button"
+            accessibilityLabel="Make offer"
+          >
+            <Text style={styles.offerText}>Make offer</Text>
+          </PressableScale>
+          <PressableScale
+            style={styles.messageBtn}
+            scaleTo={0.97}
+            accessibilityRole="button"
+            accessibilityLabel="Message seller"
+            onPress={() => {
+              haptics.impact();
+              navigation.navigate('Chat', {
+                listingId: listing.id,
+                partnerId: listing.seller.id,
+                partner: sellerToContact(listing.seller),
+                listing,
+                listingTitle: listing.title,
+                listingPrice: listing.price,
+              });
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={17} color={COLORS.white} />
+            <Text style={styles.messageText}>Message</Text>
+          </PressableScale>
+        </View>
+      )}
       <ReportModal
         visible={reportVisible}
         target="listing"
