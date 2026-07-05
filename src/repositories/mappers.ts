@@ -5,8 +5,15 @@
 // and image/color placeholders. Repositories call these; screens never map.
 // Keep all mapping logic here so no screen reinvents it.
 
-import type { Listing, Seller, SellerProfile } from '../types';
-import type { ListingRow, ProfileRow } from '../types/database';
+import type {
+  Contact,
+  Conversation,
+  Listing,
+  Message,
+  Seller,
+  SellerProfile,
+} from '../types';
+import type { ListingRow, MessageRow, ProfileRow } from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
 // --- Deterministic placeholder palettes -------------------------------------
@@ -120,5 +127,68 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     verified: row.verified,
     stats,
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
+  };
+}
+
+// --- Messaging (AX-113) ------------------------------------------------------
+
+export function toMessage(row: MessageRow): Message {
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    senderId: row.sender_id,
+    receiverId: row.receiver_id,
+    body: row.body,
+    createdAt: row.created_at,
+    readAt: row.read_at,
+  };
+}
+
+// Chat-header display info from a full profile row (conversations list path).
+export function toContact(row: ProfileRow): Contact {
+  return {
+    id: row.id,
+    name: row.name,
+    initials: row.initials ?? deriveInitials(row.name),
+    avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
+  };
+}
+
+// Same, from a Listing's nested Seller (ListingDetail "Message" entry point,
+// where no profile row is in hand). Seller doesn't carry initials/avatar_color,
+// so both fall back to the derived/deterministic values — the id-seeded palette
+// keeps the color stable across screens for profiles that never set one.
+export function sellerToContact(seller: Seller): Contact {
+  return {
+    id: seller.id,
+    name: seller.name,
+    initials: deriveInitials(seller.name),
+    avatarColor: pickAvatarColor(seller.id),
+  };
+}
+
+type ConversationParts = {
+  partner: ProfileRow;
+  // Null when the listing row is gone or RLS-hidden; the thread still renders.
+  listing: ListingRow | null;
+  lastMessage: MessageRow;
+  unreadCount: number;
+  currentUserId: string;
+};
+
+export function toConversation(parts: ConversationParts): Conversation {
+  const { partner, listing, lastMessage, unreadCount, currentUserId } = parts;
+  return {
+    partnerId: partner.id,
+    partner: toContact(partner),
+    listingId: lastMessage.listing_id,
+    listingTitle: listing?.title ?? null,
+    listingPrice: listing?.price ?? null,
+    lastMessage: lastMessage.body,
+    lastMessageAt: timeAgo(lastMessage.created_at),
+    unreadCount,
+    // "Selling" = the thread is about my listing. Without a visible listing row
+    // we can't tell, so default to Buying (the common buyer-initiated case).
+    type: listing && listing.seller_id === currentUserId ? 'Selling' : 'Buying',
   };
 }

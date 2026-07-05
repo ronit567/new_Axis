@@ -8,11 +8,15 @@ import SavedScreen from './SavedScreen';
 import MessagesScreen from './MessagesScreen';
 import ProfileScreen from './ProfileScreen';
 import { RootStackParamList } from '../types';
+import { useMessagesRealtime } from '../hooks/useMessages';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
 export default function MainScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<TabName>('Home');
+  // Lives here (not in a chat screen) so incoming messages land in the cache
+  // for the whole signed-in session, keeping the inbox fresh in the background.
+  useMessagesRealtime();
 
   const renderContent = () => {
     switch (activeTab) {
