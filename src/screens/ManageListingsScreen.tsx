@@ -3,16 +3,18 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   FlatList,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
+import PressableScale from '../components/PressableScale';
+import { haptics } from '../lib/haptics';
 import { MY_LISTINGS } from '../data/mockListings';
 import { RootStackParamList, MyListing } from '../types';
 
@@ -34,10 +36,12 @@ export default function ManageListingsScreen({ navigation }: Props) {
     activeTab === 'Active' ? l.status === 'active' : l.status === 'sold',
   );
 
-  const markSold = (id: string) =>
+  const markSold = (id: string) => {
+    haptics.impact();
     setListings(prev =>
       prev.map(l => (l.id === id ? { ...l, status: 'sold' as const, soldFor: l.price } : l)),
     );
+  };
 
   const deleteListing = (id: string) => {
     Alert.alert('Delete listing?', 'This can’t be undone.', [
@@ -63,10 +67,16 @@ export default function ManageListingsScreen({ navigation }: Props) {
             )}
           </View>
           <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+              <View style={[styles.badge, isSold ? styles.badgeSold : styles.badgeActive]}>
+                <Text style={[styles.badgeText, isSold ? styles.badgeTextSold : styles.badgeTextActive]}>
+                  {isSold ? 'Sold' : 'Active'}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.price}>
               ${isSold ? item.soldFor : item.price}
-              {isSold ? <Text style={styles.soldLabel}>  · sold</Text> : null}
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.statChip}>
@@ -86,40 +96,57 @@ export default function ManageListingsScreen({ navigation }: Props) {
         <View style={styles.actions}>
           {!isSold ? (
             <>
-              <TouchableOpacity
+              <PressableScale
                 style={styles.actionBtn}
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('CreateListing')}
+                scaleTo={0.96}
+                onPress={() => {
+                  haptics.tap();
+                  navigation.navigate('CreateListing');
+                }}
+                accessibilityLabel={`Edit ${item.title}`}
+                accessibilityRole="button"
               >
                 <Ionicons name="create-outline" size={16} color={COLORS.text} />
                 <Text style={styles.actionText}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PressableScale>
+              <PressableScale
                 style={styles.actionBtn}
-                activeOpacity={0.8}
+                scaleTo={0.96}
                 onPress={() => markSold(item.id)}
+                accessibilityLabel={`Mark ${item.title} as sold`}
+                accessibilityRole="button"
               >
                 <Ionicons name="checkmark-circle-outline" size={16} color={COLORS.westernGreen} />
                 <Text style={[styles.actionText, { color: COLORS.westernGreen }]}>Mark sold</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </>
           ) : (
-            <TouchableOpacity
+            <PressableScale
               style={styles.actionBtn}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('CreateListing')}
+              scaleTo={0.96}
+              onPress={() => {
+                haptics.tap();
+                navigation.navigate('CreateListing');
+              }}
+              accessibilityLabel={`Relist ${item.title}`}
+              accessibilityRole="button"
             >
               <Ionicons name="repeat-outline" size={16} color={COLORS.text} />
               <Text style={styles.actionText}>Relist</Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
-          <TouchableOpacity
+          <PressableScale
             style={[styles.actionBtn, styles.deleteBtn]}
-            activeOpacity={0.8}
-            onPress={() => deleteListing(item.id)}
+            scaleTo={0.92}
+            onPress={() => {
+              haptics.tap();
+              deleteListing(item.id);
+            }}
+            accessibilityLabel={`Delete ${item.title}`}
+            accessibilityRole="button"
           >
-            <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-          </TouchableOpacity>
+            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+          </PressableScale>
         </View>
       </View>
     );
@@ -130,34 +157,57 @@ export default function ManageListingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <PressableScale
+          onPress={() => navigation.goBack()}
+          style={styles.headerIconBtn}
+          scaleTo={0.9}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
         <Text style={styles.headerTitle}>My listings</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CreateListing')}
-          style={styles.headerBtn}
+        <PressableScale
+          onPress={() => {
+            haptics.tap();
+            navigation.navigate('CreateListing');
+          }}
+          style={styles.headerIconBtn}
+          scaleTo={0.9}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel="Create new listing"
+          accessibilityRole="button"
         >
           <Ionicons name="add" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
-            onPress={() => setActiveTab(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-              {tab}  {tab === 'Active' ? activeCount : soldCount}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {TABS.map(tab => {
+          const isActive = activeTab === tab;
+          return (
+            <PressableScale
+              key={tab}
+              style={[styles.tab, isActive ? styles.tabActive : null]}
+              scaleTo={0.96}
+              onPress={() => {
+                haptics.tap();
+                setActiveTab(tab);
+              }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+            >
+              <Text style={[styles.tabText, isActive ? styles.tabTextActive : null]}>
+                {tab}  {tab === 'Active' ? activeCount : soldCount}
+              </Text>
+            </PressableScale>
+          );
+        })}
       </View>
 
       {isLoading ? (
@@ -177,8 +227,8 @@ export default function ManageListingsScreen({ navigation }: Props) {
                 </View>
               </View>
               <View style={styles.actions}>
-                <SkeletonLoader width="100%" height={38} style={styles.skeletonAction} />
-                <SkeletonLoader width="100%" height={38} style={styles.skeletonAction} />
+                <SkeletonLoader width="100%" height={44} style={styles.skeletonAction} />
+                <SkeletonLoader width="100%" height={44} style={styles.skeletonAction} />
               </View>
             </View>
           ))}
@@ -201,8 +251,8 @@ export default function ManageListingsScreen({ navigation }: Props) {
           ) : (
             <EmptyState
               icon="checkmark-circle-outline"
-              iconColor="#4CAF50"
-              iconBg="#E8F5E9"
+              iconColor={COLORS.westernGreen}
+              iconBg={COLORS.successSoft}
               title="Nothing sold yet. Mark an item as sold to see it here."
               ctaLabel="View active listings"
               onCta={() => setActiveTab('Active')}
@@ -218,27 +268,29 @@ export default function ManageListingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  headerBtn: {
-    width: 40,
-    height: 32,
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: SIZES.base,
-    fontWeight: '700',
+    fontSize: SIZES.lg,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
 
@@ -251,12 +303,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: SIZES.borderRadiusLg,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E4E4E4',
+    borderColor: COLORS.inputBorder,
   },
   tabActive: {
     backgroundColor: COLORS.primary,
@@ -265,29 +317,26 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
+    fontVariant: ['tabular-nums'],
   },
   tabTextActive: {
     color: COLORS.white,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
 
   /* list */
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 32,
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
-    padding: 12,
+    borderRadius: SIZES.borderRadiusLg,
+    padding: 14,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    ...SHADOWS.card,
   },
   cardTop: {
     flexDirection: 'row',
@@ -296,8 +345,10 @@ const styles = StyleSheet.create({
   thumb: {
     width: 64,
     height: 64,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
   },
   soldOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -308,12 +359,18 @@ const styles = StyleSheet.create({
   soldOverlayText: {
     color: COLORS.white,
     fontSize: SIZES.xs,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     letterSpacing: 1,
   },
   info: {
     flex: 1,
     gap: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   skeletonInfo: {
     flex: 1,
@@ -321,22 +378,41 @@ const styles = StyleSheet.create({
   },
   skeletonAction: {
     flex: 1,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
   },
   title: {
+    flex: 1,
     fontSize: SIZES.md,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.text,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: SIZES.borderRadiusSm,
+  },
+  badgeActive: {
+    backgroundColor: COLORS.successSoft,
+  },
+  badgeSold: {
+    backgroundColor: COLORS.surfaceAlt,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: FONTS.semibold,
+    letterSpacing: 0.3,
+  },
+  badgeTextActive: {
+    color: COLORS.westernGreen,
+  },
+  badgeTextSold: {
+    color: COLORS.textMuted,
   },
   price: {
     fontSize: SIZES.base,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
-  },
-  soldLabel: {
-    fontSize: SIZES.xs,
-    fontWeight: '500',
-    color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   statsRow: {
     flexDirection: 'row',
@@ -352,6 +428,7 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   posted: {
     fontSize: SIZES.xs,
@@ -362,8 +439,8 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 14,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
   },
@@ -373,39 +450,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    height: 38,
-    borderRadius: SIZES.borderRadiusSm,
+    height: 44,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     backgroundColor: COLORS.white,
   },
   actionText: {
     fontSize: SIZES.sm,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.text,
   },
   deleteBtn: {
     flex: 0,
     width: 44,
-  },
-
-  /* empty */
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: SIZES.lg,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: SIZES.md,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
+    borderColor: COLORS.error,
   },
 });

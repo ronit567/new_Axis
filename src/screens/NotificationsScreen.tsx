@@ -3,17 +3,19 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { ComponentProps } from 'react';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import PressableScale from '../components/PressableScale';
+import { haptics } from '../lib/haptics';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -35,7 +37,7 @@ const TODAY_NOTIFICATIONS: Notification[] = [
     id: 'n2',
     type: 'reply',
     icon: 'chatbubble-outline',
-    iconBg: '#EEE8F8',
+    iconBg: COLORS.primarySoft,
     iconColor: COLORS.primary,
     message: 'Maya P. replied about your Organic Chem textbook',
     time: '1h ago',
@@ -48,7 +50,7 @@ const EARLIER_NOTIFICATIONS: Notification[] = [
     id: 'n3',
     type: 'price_drop',
     icon: 'trending-down-outline',
-    iconBg: '#E8F5E9',
+    iconBg: COLORS.successSoft,
     iconColor: COLORS.westernGreen,
     message: 'Price dropped to $25 on "Desk chair" you saved!',
     time: '1d ago',
@@ -59,7 +61,7 @@ const EARLIER_NOTIFICATIONS: Notification[] = [
     type: 'saves',
     icon: 'heart-outline',
     iconBg: '#FEE8E8',
-    iconColor: '#E63946',
+    iconColor: COLORS.like,
     message: '3 people saved your Organic Chem listing',
     time: '6d ago',
     unread: false,
@@ -79,10 +81,16 @@ type Notification = {
 
 function NotifItem({ item, onPress }: { item: Notification; onPress: () => void }) {
   return (
-    <TouchableOpacity
+    <PressableScale
       style={[styles.item, item.unread ? styles.itemUnread : null]}
-      activeOpacity={0.75}
-      onPress={onPress}
+      onPress={() => {
+        haptics.tap();
+        onPress();
+      }}
+      scaleTo={0.97}
+      accessibilityRole="button"
+      accessibilityLabel={item.message}
+      accessibilityState={{ selected: item.unread }}
     >
       <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
         <Ionicons name={item.icon as IoniconsName} size={20} color={item.iconColor} />
@@ -94,11 +102,11 @@ function NotifItem({ item, onPress }: { item: Notification; onPress: () => void 
         <Text style={styles.itemTime}>{item.time}</Text>
       </View>
       {item.unread && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
-const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: '#5C2D91' };
+const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: COLORS.primary };
 
 export default function NotificationsScreen({ navigation }: Props) {
   const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
@@ -132,15 +140,30 @@ export default function NotificationsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
+        <PressableScale
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.9}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
         <Text style={styles.title}>Notifications</Text>
-        <TouchableOpacity onPress={markAllRead}>
+        <PressableScale
+          onPress={() => {
+            haptics.tap();
+            markAllRead();
+          }}
+          scaleTo={0.94}
+        >
           <Text style={styles.markAll}>Mark all read</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       {isLoading ? (
@@ -207,20 +230,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   backBtn: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
+    marginRight: 8,
   },
   title: {
     flex: 1,
     fontSize: SIZES.lg,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   markAll: {
@@ -235,7 +261,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: SIZES.xs,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textMuted,
     letterSpacing: 1,
     marginBottom: 8,
@@ -250,7 +276,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   itemUnread: {
-    backgroundColor: '#FAF7FF',
+    backgroundColor: COLORS.primaryTint,
   },
   iconCircle: {
     width: 42,
@@ -259,6 +285,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    ...SHADOWS.card,
   },
   itemContent: {
     flex: 1,

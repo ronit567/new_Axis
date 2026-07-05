@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
+import RotatingChevron from '../components/RotatingChevron';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
@@ -66,7 +68,7 @@ export default function SetupProfileScreen({ navigation }: Props) {
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarInitials}>RS</Text>
               <View style={styles.cameraBtn}>
-                <Text style={styles.cameraIcon}>📷</Text>
+                <Ionicons name="camera" size={12} color={COLORS.text} />
               </View>
             </View>
           </View>
@@ -78,7 +80,7 @@ export default function SetupProfileScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{program}</Text>
-            <Text style={styles.dropdownChevron}>{showProgramPicker ? '▲' : '▼'}</Text>
+            <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
           {showProgramPicker && (
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },
@@ -205,9 +207,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
   },
-  cameraIcon: {
-    fontSize: 11,
-  },
   sectionLabel: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
@@ -233,10 +232,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     color: COLORS.text,
   },
-  dropdownChevron: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
   dropdownList: {
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
@@ -253,7 +248,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   dropdownItemSelected: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
   },
   dropdownItemText: {
     fontSize: SIZES.base,

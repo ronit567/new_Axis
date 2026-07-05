@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import PrimaryButton from './PrimaryButton';
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
@@ -18,7 +19,7 @@ type Props = {
 export default function EmptyState({
   icon,
   iconColor = COLORS.primary,
-  iconBg = '#EEE8F8',
+  iconBg = COLORS.primarySoft,
   title,
   ctaLabel,
   onCta,
@@ -29,9 +30,7 @@ export default function EmptyState({
         <Ionicons name={icon} size={40} color={iconColor} />
       </View>
       <Text style={styles.title}>{title}</Text>
-      <TouchableOpacity style={styles.button} onPress={onCta} activeOpacity={0.85}>
-        <Text style={styles.buttonText}>{ctaLabel}</Text>
-      </TouchableOpacity>
+      <PrimaryButton title={ctaLabel} onPress={onCta} style={styles.button} />
     </View>
   );
 }
@@ -50,6 +49,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
+    ...SHADOWS.card,
   },
   title: {
     fontSize: SIZES.base,
@@ -60,18 +60,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.borderRadius,
-    paddingHorizontal: 28,
-    height: SIZES.buttonHeight,
     minWidth: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: SIZES.md,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    width: undefined,
   },
 });
