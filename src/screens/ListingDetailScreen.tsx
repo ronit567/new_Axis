@@ -41,6 +41,21 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
+  // `saved` is optimistic local state: flip immediately, roll back on failure.
+  // The mutation takes the full listing with the pre-tap saved flag — local
+  // state may be ahead of the query cache if the user toggles before a
+  // refetch lands, so `saved` (not `listing.saved`) is the source of truth.
+  const handleToggleSave = () => {
+    if (!listing) return;
+    haptics.tap();
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    toggleSavedMutation.mutate(
+      { ...listing, saved: wasSaved },
+      { onError: () => setSaved(wasSaved) },
+    );
+  };
+
   useEffect(() => {
     if (listing) setSaved(listing.saved);
   }, [listing]);
@@ -104,16 +119,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           </PressableScale>
           <PressableScale
             style={styles.iconBtn}
-            onPress={() => {
-              haptics.tap();
-              setSaved(s => !s);
-              // Optimistic; roll back if the DB write fails since this
-              // toggle (unlike list screens) has no other source of truth
-              // driving it in the meantime.
-              toggleSavedMutation.mutate(listing.id, {
-                onError: () => setSaved(s => !s),
-              });
-            }}
+            onPress={handleToggleSave}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             scaleTo={0.9}
             accessibilityRole="button"

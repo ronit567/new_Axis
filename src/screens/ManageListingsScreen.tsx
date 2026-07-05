@@ -15,7 +15,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
-import { MY_LISTINGS } from '../data/mockListings';
+import { useMyListings } from '../hooks/useListings';
 import { RootStackParamList, MyListing } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
@@ -23,14 +23,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
 const TABS = ['Active', 'Sold'];
 
 export default function ManageListingsScreen({ navigation }: Props) {
-  const [listings, setListings] = useState(MY_LISTINGS);
+  const { data, isLoading } = useMyListings();
+  // Mirrored into local state so markSold/delete can update the list
+  // optimistically — those actions don't persist to the backend yet (separate
+  // ticket), so this stays a client-only view on top of the fetched data.
+  const [listings, setListings] = useState<MyListing[]>([]);
   const [activeTab, setActiveTab] = useState('Active');
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+    if (data) setListings(data);
+  }, [data]);
 
   const filtered = listings.filter(l =>
     activeTab === 'Active' ? l.status === 'active' : l.status === 'sold',

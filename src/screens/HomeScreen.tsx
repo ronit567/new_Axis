@@ -75,7 +75,7 @@ export default function HomeScreen({ navigation }: Props) {
       <ListingCard
         item={item}
         onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-        onSave={() => toggleSavedMutation.mutate(item.id)}
+        onSave={() => toggleSavedMutation.mutate(item)}
       />
     </FadeInItem>
   );
