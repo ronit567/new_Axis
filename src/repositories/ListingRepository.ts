@@ -20,6 +20,15 @@ export type GetAllListingsOptions = {
   offset?: number
 }
 
+// rawCount is the number of rows the range() query actually returned, before
+// any get dropped for a missing seller join. Pagination must key off this
+// (not items.length) or a page with dropped rows looks short and
+// getNextPageParam stops early even though more rows exist past the range.
+export type ListingsPage = {
+  items: Listing[]
+  rawCount: number
+}
+
 // AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
 export const LISTINGS_PAGE_SIZE = 20
 
@@ -27,7 +36,7 @@ export const LISTINGS_PAGE_SIZE = 20
 // (AX-203, AX-202, AX-302) land. The shape here is the contract screens/hooks
 // build against so nothing imports supabase directly.
 export const ListingRepository = {
-  async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<Listing[]> {
+  async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
     const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
 
     let query = supabase
@@ -43,7 +52,7 @@ export const ListingRepository = {
 
     const { data: rows, error } = await query
     if (error) throw error
-    if (!rows || rows.length === 0) return []
+    if (!rows || rows.length === 0) return { items: [], rawCount: 0 }
 
     const sellerIds = [...new Set(rows.map((row) => row.seller_id))]
     const [{ data: sellers, error: sellersError }, { data: savedRows, error: savedError }] =
@@ -66,11 +75,14 @@ export const ListingRepository = {
 
     // seller_id is a NOT NULL FK, so a missing seller would mean a broken
     // reference — skip rather than crash the whole feed over one bad row.
-    return rows.reduce<Listing[]>((acc, row) => {
+    // rawCount still reflects rows.length so pagination isn't thrown off by it.
+    const items = rows.reduce<Listing[]>((acc, row) => {
       const seller = sellerById.get(row.seller_id)
       if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
       return acc
     }, [])
+
+    return { items, rawCount: rows.length }
   },
   async getById(id: string): Promise<Listing | null> {
     return null

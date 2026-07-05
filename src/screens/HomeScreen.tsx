@@ -47,7 +47,7 @@ export default function HomeScreen({ navigation }: Props) {
     isFetchingNextPage,
   } = useListings(category);
 
-  const listings = data?.pages.flat() ?? [];
+  const listings = data?.pages.flatMap(page => page.items) ?? [];
 
   useEffect(() => {
     const anim = Animated.loop(

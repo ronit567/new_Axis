@@ -123,24 +123,25 @@ describe('ListingRepository.getAll', () => {
 
     const result = await ListingRepository.getAll('user-1');
 
-    expect(result).toHaveLength(2);
-    expect(result.find((l) => l.id === 'l1')?.saved).toBe(false);
-    expect(result.find((l) => l.id === 'l2')?.saved).toBe(true);
+    expect(result.items).toHaveLength(2);
+    expect(result.rawCount).toBe(2);
+    expect(result.items.find((l) => l.id === 'l1')?.saved).toBe(false);
+    expect(result.items.find((l) => l.id === 'l2')?.saved).toBe(true);
   });
 
-  it('returns an empty array without querying sellers/saved when there are no listings', async () => {
+  it('returns an empty page without querying sellers/saved when there are no listings', async () => {
     const { sellersBuilder, savedBuilder } = mockQueries({
       listings: { data: [], error: null },
     });
 
     const result = await ListingRepository.getAll('user-1');
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({ items: [], rawCount: 0 });
     expect(sellersBuilder.select).not.toHaveBeenCalled();
     expect(savedBuilder.select).not.toHaveBeenCalled();
   });
 
-  it('skips rows whose seller lookup is missing instead of throwing', async () => {
+  it('keeps rawCount at the fetched row count even when a seller lookup is missing, so pagination does not stop early', async () => {
     mockQueries({
       listings: { data: [makeListingRow({ id: 'l1' })], error: null },
       sellers: { data: [], error: null },
@@ -148,7 +149,8 @@ describe('ListingRepository.getAll', () => {
 
     const result = await ListingRepository.getAll('user-1');
 
-    expect(result).toEqual([]);
+    expect(result.items).toEqual([]);
+    expect(result.rawCount).toBe(1);
   });
 
   it('throws when the listings query errors', async () => {

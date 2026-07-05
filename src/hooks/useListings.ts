@@ -15,7 +15,7 @@ export function useListings(category?: string) {
   return useInfiniteQuery({
     queryKey: queryKeys.listings(category),
     queryFn: ({ pageParam }) => {
-      if (!user) return []
+      if (!user) return { items: [], rawCount: 0 }
       return ListingRepository.getAll(user.id, {
         category,
         limit: LISTINGS_PAGE_SIZE,
@@ -23,8 +23,10 @@ export function useListings(category?: string) {
       })
     },
     initialPageParam: 0,
+    // Key off rawCount, not items.length — a page can have fewer mapped items
+    // than rows fetched (see ListingRepository.getAll) without being the last page.
     getNextPageParam: (lastPage, allPages) =>
-      lastPage.length < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
+      lastPage.rawCount < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
     enabled: !!user,
   })
 }
