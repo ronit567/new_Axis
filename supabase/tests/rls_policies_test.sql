@@ -367,6 +367,37 @@ exception
 end $$;
 reset role;
 
+-- ── Scenario 10: bucket guardrails survive a pre-existing bucket.
+--    Regression test for 0003's `on conflict (id) do update` (previously
+--    `do nothing`, which silently left a dashboard-created bucket without a
+--    size cap or mime allowlist). Weaken the buckets as an operator might,
+--    replay 0003's upsert verbatim, and assert the guardrails are forced back
+--    on. Under the old `do nothing` these assertions would fail. Rolled back
+--    with the surrounding transaction.
+update storage.buckets
+  set file_size_limit = null, allowed_mime_types = null
+  where id in ('listing-images', 'avatars');
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('listing-images', 'listing-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
+  ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+select pg_temp.assert(
+  (select file_size_limit from storage.buckets where id = 'listing-images') = 5242880
+    and (select file_size_limit from storage.buckets where id = 'avatars') = 2097152,
+  'replaying 0003 must restore file_size_limit on a pre-existing bucket');
+select pg_temp.assert(
+  (select allowed_mime_types from storage.buckets where id = 'listing-images')
+      = array['image/jpeg', 'image/png', 'image/webp']
+    and (select allowed_mime_types from storage.buckets where id = 'avatars')
+      = array['image/jpeg', 'image/png', 'image/webp'],
+  'replaying 0003 must restore the mime allowlist on a pre-existing bucket');
+
 -- If we got here, every assertion passed.
 do $$ begin raise notice 'ALL RLS TESTS PASSED'; end $$;
 

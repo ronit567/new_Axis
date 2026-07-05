@@ -15,7 +15,14 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values
   ('listing-images', 'listing-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
   ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
-on conflict (id) do nothing;
+-- Upsert (not `do nothing`): if a bucket was created manually (e.g. via the
+-- dashboard) without limits, `do nothing` would silently leave those weaker
+-- settings in place and the guardrails below would never take effect. Force
+-- the intended public flag, size cap, and mime allowlist on every apply.
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- ---------------------------------------------------------------------------
 -- listing-images: authenticated upload/delete/list scoped to the owner's own
