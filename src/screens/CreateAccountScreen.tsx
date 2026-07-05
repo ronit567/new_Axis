@@ -30,7 +30,8 @@ export default function CreateAccountScreen({ navigation }: Props) {
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const canContinue = fullName.trim() && email.trim() && password.trim() && agreed;
+  const canContinue =
+    fullName.trim() && email.trim() && password.trim() && agreed && isWesternEmail(email.trim());
 
   const handleContinue = async () => {
     if (!canContinue || submitting) return;
