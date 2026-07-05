@@ -10,6 +10,10 @@
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `my_listing_save_counts` function was
+// hand-added alongside migration 0006 (AX-401 save counts). Drop this note
+// once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -290,7 +294,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      my_listing_save_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: { listing_id: string; saves: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

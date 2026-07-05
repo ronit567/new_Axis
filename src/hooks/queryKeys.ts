@@ -3,6 +3,7 @@
 export const queryKeys = {
   listings: (category?: string) => ['listings', category ?? 'all'] as const,
   listing: (id: string) => ['listing', id] as const,
+  myListings: (userId: string) => ['myListings', userId] as const,
   savedListings: (userId: string) => ['savedListings', userId] as const,
   profile: (userId: string) => ['profile', userId] as const,
   currentProfile: ['profile', 'me'] as const,
