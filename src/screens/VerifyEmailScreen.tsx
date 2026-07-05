@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
@@ -121,7 +122,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
           <Text style={styles.stepLabel}>Step 2 of 3</Text>
 
           <View style={styles.iconWrapper}>
-            <Text style={styles.mailIcon}>✉️</Text>
+            <Ionicons name="mail-outline" size={32} color={COLORS.primary} />
           </View>
 
           <Text style={styles.title}>Check your inbox</Text>
@@ -205,17 +206,14 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
-  mailIcon: {
-    fontSize: 32,
-  },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 10,
     textAlign: 'center',
@@ -262,6 +260,7 @@ const styles = StyleSheet.create({
   timerText: {
     color: COLORS.primary,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   resendActive: {
     textDecorationLine: 'underline',

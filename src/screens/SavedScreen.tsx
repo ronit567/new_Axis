@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
-import { COLORS } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, FONTS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
@@ -124,9 +125,9 @@ export default function SavedScreen({ navigation }: Props) {
         <View style={styles.savedSearches}>
           {['calc 1000 textbook', 'IKEA desk'].map(s => (
             <TouchableOpacity key={s} style={styles.savedSearchRow} activeOpacity={0.8}>
-              <Text style={styles.savedSearchIcon}>🔍</Text>
+              <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} />
               <Text style={styles.savedSearchText}>{s}</Text>
-              <Text style={styles.savedSearchDelete}>✕</Text>
+              <Ionicons name="close" size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -138,7 +139,7 @@ export default function SavedScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
   },
   header: {
     paddingHorizontal: 20,
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.text,
   },
   tabRow: {
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E4E4E4',
+    borderColor: COLORS.inputBorder,
   },
   tabActive: {
     backgroundColor: COLORS.primary,
@@ -223,16 +224,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 12,
   },
-  savedSearchIcon: {
-    fontSize: 14,
-  },
   savedSearchText: {
     flex: 1,
     fontSize: 14,
     color: COLORS.text,
-  },
-  savedSearchDelete: {
-    fontSize: 12,
-    color: COLORS.textMuted,
   },
 });

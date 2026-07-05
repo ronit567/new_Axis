@@ -9,7 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { BlurView } from 'expo-blur';
+import { COLORS, FONTS } from '../constants/theme';
+import { haptics } from '../lib/haptics';
 
 export type ReportTarget = 'listing' | 'user' | 'chat';
 
@@ -36,6 +38,7 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
 
   const handleSubmit = () => {
     if (!selected) return;
+    haptics.impact();
     setSubmitted(true);
   };
 
@@ -61,7 +64,9 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+      <Pressable style={styles.backdrop} onPress={handleClose}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+      </Pressable>
       <View style={styles.sheet}>
         {/* Handle */}
         <View style={styles.handle} />
@@ -105,7 +110,10 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
                   <TouchableOpacity
                     key={reason.key}
                     style={[styles.reasonRow, active && styles.reasonRowActive]}
-                    onPress={() => setSelected(reason.key)}
+                    onPress={() => {
+                      haptics.tap();
+                      setSelected(reason.key);
+                    }}
                     activeOpacity={0.75}
                   >
                     <View style={[styles.reasonIcon, active && styles.reasonIconActive]}>
@@ -160,7 +168,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#DDD',
+    backgroundColor: COLORS.stepInactive,
     alignSelf: 'center',
     marginBottom: 20,
   },
@@ -172,14 +180,14 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F4F4F8',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -198,25 +206,25 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 24, // concentric: icon radius (10) + row padding (14)
     borderWidth: 1.5,
-    borderColor: '#EBEBF0',
-    backgroundColor: '#FAFAFA',
+    borderColor: COLORS.divider,
+    backgroundColor: COLORS.background,
   },
   reasonRowActive: {
     borderColor: COLORS.primary,
-    backgroundColor: '#F5F0FF',
+    backgroundColor: COLORS.primaryTint,
   },
   reasonIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F0F0F5',
+    backgroundColor: COLORS.divider,
     alignItems: 'center',
     justifyContent: 'center',
   },
   reasonIconActive: {
-    backgroundColor: '#EBE3FF',
+    backgroundColor: COLORS.primarySoft,
   },
   reasonLabel: {
     flex: 1,
@@ -233,7 +241,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#DDDDE5',
+    borderColor: COLORS.stepInactive,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -256,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   submitBtnDisabled: {
-    backgroundColor: '#EBEBF0',
+    backgroundColor: COLORS.divider,
   },
   submitBtnText: {
     fontSize: 15,
@@ -275,7 +283,7 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 8,
   },

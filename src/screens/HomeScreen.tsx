@@ -7,17 +7,23 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS } from '../constants/theme';
+import { COLORS, GRADIENTS, SHADOWS, FONTS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import { LISTINGS } from '../data/mockListings';
+import PressableScale from '../components/PressableScale';
+import FadeInItem from '../components/FadeInItem';
+import { useListings } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -30,15 +36,23 @@ const CATEGORIES = BROWSE_CATEGORIES;
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
-  const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const category = activeCategory === 'All' ? undefined : activeCategory;
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    refreshFirstPage,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useListings(category);
+  const toggleSavedMutation = useToggleSaved();
+
+  const listings = data?.pages.flatMap(page => page.items) ?? [];
 
   useEffect(() => {
     const anim = Animated.loop(
@@ -52,29 +66,18 @@ export default function HomeScreen({ navigation }: Props) {
     return () => anim.stop();
   }, [isLoading, pulseAnim]);
 
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
 
-  const filtered =
-    activeCategory === 'All'
-      ? LISTINGS
-      : LISTINGS.filter(l => l.category === activeCategory);
-
-  const toggleSave = (id: string) =>
-    setSavedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
-
-  const renderItem = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={{ ...item, saved: savedIds.includes(item.id) || item.saved }}
-      onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-      onSave={() => toggleSave(item.id)}
-      style={styles.card}
-    />
+  const renderItem = ({ item, index }: { item: Listing; index: number }) => (
+    <FadeInItem index={index} style={styles.card}>
+      <ListingCard
+        item={item}
+        onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+        onSave={() => toggleSavedMutation.mutate(item.id)}
+      />
+    </FadeInItem>
   );
 
   const ListHeader = (
@@ -86,12 +89,23 @@ export default function HomeScreen({ navigation }: Props) {
     </View>
   );
 
+  const ListFooter = isFetchingNextPage ? (
+    <View style={styles.footerLoading}>
+      <ActivityIndicator color={COLORS.primary} />
+    </View>
+  ) : null;
+
   return (
     <View style={styles.safe}>
       <StatusBar style="light" />
 
       {/* Purple curved header */}
-      <View style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient
+        colors={GRADIENTS.primaryRadiant}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}
+      >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.avatarSmall}>
@@ -105,10 +119,15 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
+          <PressableScale
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('Notifications')}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            scaleTo={0.9}
+          >
             <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
             <View style={styles.bellDot} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Search Bar */}
@@ -121,15 +140,15 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
             <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
           </TouchableOpacity>
-          <TouchableOpacity
+          <PressableScale
             style={styles.filterBtn}
             onPress={() => navigation.navigate('Search')}
-            activeOpacity={0.85}
+            scaleTo={0.92}
           >
             <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Category chips */}
       <ScrollView
@@ -139,14 +158,14 @@ export default function HomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.categoryRow}
       >
         {CATEGORIES.map(cat => (
-          <TouchableOpacity
+          <PressableScale
             key={cat}
             style={[
               styles.catChip,
               activeCategory === cat ? styles.catChipActive : null,
             ]}
             onPress={() => setActiveCategory(cat)}
-            activeOpacity={0.8}
+            scaleTo={0.94}
           >
             <Text
               style={[
@@ -156,7 +175,7 @@ export default function HomeScreen({ navigation }: Props) {
             >
               {cat}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         ))}
       </ScrollView>
 
@@ -171,22 +190,23 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           ))}
         </ScrollView>
-      ) : hasError ? (
+      ) : isError && listings.length === 0 ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : (
         <FlatList
           style={styles.contentArea}
-          data={filtered}
+          data={listings}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={filtered.length > 0 ? ListHeader : null}
+          ListHeaderComponent={listings.length > 0 ? ListHeader : null}
+          ListFooterComponent={ListFooter}
           ListEmptyComponent={
             <EmptyState
               icon="storefront-outline"
@@ -195,6 +215,16 @@ export default function HomeScreen({ navigation }: Props) {
               onCta={() => setActiveCategory('All')}
             />
           }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching && !isFetchingNextPage}
+              onRefresh={refreshFirstPage}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
+          onEndReachedThreshold={0.4}
+          onEndReached={loadMore}
         />
       )}
     </View>
@@ -204,13 +234,13 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F5F5FA',
+    backgroundColor: COLORS.surfaceAlt,
   },
   purpleHeader: {
-    backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     paddingBottom: 18,
+    ...SHADOWS.floating,
   },
   header: {
     flexDirection: 'row',
@@ -241,7 +271,7 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.white,
   },
   locationRow: {
@@ -263,13 +293,13 @@ const styles = StyleSheet.create({
   },
   bellDot: {
     position: 'absolute',
-    top: 8,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF3B30',
-    borderWidth: 1.5,
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.error,
+    borderWidth: 2,
     borderColor: COLORS.primary,
   },
   searchRow: {
@@ -287,11 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
     gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    ...SHADOWS.card,
   },
   searchPlaceholder: {
     flex: 1,
@@ -302,7 +328,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#4A2070',
+    backgroundColor: COLORS.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -322,7 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
-    borderColor: '#E4E4E4',
+    borderColor: COLORS.inputBorder,
   },
   catChipActive: {
     backgroundColor: COLORS.primary,
@@ -345,7 +371,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   seeAll: {
@@ -366,5 +392,9 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  footerLoading: {
+    paddingVertical: 20,
+    alignItems: 'center',
   },
 });

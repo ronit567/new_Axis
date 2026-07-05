@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import PressableScale from './PressableScale';
 
 type Props = {
   currentStep: number;
@@ -14,9 +16,9 @@ export default function StepHeader({ currentStep, totalSteps = 3, onBack }: Prop
   return (
     <View style={styles.container}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backArrow}>‹</Text>
-        </TouchableOpacity>
+        <PressableScale onPress={onBack} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
       ) : (
         <View style={styles.placeholder} />
       )}
@@ -51,12 +53,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.divider,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 24,
-    color: COLORS.text,
-    lineHeight: 28,
-    marginTop: -2,
   },
   stepsRow: {
     flexDirection: 'row',
