@@ -95,10 +95,12 @@ export function useMarkConversationRead() {
   })
 }
 
-// Live incoming messages (AX-501). Mount once inside the signed-in shell
-// (MainScreen): pushes each arriving row into its thread cache if that thread
-// has been loaded, and refreshes the inbox either way. Threads not yet cached
-// simply fetch fresh on open.
+// Live message stream (AX-501). Mount once inside the signed-in shell
+// (MainScreen). INSERTs in both directions (RLS scopes the channel to this
+// user's rows) land in their thread cache if that thread has been loaded, and
+// refresh the inbox either way — threads not yet cached simply fetch fresh on
+// open. UPDATEs carry read_at flips, so an open thread reflects read receipts
+// and the inbox unread count follows reads made on another device.
 export function useMessagesRealtime() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -106,15 +108,41 @@ export function useMessagesRealtime() {
 
   useEffect(() => {
     if (!userId) return undefined
-    return MessageRepository.subscribeToIncoming(userId, (message) => {
-      const key = queryKeys.messages(message.listingId, message.senderId)
-      queryClient.setQueryData<Message[]>(key, (old) => {
-        if (!old) return old
-        // The settled invalidation can race the subscription — dedup by id.
-        if (old.some((existing) => existing.id === message.id)) return old
-        return [...old, message]
-      })
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
+    // Own sends key the thread by receiver; incoming ones by sender.
+    const threadKey = (message: Message) =>
+      queryKeys.messages(
+        message.listingId,
+        message.senderId === userId ? message.receiverId : message.senderId,
+      )
+    return MessageRepository.subscribeToMessages(userId, {
+      onInsert: (message) => {
+        queryClient.setQueryData<Message[]>(threadKey(message), (old) => {
+          if (!old) return old
+          // The settled invalidation can race the subscription — dedup by id.
+          if (old.some((existing) => existing.id === message.id)) return old
+          // Our own send echoing back before the mutation settles: replace the
+          // optimistic bubble instead of appending a duplicate.
+          const optimisticIndex = old.findIndex(
+            (existing) =>
+              existing.id.startsWith('optimistic-') &&
+              existing.senderId === message.senderId &&
+              existing.body === message.body,
+          )
+          if (optimisticIndex !== -1) {
+            const next = [...old]
+            next[optimisticIndex] = message
+            return next
+          }
+          return [...old, message]
+        })
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
+      },
+      onUpdate: (message) => {
+        queryClient.setQueryData<Message[]>(threadKey(message), (old) =>
+          old?.map((existing) => (existing.id === message.id ? message : existing)),
+        )
+        queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
+      },
     })
   }, [userId, queryClient])
 }

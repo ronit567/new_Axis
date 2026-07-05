@@ -2,7 +2,7 @@
 // same approach as ListingRepository.test.ts, extended with the extra
 // chainable methods (or/limit/is/in/update/insert/single) MessageRepository uses.
 
-import type { ListingRow, MessageRow, ProfileRow } from '../../types/database';
+import type { ConversationListRow, ListingRow, MessageRow, ProfileRow } from '../../types/database';
 
 type QueryResult<T> = { data: T | null; error: unknown };
 
@@ -24,10 +24,14 @@ function makeQueryBuilder<T>(result: QueryResult<T>, singleResult?: QueryResult<
 }
 
 const mockFrom = jest.fn();
+const mockChannel = jest.fn();
+const mockRemoveChannel = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    channel: (...args: unknown[]) => mockChannel(...args),
+    removeChannel: (...args: unknown[]) => mockRemoveChannel(...args),
   },
 }));
 
@@ -46,6 +50,21 @@ function makeMessageRow(overrides: Partial<MessageRow> = {}): MessageRow {
   };
 }
 
+function makeConversationListRow(overrides: Partial<ConversationListRow> = {}): ConversationListRow {
+  return {
+    id: 'm1',
+    listing_id: 'lst1',
+    sender_id: 'p1',
+    receiver_id: 'me',
+    body: 'Hello',
+    created_at: '2026-07-01T10:00:00.000Z',
+    read_at: null,
+    partner_id: 'p1',
+    unread_count: 0,
+    ...overrides,
+  };
+}
+
 function makeProfileRow(overrides: Partial<ProfileRow> = {}): ProfileRow {
   return {
     id: 'p1',
@@ -54,6 +73,7 @@ function makeProfileRow(overrides: Partial<ProfileRow> = {}): ProfileRow {
     program: 'BMOS',
     year: 2,
     location: 'Elgin Hall',
+    bio: null,
     avatar_url: null,
     avatar_color: '#5C2D91',
     verified: true,
@@ -93,41 +113,24 @@ function mockTables(map: Record<string, any>) {
 
 beforeEach(() => {
   mockFrom.mockReset();
+  mockChannel.mockReset();
+  mockRemoveChannel.mockReset();
 });
 
 describe('MessageRepository.getConversations', () => {
-  it('reduces newest-first messages into one conversation per (listing, partner) pair, counting only unread incoming rows', async () => {
-    const rows = [
-      makeMessageRow({
-        id: 'm3',
-        listing_id: 'lst1',
-        sender_id: 'p1',
-        receiver_id: 'me',
-        body: 'Newest',
-        created_at: '2026-07-03T10:00:00.000Z',
-        read_at: null,
-      }),
-      makeMessageRow({
-        id: 'm2',
-        listing_id: 'lst1',
-        sender_id: 'me',
-        receiver_id: 'p1',
-        body: 'My reply',
-        created_at: '2026-07-02T10:00:00.000Z',
-        read_at: null,
-      }),
-      makeMessageRow({
-        id: 'm1',
-        listing_id: 'lst1',
-        sender_id: 'p1',
-        receiver_id: 'me',
-        body: 'Oldest',
-        created_at: '2026-07-01T10:00:00.000Z',
-        read_at: null,
-      }),
-    ];
+  it('queries the conversation_list view ordered newest-first and maps a row to a Conversation', async () => {
+    const row = makeConversationListRow({
+      id: 'm1',
+      listing_id: 'lst1',
+      sender_id: 'p1',
+      receiver_id: 'me',
+      body: 'Newest',
+      partner_id: 'p1',
+      unread_count: 2,
+    });
+    const conversationListBuilder = makeQueryBuilder<ConversationListRow[]>({ data: [row], error: null });
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: rows, error: null }),
+      conversation_list: conversationListBuilder,
       profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
       listings: makeQueryBuilder<ListingRow[]>({
         data: [makeListingRow({ id: 'lst1', seller_id: 'p1' })],
@@ -137,19 +140,20 @@ describe('MessageRepository.getConversations', () => {
 
     const result = await MessageRepository.getConversations('me');
 
+    expect(mockFrom).toHaveBeenCalledWith('conversation_list');
+    expect(conversationListBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(result).toHaveLength(1);
     expect(result[0].lastMessage).toBe('Newest');
-    // m3 and m1 are unread incoming rows; m2 is outgoing so it doesn't count.
     expect(result[0].unreadCount).toBe(2);
   });
 
   it('treats the same partner across two different listings as two separate conversations', async () => {
     const rows = [
-      makeMessageRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me' }),
-      makeMessageRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p1', receiver_id: 'me' }),
+      makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
     ];
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: rows, error: null }),
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
       listings: makeQueryBuilder<ListingRow[]>({
         data: [makeListingRow({ id: 'lst1' }), makeListingRow({ id: 'lst2' })],
@@ -163,32 +167,14 @@ describe('MessageRepository.getConversations', () => {
     expect(result.map((c) => c.listingId).sort()).toEqual(['lst1', 'lst2']);
   });
 
-  it('returns conversations in last-message-desc order (newest-first scan = Map insertion order)', async () => {
+  it('preserves the view row order in the returned conversations', async () => {
     const rows = [
-      makeMessageRow({
-        id: 'm1',
-        listing_id: 'lst1',
-        sender_id: 'p1',
-        receiver_id: 'me',
-        created_at: '2026-07-03T10:00:00.000Z',
-      }),
-      makeMessageRow({
-        id: 'm2',
-        listing_id: 'lst2',
-        sender_id: 'p2',
-        receiver_id: 'me',
-        created_at: '2026-07-02T10:00:00.000Z',
-      }),
-      makeMessageRow({
-        id: 'm3',
-        listing_id: 'lst3',
-        sender_id: 'p3',
-        receiver_id: 'me',
-        created_at: '2026-07-01T10:00:00.000Z',
-      }),
+      makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p2', receiver_id: 'me', partner_id: 'p2' }),
+      makeConversationListRow({ id: 'm3', listing_id: 'lst3', sender_id: 'p3', receiver_id: 'me', partner_id: 'p3' }),
     ];
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: rows, error: null }),
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       profiles: makeQueryBuilder<ProfileRow[]>({
         data: [makeProfileRow({ id: 'p1' }), makeProfileRow({ id: 'p2' }), makeProfileRow({ id: 'p3' })],
         error: null,
@@ -206,11 +192,11 @@ describe('MessageRepository.getConversations', () => {
 
   it('drops a conversation entirely when its partner profile is missing (RLS-hidden = blocked)', async () => {
     const rows = [
-      makeMessageRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me' }),
-      makeMessageRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p2', receiver_id: 'me' }),
+      makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p2', receiver_id: 'me', partner_id: 'p2' }),
     ];
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: rows, error: null }),
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       // p2 is absent from the profiles response.
       profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
       listings: makeQueryBuilder<ListingRow[]>({
@@ -227,12 +213,12 @@ describe('MessageRepository.getConversations', () => {
 
   it('marks a conversation Selling for the user\'s own listing, Buying for someone else\'s, and Buying when the listing is missing', async () => {
     const rows = [
-      makeMessageRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me' }),
-      makeMessageRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p2', receiver_id: 'me' }),
-      makeMessageRow({ id: 'm3', listing_id: 'lst3', sender_id: 'p3', receiver_id: 'me' }),
+      makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p2', receiver_id: 'me', partner_id: 'p2' }),
+      makeConversationListRow({ id: 'm3', listing_id: 'lst3', sender_id: 'p3', receiver_id: 'me', partner_id: 'p3' }),
     ];
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: rows, error: null }),
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       profiles: makeQueryBuilder<ProfileRow[]>({
         data: [makeProfileRow({ id: 'p1' }), makeProfileRow({ id: 'p2' }), makeProfileRow({ id: 'p3' })],
         error: null,
@@ -258,15 +244,34 @@ describe('MessageRepository.getConversations', () => {
     expect(missing?.listingPrice).toBeNull();
   });
 
-  it('returns [] without a second round of profile/listing fetches when there are no messages', async () => {
+  it('returns [] without a second round of profile/listing fetches when the view has no rows', async () => {
     mockTables({
-      messages: makeQueryBuilder<MessageRow[]>({ data: [], error: null }),
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: [], error: null }),
     });
 
     const result = await MessageRepository.getConversations('me');
 
     expect(result).toEqual([]);
     expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the listings fetch when every view row has a null listing_id', async () => {
+    const rows = [
+      makeConversationListRow({ id: 'm1', listing_id: null, sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+    ];
+    mockTables({
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
+      profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
+    });
+
+    const result = await MessageRepository.getConversations('me');
+
+    expect(mockFrom).toHaveBeenCalledWith('conversation_list');
+    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(mockFrom).not.toHaveBeenCalledWith('listings');
+    expect(result).toHaveLength(1);
+    expect(result[0].listingTitle).toBeNull();
+    expect(result[0].listingPrice).toBeNull();
   });
 });
 
@@ -394,5 +399,108 @@ describe('MessageRepository.markConversationRead', () => {
 
     expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
     expect(messagesBuilder.is).toHaveBeenCalledWith('read_at', null);
+  });
+});
+
+describe('MessageRepository.subscribeToMessages', () => {
+  function makeChannelObj() {
+    const channelObj: any = {
+      on: jest.fn(() => channelObj),
+      subscribe: jest.fn(() => channelObj),
+    };
+    return channelObj;
+  }
+
+  it('registers INSERT and UPDATE postgres_changes listeners on public.messages with no filter', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+
+    MessageRepository.subscribeToMessages('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
+
+    expect(mockChannel).toHaveBeenCalledWith('messages-me');
+    expect(channelObj.on).toHaveBeenCalledTimes(2);
+
+    const [insertConfig] = channelObj.on.mock.calls[0];
+    const [updateConfig] = channelObj.on.mock.calls[1];
+    expect(insertConfig).toBe('postgres_changes');
+    expect(updateConfig).toBe('postgres_changes');
+
+    const insertPayloadConfig = channelObj.on.mock.calls[0][1];
+    const updatePayloadConfig = channelObj.on.mock.calls[1][1];
+    expect(insertPayloadConfig).toEqual({ event: 'INSERT', schema: 'public', table: 'messages' });
+    expect(updatePayloadConfig).toEqual({ event: 'UPDATE', schema: 'public', table: 'messages' });
+    expect(insertPayloadConfig).not.toHaveProperty('filter');
+    expect(updatePayloadConfig).not.toHaveProperty('filter');
+  });
+
+  it('maps an INSERT payload to a domain Message and calls onInsert', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onInsert = jest.fn();
+    const onUpdate = jest.fn();
+
+    MessageRepository.subscribeToMessages('me', { onInsert, onUpdate });
+
+    const insertCallback = channelObj.on.mock.calls[0][2];
+    const row = makeMessageRow({
+      id: 'm-new',
+      listing_id: 'lst1',
+      sender_id: 'p1',
+      receiver_id: 'me',
+      body: 'Is this still available?',
+      read_at: null,
+    });
+
+    insertCallback({ new: row });
+
+    expect(onInsert).toHaveBeenCalledWith({
+      id: 'm-new',
+      listingId: 'lst1',
+      senderId: 'p1',
+      receiverId: 'me',
+      body: 'Is this still available?',
+      createdAt: row.created_at,
+      readAt: null,
+    });
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('maps an UPDATE payload with a read_at to a domain Message and calls onUpdate', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onInsert = jest.fn();
+    const onUpdate = jest.fn();
+
+    MessageRepository.subscribeToMessages('me', { onInsert, onUpdate });
+
+    const updateCallback = channelObj.on.mock.calls[1][2];
+    const row = makeMessageRow({
+      id: 'm1',
+      listing_id: 'lst1',
+      sender_id: 'me',
+      receiver_id: 'p1',
+      body: 'Hello',
+      read_at: '2026-07-04T12:00:00.000Z',
+    });
+
+    updateCallback({ new: row });
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ readAt: '2026-07-04T12:00:00.000Z' }),
+    );
+    expect(onInsert).not.toHaveBeenCalled();
+  });
+
+  it('returns an unsubscribe function that calls removeChannel with the channel', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+
+    const unsubscribe = MessageRepository.subscribeToMessages('me', {
+      onInsert: jest.fn(),
+      onUpdate: jest.fn(),
+    });
+    unsubscribe();
+
+    expect(mockRemoveChannel).toHaveBeenCalledWith(channelObj);
   });
 });

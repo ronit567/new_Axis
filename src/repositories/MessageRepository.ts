@@ -1,7 +1,12 @@
 import { supabase } from '../lib/supabase'
 import { toConversation, toMessage } from './mappers'
 import type { Conversation, Message } from '../types'
-import type { ListingRow, MessageRow, ProfileRow } from '../types/database'
+import type {
+  ConversationListRow,
+  ListingRow,
+  MessageRow,
+  ProfileRow,
+} from '../types/database'
 
 export type SendMessageInput = {
   listingId: string | null
@@ -9,52 +14,31 @@ export type SendMessageInput = {
   body: string
 }
 
-// getConversations reduces the caller's recent messages client-side (same
-// manual-join style as ListingRepository.getAll — no SQL views/RPCs yet).
-// The scan window bounds that fetch; conversations whose *entire* history is
-// older than the newest N messages fall off the inbox. 400 ≈ months of student
-// marketplace traffic; revisit with an RPC if inboxes outgrow it.
-export const CONVERSATIONS_SCAN_LIMIT = 400
-
-type ConversationBucket = {
-  last: MessageRow
-  partnerId: string
-  unread: number
+export type MessageEventHandlers = {
+  onInsert: (message: Message) => void
+  onUpdate: (message: Message) => void
 }
 
 export const MessageRepository = {
+  // getConversations reads the conversation_list view (migration 0006): one
+  // row per (listing, partner) thread — the thread's last message columns plus
+  // its unread count, bucketed server-side under the caller's RLS. Partner and
+  // listing hydration stays a client-side manual join, same style as
+  // ListingRepository.getAll.
   async getConversations(userId: string): Promise<Conversation[]> {
-    const { data: rows, error } = await supabase
-      .from('messages')
+    const { data, error } = await supabase
+      .from('conversation_list')
       .select('*')
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
       .order('created_at', { ascending: false })
-      .limit(CONVERSATIONS_SCAN_LIMIT)
     if (error) throw error
-    if (!rows || rows.length === 0) return []
+    const rows = (data ?? []) as ConversationListRow[]
+    if (rows.length === 0) return []
 
-    // Newest-first scan: the first row seen for a (listing, partner) pair is
-    // that conversation's last message; later rows only bump its unread count.
-    // Map insertion order therefore *is* last-message-desc order.
-    const buckets = new Map<string, ConversationBucket>()
-    for (const row of rows as MessageRow[]) {
-      const partnerId = row.sender_id === userId ? row.receiver_id : row.sender_id
-      const key = `${row.listing_id ?? 'none'}|${partnerId}`
-      const isUnreadIncoming = row.receiver_id === userId && row.read_at === null
-      const bucket = buckets.get(key)
-      if (!bucket) {
-        buckets.set(key, { last: row, partnerId, unread: isUnreadIncoming ? 1 : 0 })
-      } else if (isUnreadIncoming) {
-        bucket.unread += 1
-      }
-    }
-
-    const conversations = [...buckets.values()]
-    const partnerIds = [...new Set(conversations.map((b) => b.partnerId))]
+    const partnerIds = [...new Set(rows.map((row) => row.partner_id))]
     const listingIds = [
       ...new Set(
-        conversations
-          .map((b) => b.last.listing_id)
+        rows
+          .map((row) => row.listing_id)
           .filter((id): id is string => id !== null),
       ),
     ]
@@ -79,17 +63,15 @@ export const MessageRepository = {
     // either direction) — drop the whole thread from the inbox, per AX-703's
     // "filter blocked users out of messages". A missing listing row is fine:
     // the thread renders without the listing banner.
-    return conversations.reduce<Conversation[]>((acc, bucket) => {
-      const partner = partnerById.get(bucket.partnerId)
+    return rows.reduce<Conversation[]>((acc, row) => {
+      const partner = partnerById.get(row.partner_id)
       if (!partner) return acc
       acc.push(
         toConversation({
           partner,
-          listing: bucket.last.listing_id
-            ? listingById.get(bucket.last.listing_id) ?? null
-            : null,
-          lastMessage: bucket.last,
-          unreadCount: bucket.unread,
+          listing: row.listing_id ? listingById.get(row.listing_id) ?? null : null,
+          lastMessage: row,
+          unreadCount: row.unread_count,
           currentUserId: userId,
         }),
       )
@@ -156,21 +138,23 @@ export const MessageRepository = {
     if (error) throw error
   },
 
-  // Realtime: push each INSERT addressed to this user through the mapper and
-  // hand the domain Message to the caller. postgres_changes respects RLS, so
-  // only rows the subscriber can select arrive. Returns the unsubscribe fn.
-  subscribeToIncoming(userId: string, onMessage: (message: Message) => void): () => void {
+  // Realtime: stream INSERTs (new messages in both directions — including our
+  // own sends echoing back from another device) and UPDATEs (read_at flips)
+  // through the mapper. Deliberately no server-side filter: postgres_changes
+  // respects RLS, so exactly the rows this user can select arrive. Returns the
+  // unsubscribe fn.
+  subscribeToMessages(userId: string, handlers: MessageEventHandlers): () => void {
     const channel = supabase
-      .channel(`messages-incoming-${userId}`)
+      .channel(`messages-${userId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `receiver_id=eq.${userId}`,
-        },
-        (payload) => onMessage(toMessage(payload.new as MessageRow)),
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => handlers.onInsert(toMessage(payload.new as MessageRow)),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        (payload) => handlers.onUpdate(toMessage(payload.new as MessageRow)),
       )
       .subscribe()
     return () => {

@@ -13,6 +13,11 @@
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
+// MANUAL ADDITION: the `conversation_list` view (migration 0006) was hand-added
+// with tight nullability. NOTE: the generator emits every view column as
+// nullable (PG can't infer NOT NULL through a view) — after regenerating, keep
+// this hand-tightened Views entry rather than the generated one.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -293,7 +298,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      conversation_list: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          listing_id: string | null
+          partner_id: string
+          read_at: string | null
+          receiver_id: string
+          sender_id: string
+          unread_count: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
@@ -314,6 +332,9 @@ export type ProfileRow = DefaultSchema['Tables']['profiles']['Row']
 export type ListingRow = DefaultSchema['Tables']['listings']['Row']
 export type SavedListingRow = DefaultSchema['Tables']['saved_listings']['Row']
 export type MessageRow = DefaultSchema['Tables']['messages']['Row']
+// One inbox thread: the last message's columns plus partner_id/unread_count.
+// A strict superset of MessageRow, so mappers accept it as a last message.
+export type ConversationListRow = DefaultSchema['Views']['conversation_list']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 
