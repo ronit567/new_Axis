@@ -108,6 +108,10 @@ export function useCreateListing() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       if (user) queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
+      // The seller-storefront cache lives outside the ['listings'] prefix, so
+      // without this a just-posted listing stays invisible on the seller's
+      // public profile until the stale timer expires.
+      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
     },
   })
 }

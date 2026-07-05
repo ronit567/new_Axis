@@ -142,7 +142,7 @@ This epic is the load-bearing wall. Screens come after.
 **AC:** given a fixture row, mappers produce a valid domain object; `timeAgo` handles seconds→weeks; empty image array yields a stable color.
 **Depends on:** AX-102, ideally AX-901. **Size:** M. **Blocks:** AX-201, AX-202, AX-203, AX-30x.
 
-### AX-111 — Implement `ListingRepository` for real ⬜
+### AX-111 — Implement `ListingRepository` for real ✅
 **Why:** it's all placeholders (`return []`, `throw`).
 **Tasks:**
 - `getAll(category?)` — select listings + joined seller profile, filter `status='active'`, optional category, order by `created_at desc`; map via AX-110. Fold in the current user's saved-ids so `saved` is correct.
@@ -154,6 +154,7 @@ This epic is the load-bearing wall. Screens come after.
 - Define a real error shape so the QueryProvider 401 handler (`AI_context.md` M2 note) can stop guessing.
 **AC:** each method hits the DB and returns typed domain data; RLS respected; save/unsave persists; creating a listing appears in `getAll`.
 **Depends on:** AX-110. **Size:** L.
+**Done:** `getById`/`create`/`getSavedByUser`/`incrementViews` implemented (`getAll`/`toggleSaved` were already real, from AX-201). `getById` has no `userId` param, so it resolves the viewer from `auth.getSession()` to compute `saved`; `incrementViews` is a plain read-then-write (not atomic — acceptable for a view counter) and isn't called anywhere yet, pending AX-203's wiring. The real-error-shape task is **not done** — deferred, since it touches every repository, not just this one.
 
 ### AX-112 — Implement `ProfileRepository` for real ✅
 **Tasks:** `getById`, `getCurrent` (join uid), `upsert(userId, input)` insert-or-update own row. Map via AX-110.

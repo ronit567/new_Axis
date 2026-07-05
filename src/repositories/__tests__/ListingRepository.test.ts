@@ -16,19 +16,25 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
     in: jest.fn(() => builder),
     delete: jest.fn(() => builder),
     insert: jest.fn(() => builder),
-    single: jest.fn(() => builder),
-    maybeSingle: jest.fn(() => builder),
+    update: jest.fn(() => builder),
+    // Terminal methods (mirroring PostgrestFilterBuilder): unlike the chain
+    // methods above, these resolve the query themselves rather than
+    // returning the builder for further chaining.
+    maybeSingle: jest.fn(() => Promise.resolve(result)),
+    single: jest.fn(() => Promise.resolve(result)),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
 }
 
 const mockFrom = jest.fn();
+const mockGetSession = jest.fn();
 const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    auth: { getSession: (...args: unknown[]) => mockGetSession(...args) },
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
@@ -95,7 +101,10 @@ function mockQueries(opts: {
 
 beforeEach(() => {
   mockFrom.mockReset();
+  mockGetSession.mockReset();
+  mockGetSession.mockResolvedValue({ data: { session: null } });
   mockRpc.mockReset();
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe('ListingRepository.getAll', () => {
@@ -588,6 +597,18 @@ describe('ListingRepository.getSavedByUser', () => {
     expect(result).toEqual([]);
   });
 
+  it('skips a saved listing that no longer exists instead of throwing', async () => {
+    mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }, { listing_id: 'deleted' }], error: null },
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result.map((l) => l.id)).toEqual(['l1']);
+  });
+
   it('throws when the saved_listings query errors', async () => {
     mockSavedQueries({ saved: { data: null, error: new Error('network down') } });
 
@@ -611,5 +632,23 @@ describe('ListingRepository.getSavedByUser', () => {
     });
 
     await expect(ListingRepository.getSavedByUser('user-1')).rejects.toThrow('sellers down');
+  });
+});
+
+describe('ListingRepository.incrementViews', () => {
+  // Goes through the increment_listing_views RPC (migration 0007), not a plain
+  // update() — listings_update_own scopes UPDATE to the seller, so a non-owner
+  // viewer's update() would silently affect 0 rows under RLS. The RPC is
+  // SECURITY DEFINER and does the increment atomically in one SQL statement.
+  it('calls the increment_listing_views RPC with the listing id', async () => {
+    await ListingRepository.incrementViews('l1');
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_listing_views', { listing_id: 'l1' });
+  });
+
+  it('throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
+
+    await expect(ListingRepository.incrementViews('l1')).rejects.toThrow('network down');
   });
 });
