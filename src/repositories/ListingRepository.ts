@@ -119,19 +119,17 @@ export const ListingRepository = {
     if (error) throw error
     if (!rows || rows.length === 0) return []
 
-    const { data: savedRows, error: savedError } = await supabase
-      .from('saved_listings')
-      .select('listing_id')
-      .in(
-        'listing_id',
-        rows.map((row) => row.id),
-      )
-    if (savedError) throw savedError
+    // saved_select_own (0002) scopes saved_listings select to the caller's own
+    // rows, so querying the table directly here would only ever see whether
+    // *this* signed-in user saved their own listing — never the real count
+    // across everyone. my_listing_save_counts() (0006) is a SECURITY DEFINER
+    // RPC scoped to the caller's own listings that aggregates across users.
+    const { data: saveCounts, error: savesError } = await supabase.rpc('my_listing_save_counts')
+    if (savesError) throw savesError
 
-    const savesByListing = new Map<string, number>()
-    for (const { listing_id } of savedRows ?? []) {
-      savesByListing.set(listing_id, (savesByListing.get(listing_id) ?? 0) + 1)
-    }
+    const savesByListing = new Map(
+      (saveCounts ?? []).map(({ listing_id, saves }) => [listing_id, saves]),
+    )
 
     return rows.map((row) => toMyListing(row, savesByListing.get(row.id) ?? 0))
   },

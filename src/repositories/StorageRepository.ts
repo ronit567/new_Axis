@@ -10,8 +10,21 @@ const EXTENSION_CONTENT_TYPES: Record<string, string> = {
   webp: 'image/webp',
 }
 
-function contentTypeFor(uri: string): string {
-  const ext = uri.split('.').pop()?.split('?')[0].toLowerCase() ?? ''
+const ALLOWED_CONTENT_TYPES = new Set(Object.values(EXTENSION_CONTENT_TYPES))
+
+// A local photo picked via expo-image-picker. mimeType comes straight from
+// the picker's asset — the source of truth, since it reflects the actual
+// file bytes. Extension-sniffing the uri is only a fallback: Android content
+// picker uris (content://...) routinely have no file extension at all, so
+// relying on the uri alone would silently mislabel real PNGs/WebPs as jpeg.
+export type LocalPhoto = {
+  uri: string
+  mimeType: string | null
+}
+
+function contentTypeFor(photo: LocalPhoto): string {
+  if (photo.mimeType && ALLOWED_CONTENT_TYPES.has(photo.mimeType)) return photo.mimeType
+  const ext = photo.uri.split('.').pop()?.split('?')[0].toLowerCase() ?? ''
   return EXTENSION_CONTENT_TYPES[ext] ?? 'image/jpeg'
 }
 
@@ -36,18 +49,18 @@ export const StorageRepository = {
   async uploadListingImages(
     sellerId: string,
     listingId: string,
-    localUris: string[],
+    photos: LocalPhoto[],
   ): Promise<UploadedListingImages> {
     const paths: string[] = []
     const urls: string[] = []
 
     try {
-      for (let i = 0; i < localUris.length; i += 1) {
-        const uri = localUris[i]
-        const contentType = contentTypeFor(uri)
+      for (let i = 0; i < photos.length; i += 1) {
+        const photo = photos[i]
+        const contentType = contentTypeFor(photo)
         const path = `${sellerId}/${listingId}/${i}.${extensionFor(contentType)}`
 
-        const response = await fetch(uri)
+        const response = await fetch(photo.uri)
         const arraybuffer = await response.arrayBuffer()
 
         const { error } = await supabase.storage
@@ -67,7 +80,7 @@ export const StorageRepository = {
       // of a raw storage error.
       await StorageRepository.deleteListingImages(paths)
       const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`Couldn't upload photo ${paths.length + 1} of ${localUris.length}: ${reason}`)
+      throw new Error(`Couldn't upload photo ${paths.length + 1} of ${photos.length}: ${reason}`)
     }
   },
 

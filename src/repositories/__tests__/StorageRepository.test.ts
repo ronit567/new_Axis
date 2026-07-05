@@ -14,12 +14,16 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { StorageRepository } from '../StorageRepository';
+import { StorageRepository, type LocalPhoto } from '../StorageRepository';
 
 function mockFetchResolving(bytes = 8) {
   (global as any).fetch = jest.fn().mockResolvedValue({
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(bytes)),
   });
+}
+
+function photo(uri: string, mimeType: string | null = null): LocalPhoto {
+  return { uri, mimeType };
 }
 
 beforeEach(() => {
@@ -48,8 +52,8 @@ describe('StorageRepository.uploadListingImages', () => {
     }));
 
     const result = await StorageRepository.uploadListingImages('seller-1', 'listing-1', [
-      'file:///a.jpg',
-      'file:///b.png',
+      photo('file:///a.jpg'),
+      photo('file:///b.png'),
     ]);
 
     expect(mockUpload).toHaveBeenNthCalledWith(
@@ -73,17 +77,51 @@ describe('StorageRepository.uploadListingImages', () => {
     });
   });
 
-  it('defaults to image/jpeg for an unrecognized extension', async () => {
+  it('defaults to image/jpeg for an unrecognized extension and no mimeType', async () => {
     mockFetchResolving();
     mockUpload.mockResolvedValue({ data: {}, error: null });
     mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
 
-    await StorageRepository.uploadListingImages('seller-1', 'listing-1', ['file:///weird.heic']);
+    await StorageRepository.uploadListingImages('seller-1', 'listing-1', [photo('file:///weird.heic')]);
 
     expect(mockUpload).toHaveBeenCalledWith(
       'seller-1/listing-1/0.jpg',
       expect.any(ArrayBuffer),
       { contentType: 'image/jpeg' },
+    );
+  });
+
+  it('trusts the picker-reported mimeType over the (missing) extension for extensionless content:// uris', async () => {
+    mockFetchResolving();
+    mockUpload.mockResolvedValue({ data: {}, error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
+
+    // Android's content picker returns uris with no file extension at all —
+    // extension-sniffing alone would silently fall back to jpeg for a real PNG.
+    await StorageRepository.uploadListingImages('seller-1', 'listing-1', [
+      photo('content://media/external/images/media/12345', 'image/png'),
+    ]);
+
+    expect(mockUpload).toHaveBeenCalledWith(
+      'seller-1/listing-1/0.png',
+      expect.any(ArrayBuffer),
+      { contentType: 'image/png' },
+    );
+  });
+
+  it('falls back to extension-sniffing when mimeType is an unrecognized/non-image value', async () => {
+    mockFetchResolving();
+    mockUpload.mockResolvedValue({ data: {}, error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
+
+    await StorageRepository.uploadListingImages('seller-1', 'listing-1', [
+      photo('file:///a.png', 'application/octet-stream'),
+    ]);
+
+    expect(mockUpload).toHaveBeenCalledWith(
+      'seller-1/listing-1/0.png',
+      expect.any(ArrayBuffer),
+      { contentType: 'image/png' },
     );
   });
 
@@ -96,8 +134,8 @@ describe('StorageRepository.uploadListingImages', () => {
 
     await expect(
       StorageRepository.uploadListingImages('seller-1', 'listing-1', [
-        'file:///a.jpg',
-        'file:///b.jpg',
+        photo('file:///a.jpg'),
+        photo('file:///b.jpg'),
       ]),
     ).rejects.toThrow('mime type not allowed');
 
@@ -111,7 +149,7 @@ describe('StorageRepository.uploadListingImages', () => {
     mockUpload.mockResolvedValue({ data: null, error: new Error('network down') });
 
     await expect(
-      StorageRepository.uploadListingImages('seller-1', 'listing-1', ['file:///a.jpg']),
+      StorageRepository.uploadListingImages('seller-1', 'listing-1', [photo('file:///a.jpg')]),
     ).rejects.toThrow('network down');
 
     expect(mockRemove).not.toHaveBeenCalled();

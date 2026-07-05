@@ -24,10 +24,12 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
 }
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -93,6 +95,7 @@ function mockQueries(opts: {
 
 beforeEach(() => {
   mockFrom.mockReset();
+  mockRpc.mockReset();
 });
 
 describe('ListingRepository.getAll', () => {
@@ -242,24 +245,30 @@ describe('ListingRepository.create', () => {
 });
 
 describe('ListingRepository.getBySeller', () => {
-  it('returns own listings across all statuses, newest first, with per-listing save counts', async () => {
+  it('returns own listings across all statuses, newest first, with per-listing save counts from the RPC', async () => {
     const rowA = makeListingRow({ id: 'l1', status: 'active' });
     const rowB = makeListingRow({ id: 'l2', status: 'sold', price: 30 });
     const listingsBuilder = makeQueryBuilder({ data: [rowA, rowB], error: null });
-    const savedBuilder = makeQueryBuilder({
-      data: [{ listing_id: 'l1' }, { listing_id: 'l1' }, { listing_id: 'l2' }],
-      error: null,
-    });
     mockFrom.mockImplementation((table: string) => {
       if (table === 'listings') return listingsBuilder;
-      if (table === 'saved_listings') return savedBuilder;
       throw new Error(`Unexpected table: ${table}`);
+    });
+    // saved_listings RLS only lets a direct table query see the caller's own
+    // rows, so the real count-across-users comes from this RPC instead
+    // (see ListingRepository.getBySeller / migration 0006) — not a `from()` call.
+    mockRpc.mockResolvedValue({
+      data: [
+        { listing_id: 'l1', saves: 2 },
+        { listing_id: 'l2', saves: 1 },
+      ],
+      error: null,
     });
 
     const result = await ListingRepository.getBySeller(seller.id);
 
     expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
     expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(mockRpc).toHaveBeenCalledWith('my_listing_save_counts');
     expect(result).toHaveLength(2);
     expect(result.find((l) => l.id === 'l1')?.saves).toBe(2);
     expect(result.find((l) => l.id === 'l2')?.saves).toBe(1);
@@ -267,19 +276,17 @@ describe('ListingRepository.getBySeller', () => {
     expect(result.find((l) => l.id === 'l2')?.soldFor).toBe(30);
   });
 
-  it('returns an empty list without querying saves when the seller has no listings', async () => {
+  it('returns an empty list without calling the save-counts RPC when the seller has no listings', async () => {
     const listingsBuilder = makeQueryBuilder({ data: [], error: null });
-    const savedBuilder = makeQueryBuilder({ data: [], error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === 'listings') return listingsBuilder;
-      if (table === 'saved_listings') return savedBuilder;
       throw new Error(`Unexpected table: ${table}`);
     });
 
     const result = await ListingRepository.getBySeller(seller.id);
 
     expect(result).toEqual([]);
-    expect(savedBuilder.select).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('throws when the listings query errors', async () => {
@@ -290,6 +297,17 @@ describe('ListingRepository.getBySeller', () => {
     });
 
     await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('network down');
+  });
+
+  it('throws when the save-counts RPC errors', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: [makeListingRow({ id: 'l1' })], error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
+
+    await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('rpc failed');
   });
 });
 

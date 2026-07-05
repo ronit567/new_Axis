@@ -21,7 +21,7 @@ import { LISTING_CATEGORIES } from '../constants/categories';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
-import { useCreateListing } from '../hooks/useListings';
+import { useCreateListing, type LocalPhoto } from '../hooks/useListings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
@@ -41,7 +41,7 @@ export default function CreateListingScreen({ navigation }: Props) {
   const [isFree, setIsFree] = useState(false);
   const [isTrade, setIsTrade] = useState(false);
   const [condition, setCondition] = useState('Like new');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const createListing = useCreateListing();
 
   const canPost = title.trim().length > 0 && (price.length > 0 || isFree);
@@ -63,7 +63,10 @@ export default function CreateListingScreen({ navigation }: Props) {
             aspect: [1, 1],
           });
           if (!result.canceled) {
-            setPhotos(prev => [...prev, result.assets[0].uri].slice(0, MAX_PHOTOS));
+            const asset = result.assets[0];
+            setPhotos(prev =>
+              [...prev, { uri: asset.uri, mimeType: asset.mimeType ?? null }].slice(0, MAX_PHOTOS)
+            );
           }
         },
       },
@@ -83,7 +86,10 @@ export default function CreateListingScreen({ navigation }: Props) {
           });
           if (!result.canceled) {
             setPhotos(prev =>
-              [...prev, ...result.assets.map(a => a.uri)].slice(0, MAX_PHOTOS)
+              [...prev, ...result.assets.map(a => ({ uri: a.uri, mimeType: a.mimeType ?? null }))].slice(
+                0,
+                MAX_PHOTOS,
+              )
             );
           }
         },
@@ -180,9 +186,9 @@ export default function CreateListingScreen({ navigation }: Props) {
           {/* Photos */}
           <Text style={styles.sectionHeading}>Photos</Text>
           <View style={styles.photosRow}>
-            {photos.map((uri, index) => (
-              <View key={uri + index} style={styles.photoThumb}>
-                <Image source={{ uri }} style={styles.photoThumbImage} />
+            {photos.map((photo, index) => (
+              <View key={photo.uri + index} style={styles.photoThumb}>
+                <Image source={{ uri: photo.uri }} style={styles.photoThumbImage} />
                 <PressableScale
                   style={styles.photoRemoveBtn}
                   onPress={() => handleRemovePhoto(index)}

@@ -12,7 +12,9 @@ import {
   ListingsPage,
   LISTINGS_PAGE_SIZE,
 } from '../repositories/ListingRepository'
-import { StorageRepository } from '../repositories/StorageRepository'
+import { StorageRepository, type LocalPhoto } from '../repositories/StorageRepository'
+
+export type { LocalPhoto }
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
@@ -69,9 +71,9 @@ export function useListing(id: string) {
 }
 
 // Form input: image_urls doesn't exist yet at submit time, only the local
-// picker URIs — uploadListingImages produces the real URLs during the mutation.
+// picker photos — uploadListingImages produces the real URLs during the mutation.
 export type CreateListingFormInput = Omit<CreateListingInput, 'image_urls'> & {
-  photos: string[]
+  photos: LocalPhoto[]
 }
 
 export function useCreateListing() {
