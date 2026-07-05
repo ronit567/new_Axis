@@ -10,6 +10,10 @@
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `increment_listing_views` function was
+// hand-added alongside migration 0007 (AX-111 view counter RPC). Drop this
+// note once regenerated.
+//
 // MANUAL ADDITION (pending regen): the `my_listing_save_counts` function was
 // hand-added alongside migration 0006 (AX-401 save counts). Drop this note
 // once regenerated.
@@ -294,6 +298,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      increment_listing_views: {
+        Args: { listing_id: string }
+        Returns: undefined
+      }
       my_listing_save_counts: {
         Args: Record<PropertyKey, never>
         Returns: { listing_id: string; saves: number }[]

@@ -17,19 +17,25 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
     in: jest.fn(() => builder),
     delete: jest.fn(() => builder),
     insert: jest.fn(() => builder),
-    single: jest.fn(() => builder),
-    maybeSingle: jest.fn(() => builder),
+    update: jest.fn(() => builder),
+    // Terminal methods (mirroring PostgrestFilterBuilder): unlike the chain
+    // methods above, these resolve the query themselves rather than
+    // returning the builder for further chaining.
+    maybeSingle: jest.fn(() => Promise.resolve(result)),
+    single: jest.fn(() => Promise.resolve(result)),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
 }
 
 const mockFrom = jest.fn();
+const mockGetSession = jest.fn();
 const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    auth: { getSession: (...args: unknown[]) => mockGetSession(...args) },
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
@@ -97,7 +103,10 @@ function mockQueries(opts: {
 
 beforeEach(() => {
   mockFrom.mockReset();
+  mockGetSession.mockReset();
+  mockGetSession.mockResolvedValue({ data: { session: null } });
   mockRpc.mockReset();
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe('ListingRepository.getAll', () => {
@@ -600,6 +609,76 @@ describe('ListingRepository.search', () => {
   });
 });
 
+describe('ListingRepository.getById', () => {
+  function mockTables(opts: {
+    listing?: QueryResult<ListingRow>;
+    seller?: QueryResult<ProfileRow>;
+    saved?: QueryResult<{ listing_id: string }>;
+  }) {
+    const listingBuilder = makeQueryBuilder(opts.listing ?? { data: makeListingRow(), error: null });
+    const sellerBuilder = makeQueryBuilder(opts.seller ?? { data: seller, error: null });
+    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: null, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingBuilder;
+      if (table === 'profiles') return sellerBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { listingBuilder, sellerBuilder, savedBuilder };
+  }
+
+  it('returns the listing with its seller when no one is signed in', async () => {
+    mockTables({});
+
+    const result = await ListingRepository.getById('l1');
+
+    expect(result?.id).toBe('l1');
+    expect(result?.seller.name).toBe(seller.name);
+    expect(result?.saved).toBe(false);
+  });
+
+  it('returns null when the listing does not exist', async () => {
+    mockTables({ listing: { data: null, error: null } });
+
+    const result = await ListingRepository.getById('missing');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the seller lookup comes back empty (broken reference)', async () => {
+    mockTables({ seller: { data: null, error: null } });
+
+    const result = await ListingRepository.getById('l1');
+
+    expect(result).toBeNull();
+  });
+
+  it('marks the listing saved for the signed-in viewer who saved it', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
+    mockTables({ saved: { data: { listing_id: 'l1' }, error: null } });
+
+    const result = await ListingRepository.getById('l1');
+
+    expect(result?.saved).toBe(true);
+  });
+
+  it('does not query saved_listings when no one is signed in', async () => {
+    const { savedBuilder } = mockTables({});
+
+    await ListingRepository.getById('l1');
+
+    expect(savedBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('throws when the listing query errors', async () => {
+    mockTables({ listing: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getById('l1')).rejects.toThrow('network down');
+  });
+});
+
 describe('ListingRepository.getSavedByUser', () => {
   function mockSavedQueries(opts: {
     saved: QueryResult<{ listing_id: string }[]>;
@@ -676,6 +755,18 @@ describe('ListingRepository.getSavedByUser', () => {
     expect(result).toEqual([]);
   });
 
+  it('skips a saved listing that no longer exists instead of throwing', async () => {
+    mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }, { listing_id: 'deleted' }], error: null },
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result.map((l) => l.id)).toEqual(['l1']);
+  });
+
   it('throws when the saved_listings query errors', async () => {
     mockSavedQueries({ saved: { data: null, error: new Error('network down') } });
 
@@ -699,5 +790,23 @@ describe('ListingRepository.getSavedByUser', () => {
     });
 
     await expect(ListingRepository.getSavedByUser('user-1')).rejects.toThrow('sellers down');
+  });
+});
+
+describe('ListingRepository.incrementViews', () => {
+  // Goes through the increment_listing_views RPC (migration 0007), not a plain
+  // update() — listings_update_own scopes UPDATE to the seller, so a non-owner
+  // viewer's update() would silently affect 0 rows under RLS. The RPC is
+  // SECURITY DEFINER and does the increment atomically in one SQL statement.
+  it('calls the increment_listing_views RPC with the listing id', async () => {
+    await ListingRepository.incrementViews('l1');
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_listing_views', { listing_id: 'l1' });
+  });
+
+  it('throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
+
+    await expect(ListingRepository.incrementViews('l1')).rejects.toThrow('network down');
   });
 });

@@ -275,15 +275,27 @@ export default function SearchScreen({ navigation }: Props) {
                 })}
               </View>
 
-              {/* Price Range */}
+              {/* Price Range — the track is display-only (not draggable); the
+                  fill/thumb mirror the +/− buttons' value so the visual can't
+                  drift from the real filter. */}
               <Text style={styles.filterLabel}>Price</Text>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>$0</Text>
                 <Text style={styles.priceLabel}>${priceMax}</Text>
               </View>
               <View style={styles.sliderTrack}>
-                <View style={styles.sliderFill} />
-                <View style={styles.sliderThumb} />
+                <View
+                  style={[
+                    styles.sliderFill,
+                    { width: `${(priceMax / PRICE_MAX_CAP) * 100}%` },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.sliderThumb,
+                    { left: `${(priceMax / PRICE_MAX_CAP) * 100}%` },
+                  ]}
+                />
               </View>
               <View style={styles.priceAdjustRow}>
                 <PressableScale
@@ -543,14 +555,14 @@ const styles = StyleSheet.create({
   sliderFill: {
     position: "absolute",
     left: 0,
-    width: "60%",
     height: 4,
     backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
   sliderThumb: {
     position: "absolute",
-    left: "58%",
+    // Centered on the end of the fill (left % is set inline from priceMax).
+    marginLeft: -9,
     width: 18,
     height: 18,
     borderRadius: 9,
