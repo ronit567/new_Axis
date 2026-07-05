@@ -110,11 +110,16 @@ export default function ProfileScreen({ navigation }: Props) {
           <Text style={styles.programText}>
             {profile ? `${profile.program} · Year ${profile.year}` : ' '}
           </Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color={COLORS.warning} />
-            <Text style={styles.ratingScore}> {profile?.rating.toFixed(1) ?? '–'} </Text>
-            <Text style={styles.ratingCount}>({profile?.reviewCount ?? 0})</Text>
-          </View>
+          {/* rating/reviewCount are deferred to AX-702; the mapper returns 0
+              until then, and the convention is to hide the block rather than
+              show a "0.0 (0)" that reads as a real zero-star rating. */}
+          {(profile?.reviewCount ?? 0) > 0 && (
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={14} color={COLORS.warning} />
+              <Text style={styles.ratingScore}> {profile!.rating.toFixed(1)} </Text>
+              <Text style={styles.ratingCount}>({profile!.reviewCount})</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Stats bar ── */}

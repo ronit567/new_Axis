@@ -74,25 +74,35 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           <Text style={styles.joinedText}>
             {seller.program} · Joined {seller.joinedDate}
           </Text>
-          <View style={styles.ratingRow}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Ionicons
-                key={i}
-                name={i < stars ? 'star' : 'star-outline'}
-                size={14}
-                color={COLORS.warning}
-              />
-            ))}
-            <Text style={styles.ratingText}>
-              {seller.rating} ({seller.reviewCount} reviews)
-            </Text>
-          </View>
+          {/* rating/reviewCount are deferred to AX-702 (mapper returns 0);
+              hide the block until reviews exist rather than showing an empty
+              zero-star "0 (0 reviews)". */}
+          {seller.reviewCount > 0 && (
+            <View style={styles.ratingRow}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Ionicons
+                  key={i}
+                  name={i < stars ? 'star' : 'star-outline'}
+                  size={14}
+                  color={COLORS.warning}
+                />
+              ))}
+              <Text style={styles.ratingText}>
+                {seller.rating} ({seller.reviewCount} reviews)
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Stats row */}
+        {/* Stats row. Listings comes from the real active listings we fetch
+            below so the count can't contradict the grid. Sold stays from the
+            profile (0 for now): listings_select_public (0002) only exposes a
+            seller's ACTIVE listings to non-owners, so another user's sold
+            count isn't queryable client-side — it needs the deferred
+            aggregate RPC (AX-702), same as rating/reviewCount. */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{seller.stats.listings}</Text>
+            <Text style={styles.statValue}>{sellerListings.length}</Text>
             <Text style={styles.statLabel}>Listings</Text>
           </View>
           <View style={styles.statDivider} />
