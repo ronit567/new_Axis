@@ -39,12 +39,16 @@ export type ListingSearchFilters = {
   condition?: ListingCondition
 }
 
-// Cap search results so a broad query (no text, no filters) can't pull every
-// active listing — and feed every id into the saved-ids IN() — in one request.
-// A mobile search screen never renders more than a page at a time. Exported
-// so the screen can tell "exactly N results" apart from "N or more" without
-// duplicating the number.
-export const SEARCH_RESULT_LIMIT = 50
+export type SearchOptions = {
+  limit?: number
+  offset?: number
+}
+
+// One page of search results — offset-paginated the same way as the home
+// feed, so a broad query (no text, no filters) loads a bounded page instead
+// of pulling every active listing (and feeding every id into the saved-ids
+// IN()) in one request. Kept in sync with useSearchListings' getNextPageParam.
+export const SEARCH_PAGE_SIZE = 20
 
 // Postgres ILIKE treats \, %, and _ as pattern metacharacters. Escape them in
 // user-supplied text before wrapping it in %...% so a search for "50%" or
@@ -164,13 +168,15 @@ export const ListingRepository = {
   // Server-side text/category/price/condition search (AX-204). All filters
   // are optional and combine with AND — an unset filter is simply omitted
   // from the query rather than matched against a wildcard. Text matches the
-  // title OR description (see buildTextFilter); results are capped and ordered
-  // newest-first.
+  // title OR description (see buildTextFilter); results are offset-paginated
+  // and ordered newest-first, same shape as getAll.
   async search(
     query: string,
     filters: ListingSearchFilters = {},
     currentUserId?: string,
-  ): Promise<Listing[]> {
+    options: SearchOptions = {},
+  ): Promise<ListingsPage> {
+    const { limit = SEARCH_PAGE_SIZE, offset = 0 } = options
     const trimmed = query.trim()
 
     let request = supabase
@@ -185,15 +191,16 @@ export const ListingRepository = {
 
     const { data, error } = await request
       .order('created_at', { ascending: false })
-      .limit(SEARCH_RESULT_LIMIT)
+      .range(offset, offset + limit - 1)
     if (error) throw error
-    if (!data || data.length === 0) return []
+    if (!data || data.length === 0) return { items: [], rawCount: 0 }
 
     const rows = data as unknown as (ListingRow & { seller: ProfileRow })[]
     const savedIds = currentUserId
       ? await getSavedIds(currentUserId, rows.map((row) => row.id))
       : new Set<string>()
 
-    return rows.map(({ seller, ...row }) => toListing(row, seller, savedIds.has(row.id)))
+    const items = rows.map(({ seller, ...row }) => toListing(row, seller, savedIds.has(row.id)))
+    return { items, rawCount: rows.length }
   },
 }

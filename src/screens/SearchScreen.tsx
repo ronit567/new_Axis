@@ -8,6 +8,7 @@ import {
   FlatList,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -18,7 +19,7 @@ import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
 import { RootStackParamList, Listing, ListingCondition } from "../types";
 import { useSearchListings } from "../hooks/useListings";
-import { SEARCH_RESULT_LIMIT } from "../repositories/ListingRepository";
+import { useToggleSaved } from "../hooks/useSavedListings";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -48,36 +49,50 @@ export default function SearchScreen({ navigation }: Props) {
   const inputRef = useRef<TextInput>(null);
 
   const {
-    data: results = [],
+    data,
     isLoading,
     isError,
     refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
   } = useSearchListings(query, {
     categories: selectedCategories.length > 0 ? selectedCategories : undefined,
     priceMax: priceMax < PRICE_MAX_CAP ? priceMax : undefined,
     condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
+  const toggleSavedMutation = useToggleSaved();
+
+  const results = data?.pages.flatMap((page) => page.items) ?? [];
 
   const toggleCategory = (cat: string) =>
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
 
-  // The backend caps a single search response at SEARCH_RESULT_LIMIT, so
-  // hitting that cap doesn't mean there are exactly that many matches — there
-  // may be more that just aren't fetched. Say "50+" rather than implying an
-  // exact count we don't actually have.
-  const resultsCountLabel =
-    results.length === SEARCH_RESULT_LIMIT ? `${SEARCH_RESULT_LIMIT}+` : `${results.length}`;
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  };
+
+  // Search is offset-paginated (see useSearchListings), so hasNextPage means
+  // there's at least one more page beyond what's loaded — say "N+" rather
+  // than implying results.length is the exact total match count.
+  const resultsCountLabel = hasNextPage ? `${results.length}+` : `${results.length}`;
 
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
       onPress={() => navigation.navigate("ListingDetail", { listing: item })}
-      onSave={() => {}}
+      onSave={() => toggleSavedMutation.mutate(item.id)}
       style={styles.card}
     />
   );
+
+  const ListFooter = isFetchingNextPage ? (
+    <View style={styles.footerLoading}>
+      <ActivityIndicator color={COLORS.primary} />
+    </View>
+  ) : null;
 
   return (
     <View style={styles.safe}>
@@ -181,6 +196,9 @@ export default function SearchScreen({ navigation }: Props) {
               onCta={() => setQuery('')}
             />
           }
+          ListFooterComponent={ListFooter}
+          onEndReachedThreshold={0.4}
+          onEndReached={loadMore}
         />
       )}
 
@@ -424,6 +442,10 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  footerLoading: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
   modalOverlay: {
     flex: 1,

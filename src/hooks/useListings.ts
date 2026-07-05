@@ -12,6 +12,7 @@ import {
   ListingSearchFilters,
   ListingsPage,
   LISTINGS_PAGE_SIZE,
+  SEARCH_PAGE_SIZE,
 } from '../repositories/ListingRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
@@ -76,6 +77,9 @@ export function useListing(id: string) {
 // sheet is still open would be wasteful. `filters` is a fresh object every
 // render (the caller builds it inline), so it's compared by serialized value
 // rather than reference for the effect to settle once taps stop.
+//
+// Offset-paginated like useListings, so a broad search isn't capped at one
+// page with no way to see more — onEndReached loads the next page instead.
 export function useSearchListings(query: string, filters: ListingSearchFilters) {
   const { user } = useAuth()
   const [debounced, setDebounced] = useState({ query, filters })
@@ -86,9 +90,18 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
     return () => clearTimeout(timer)
   }, [query, filtersKey])
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.search(debounced.query, debounced.filters),
-    queryFn: () => ListingRepository.search(debounced.query, debounced.filters, user?.id),
+    queryFn: ({ pageParam }) => {
+      if (!user) return { items: [], rawCount: 0 }
+      return ListingRepository.search(debounced.query, debounced.filters, user.id, {
+        limit: SEARCH_PAGE_SIZE,
+        offset: pageParam,
+      })
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.rawCount < SEARCH_PAGE_SIZE ? undefined : allPages.length * SEARCH_PAGE_SIZE,
     enabled: !!user,
   })
 }

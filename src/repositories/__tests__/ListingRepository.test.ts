@@ -30,7 +30,7 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { ListingRepository, LISTINGS_PAGE_SIZE } from '../ListingRepository';
+import { ListingRepository, LISTINGS_PAGE_SIZE, SEARCH_PAGE_SIZE } from '../ListingRepository';
 
 const seller: ProfileRow = {
   id: 'seller-1',
@@ -251,7 +251,7 @@ function createSearchBuilder(result: SearchQueryResult) {
     in: (...args: any[]) => { record('in', args); return builder; },
     lte: (...args: any[]) => { record('lte', args); return builder; },
     order: (...args: any[]) => { record('order', args); return builder; },
-    limit: (...args: any[]) => { record('limit', args); return builder; },
+    range: (...args: any[]) => { record('range', args); return builder; },
     then: (resolve: (r: SearchQueryResult) => unknown) => resolve(result),
     calls,
   };
@@ -320,14 +320,19 @@ describe('ListingRepository.search', () => {
     });
   });
 
-  it('always scopes to active listings, newest first, capped to the page limit', async () => {
+  it('always scopes to active listings, newest first, with default pagination', async () => {
     await ListingRepository.search('', {});
     expect(searchListingsBuilder.calls.eq).toEqual([['status', 'active']]);
     expect(searchListingsBuilder.calls.order).toEqual([['created_at', { ascending: false }]]);
-    expect(searchListingsBuilder.calls.limit).toEqual([[50]]);
+    expect(searchListingsBuilder.calls.range).toEqual([[0, SEARCH_PAGE_SIZE - 1]]);
     expect(searchListingsBuilder.calls.or).toBeUndefined();
     expect(searchListingsBuilder.calls.in).toBeUndefined();
     expect(searchListingsBuilder.calls.lte).toBeUndefined();
+  });
+
+  it('offsets by page when a later page is requested', async () => {
+    await ListingRepository.search('', {}, undefined, { offset: 40, limit: 20 });
+    expect(searchListingsBuilder.calls.range).toEqual([[40, 59]]);
   });
 
   it('matches a trimmed text query against title OR description', async () => {
@@ -386,8 +391,8 @@ describe('ListingRepository.search', () => {
 
   it('returns an accurate, empty result with no matches (and skips the saved-ids lookup)', async () => {
     searchListingsResult = { data: [], error: null };
-    const results = await ListingRepository.search('nonexistent', {});
-    expect(results).toEqual([]);
+    const result = await ListingRepository.search('nonexistent', {});
+    expect(result).toEqual({ items: [], rawCount: 0 });
     expect(mockFrom).toHaveBeenCalledTimes(1);
     expect(mockFrom).toHaveBeenCalledWith('listings');
   });
@@ -397,15 +402,16 @@ describe('ListingRepository.search', () => {
       data: [makeSearchRow({ id: 'l1' }), makeSearchRow({ id: 'l2', title: 'Calc textbook' })],
       error: null,
     };
-    const results = await ListingRepository.search('textbook', {});
-    expect(results).toHaveLength(2);
-    expect(results.map((r) => r.id)).toEqual(['l1', 'l2']);
-    expect(results[0].seller.id).toBe('s1');
+    const result = await ListingRepository.search('textbook', {});
+    expect(result.items).toHaveLength(2);
+    expect(result.rawCount).toBe(2);
+    expect(result.items.map((r) => r.id)).toEqual(['l1', 'l2']);
+    expect(result.items[0].seller.id).toBe('s1');
   });
 
   it('defaults saved to false when no current user is given', async () => {
     searchListingsResult = { data: [makeSearchRow({ id: 'l1' })], error: null };
-    const [result] = await ListingRepository.search('', {});
+    const { items: [result] } = await ListingRepository.search('', {});
     expect(result.saved).toBe(false);
     expect(mockFrom).not.toHaveBeenCalledWith('saved_listings');
   });
@@ -417,10 +423,10 @@ describe('ListingRepository.search', () => {
     };
     searchSavedResult = { data: [{ listing_id: 'l1' }], error: null };
 
-    const results = await ListingRepository.search('', {}, 'u1');
+    const { items } = await ListingRepository.search('', {}, 'u1');
 
-    expect(results.find((r) => r.id === 'l1')?.saved).toBe(true);
-    expect(results.find((r) => r.id === 'l2')?.saved).toBe(false);
+    expect(items.find((r) => r.id === 'l1')?.saved).toBe(true);
+    expect(items.find((r) => r.id === 'l2')?.saved).toBe(false);
     expect(searchSavedBuilder.calls.eq).toEqual([['user_id', 'u1']]);
     expect(searchSavedBuilder.calls.in).toEqual([['listing_id', ['l1', 'l2']]]);
   });

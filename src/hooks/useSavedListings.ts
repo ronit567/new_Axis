@@ -30,6 +30,10 @@ export function useToggleSaved() {
         })
       }
       queryClient.invalidateQueries({ queryKey: ['listings'] })
+      // Search results carry their own `saved` flag (ListingRepository.search),
+      // so a toggle from Home/Saved/Detail needs to bust the search cache too,
+      // not just the toggle done from search itself.
+      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }
