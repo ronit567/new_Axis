@@ -19,7 +19,6 @@ import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useUpsertProfile } from '../hooks/useProfile';
 import { deriveInitials } from '../repositories/mappers';
-import { isWesternEmail } from '../lib/email';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -55,6 +54,10 @@ export default function SetupProfileScreen(_props: Props) {
   // signed-in user has no `profiles` row yet, so there's nothing to go back
   // to and no manual navigation on success: the upsert's cache update flips
   // useCurrentProfile from null, and RootNavigator swaps to the main app.
+  //
+  // `verified` isn't set here — a DB trigger (migration 0004) recomputes it
+  // server-side from the user's real email, so a modified client can't claim
+  // a trust badge it hasn't earned by just sending `verified: true`.
   const handleFinish = async () => {
     if (!canFinish) return;
     try {
@@ -64,7 +67,6 @@ export default function SetupProfileScreen(_props: Props) {
         // 'Grad' has no numeric year; store null rather than fabricate one.
         year: typeof year === 'number' ? year : null,
         bio: aboutYou.trim(),
-        verified: isWesternEmail(user?.email ?? ''),
       });
     } catch (e) {
       Alert.alert(

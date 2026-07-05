@@ -3,12 +3,16 @@ import { supabase } from '../lib/supabase'
 import type { ProfileRow } from '../types/database'
 import { toSellerProfile } from './mappers'
 
+// `verified` isn't accepted here on purpose — it's server-computed from the
+// user's real email by a DB trigger (migration 0004), not client input. Both
+// insert and update are protected by RLS's `auth.uid() = id` check (0002),
+// but that alone doesn't stop a modified client from claiming a trust badge
+// it hasn't earned.
 export type UpsertProfileInput = {
   name: string
   program: string
   year: number | null
   bio: string
-  verified: boolean
   initials?: string
   location?: string
   avatar_color?: string
