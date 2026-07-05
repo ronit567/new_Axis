@@ -155,10 +155,11 @@ This epic is the load-bearing wall. Screens come after.
 **AC:** each method hits the DB and returns typed domain data; RLS respected; save/unsave persists; creating a listing appears in `getAll`.
 **Depends on:** AX-110. **Size:** L.
 
-### AX-112 — Implement `ProfileRepository` for real ⬜
+### AX-112 — Implement `ProfileRepository` for real ✅
 **Tasks:** `getById`, `getCurrent` (join uid), `upsert(userId, input)` insert-or-update own row. Map via AX-110.
 **AC:** current user's profile loads; upsert persists and is visible to a second account (public read).
 **Depends on:** AX-110. **Size:** M.
+**Done (AX-301):** `stats` (listings/sold) is zeroed pending AX-111's real listing counts, same deferral pattern as `rating`/`reviewCount` pending AX-702.
 
 ### AX-113 — Implement `MessageRepository` for real ⬜
 **Tasks:**
@@ -220,12 +221,14 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 ## Epic 3 — Selling, profile & onboarding
 
-### AX-301 — Onboarding / first-run profile capture ⬜ (architectural decision)
+### AX-301 — Onboarding / first-run profile capture ✅
 **Why:** documented gap in `AI_context.md`. `verifyOtp` creates a session immediately, so the signed-out `SetupProfile` step is **bypassed** and `handleFinish` is a no-op. New users currently land with no `profiles` row.
+**Decision:** gated on profile existence, not session — client-side upsert from `SetupProfile`, no `handle_new_user()` DB trigger. `RootNavigator` now has 3 groups (signed-out / needs-onboarding / main); a signed-in user with no `profiles` row is routed to a mandatory `SetupProfile` before the tabs, gated via `useCurrentProfile`.
 **Tasks:**
-- Decide the model (recommend: **gate on profile existence, not session**). After auth resolves, if `useCurrentProfile` returns null, route to a mandatory in-app `SetupProfile` before the tabs.
-- Wire `SetupProfile` → `useUpsertProfile` (name, program, year, location, avatar color/initials).
-- Alternative/complement: `handle_new_user()` DB trigger creates a bare row; app then completes it. Pick one and document it.
+- `SetupProfile` → `useUpsertProfile` (name, program, year, bio; location/avatar color/initials deferred — no UI for them yet, DB defaults + mapper fallbacks cover it).
+- `verified` revived: set from the same `@uwo.ca`/`@alumni.uwo.ca` check `CreateAccountScreen` already uses (`src/lib/email.ts`), computed at SetupProfile submit time.
+- `profiles.bio` column added (migration 0003) — wasn't in the original schema.
+- Full name typed at `CreateAccountScreen` now rides through as signup metadata (`user_metadata.full_name`) so `SetupProfile` can prefill it instead of asking again.
 **AC:** a brand-new account is forced through profile setup exactly once; returning users skip it; a `profiles` row always exists before the marketplace loads.
 **Depends on:** AX-112, AX-003. **Size:** M. **This unblocks AX-201's greeting and all seller displays.**
 
@@ -426,7 +429,7 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 1. ~~**Allowed email domains (AX-701):**~~ **RESOLVED 2026-07-02** — `@uwo.ca` only. Affiliate-college students (Huron/King's/Brescia) get `@uwo.ca` addresses, so this single rule covers them; no separate domain list.
 2. **Category storage (AX-101):** CHECK constraint against `LISTING_CATEGORIES`, or a lookup table for future admin-editable categories?
-3. **Profile creation (AX-301):** DB trigger auto-creates a bare row, or app creates it in onboarding? (Affects RLS and the routing model.)
+3. ~~**Profile creation (AX-301):**~~ **RESOLVED 2026-07-04** — app creates it in onboarding, gated on profile existence (no DB trigger).
 4. **Reviews at launch (AX-702):** ship v1 with reviews, or hide the rating UI and add reviews in v1.1?
 5. **Notification generation (AX-601):** DB triggers vs. Edge Functions — any preference / existing infra?
 6. **Migration workflow (AX-101):** adopt the Supabase CLI (recommended, version-controlled) or manage schema in the dashboard?
