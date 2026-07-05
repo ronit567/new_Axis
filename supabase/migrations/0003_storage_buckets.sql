@@ -6,20 +6,31 @@
 -- one policy predicate covers both buckets):
 --   listing-images: {seller_id}/{listing_id}/{filename}
 --   avatars:        {user_id}/{filename}
-
-insert into storage.buckets (id, name, public)
+--
+-- Bucket-level guardrails: image-only mime allowlist + a per-file size cap,
+-- so an authenticated user can't stash arbitrary large/non-image files under
+-- their own prefix while the real upload pipeline (compression, resizing) is
+-- still pending in AX-401.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
-  ('listing-images', 'listing-images', true),
-  ('avatars', 'avatars', true)
+  ('listing-images', 'listing-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
+  ('avatars', 'avatars', true, 2097152, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- listing-images: authenticated upload to own prefix, public read, owner-only
 -- delete. No update policy — clients replace an image via delete + insert.
+--
+-- Read note: the bucket's `public = true` flag (not this policy) is what lets
+-- `getPublicUrl()` serve a file to a signed-out request — that route bypasses
+-- RLS entirely. The `select` policy below only gates `list()`/authenticated
+-- `download()`, so it's scoped `to authenticated` (matching every other
+-- policy in this project) rather than `to public`, to stop an anonymous
+-- caller from enumerating bucket contents.
 -- ---------------------------------------------------------------------------
-create policy "listing_images_select_public"
+create policy "listing_images_select_authenticated"
   on storage.objects for select
-  to public
+  to authenticated
   using (bucket_id = 'listing-images');
 
 create policy "listing_images_insert_own"
@@ -41,9 +52,9 @@ create policy "listing_images_delete_own"
 -- ---------------------------------------------------------------------------
 -- avatars: same shape, keyed by user id only (no listing segment).
 -- ---------------------------------------------------------------------------
-create policy "avatars_select_public"
+create policy "avatars_select_authenticated"
   on storage.objects for select
-  to public
+  to authenticated
   using (bucket_id = 'avatars');
 
 create policy "avatars_insert_own"

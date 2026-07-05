@@ -10,7 +10,7 @@ against a live database yet — review before applying.
 |---|---|
 | `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`), indexes, and `enable row level security` on each. |
 | `migrations/0002_rls_policies.sql` | RLS policies. Apply **after** 0001. |
-| `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets and their `storage.objects` policies (authenticated upload to own prefix, public read, owner-only delete). |
+| `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets (with size/mime-type limits) and their `storage.objects` policies (authenticated upload to own prefix, public URL read via the bucket's `public` flag, owner-only delete). |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
@@ -45,9 +45,16 @@ After the tables exist, regenerate app types:
   insert the profile explicitly (via `ProfileRepository.upsert`). If you'd rather
   auto-create a stub profile on `auth.users` insert, that's a one-trigger add —
   say the word.
-- Buckets are created `public` (unsigned public URLs work) *and* carry an
-  explicit `select` policy on `storage.objects`, since the storage API itself
-  is still subject to RLS regardless of the bucket's public flag.
+- Buckets are created `public` so `getPublicUrl()` works unauthenticated (that
+  route bypasses RLS entirely). The `select` policy on `storage.objects` is a
+  separate concern — it only gates `list()`/authenticated `download()` — and
+  is scoped `to authenticated`, like every other policy in this project, so a
+  signed-out caller can't enumerate bucket contents even though a known public
+  URL still resolves for anyone.
+- `file_size_limit` (5 MB listing-images, 2 MB avatars) and `allowed_mime_types`
+  (`image/jpeg`, `image/png`, `image/webp`) are enforced at the bucket level as
+  a baseline guardrail against arbitrarily large or non-image uploads, ahead of
+  the real compression/validation pipeline (AX-401).
 - No update policy on either bucket — a replaced image/avatar is a delete +
   insert client-side, not an in-place overwrite.
 - `StorageRepository.uploadListingImages`, compression, upload progress, and
