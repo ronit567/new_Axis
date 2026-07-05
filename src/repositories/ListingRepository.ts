@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
-import { toListing } from './mappers'
-import { Listing } from '../types'
+import { toListing, toMyListing } from './mappers'
+import { Listing, MyListing } from '../types'
 
 export type CreateListingInput = {
   title: string
@@ -32,9 +32,10 @@ export type ListingsPage = {
 // AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
 export const LISTINGS_PAGE_SIZE = 20
 
-// getAll is real (AX-201); the rest stay placeholders until their tickets
-// (AX-203, AX-202, AX-302) land. The shape here is the contract screens/hooks
-// build against so nothing imports supabase directly.
+// getAll (AX-201), create/getBySeller (AX-302/AX-401) are real; getById and
+// getSavedByUser stay placeholders until their tickets (AX-203, AX-202) land.
+// The shape here is the contract screens/hooks build against so nothing
+// imports supabase directly.
 export const ListingRepository = {
   async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
     const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
@@ -87,8 +88,52 @@ export const ListingRepository = {
   async getById(id: string): Promise<Listing | null> {
     return null
   },
-  async create(sellerId: string, data: CreateListingInput): Promise<Listing> {
-    throw new Error('ListingRepository.create not implemented')
+  // AX-302/AX-401: listingId is caller-generated (see useCreateListing) so images
+  // can be uploaded to their final path *before* this insert runs — this call only
+  // ever persists image_urls that are already live in storage.
+  async create(sellerId: string, listingId: string, data: CreateListingInput): Promise<Listing> {
+    const { data: row, error } = await supabase
+      .from('listings')
+      .insert({ id: listingId, seller_id: sellerId, ...data })
+      .select('*')
+      .single()
+    if (error) throw error
+
+    const { data: sellerRow, error: sellerError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sellerId)
+      .single()
+    if (sellerError) throw sellerError
+
+    // A listing can't already be saved by anyone the instant it's created.
+    return toListing(row, sellerRow, false)
+  },
+  // ManageListingsScreen's own-listings view (all statuses, not just active).
+  async getBySeller(sellerId: string): Promise<MyListing[]> {
+    const { data: rows, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    if (!rows || rows.length === 0) return []
+
+    const { data: savedRows, error: savedError } = await supabase
+      .from('saved_listings')
+      .select('listing_id')
+      .in(
+        'listing_id',
+        rows.map((row) => row.id),
+      )
+    if (savedError) throw savedError
+
+    const savesByListing = new Map<string, number>()
+    for (const { listing_id } of savedRows ?? []) {
+      savesByListing.set(listing_id, (savesByListing.get(listing_id) ?? 0) + 1)
+    }
+
+    return rows.map((row) => toMyListing(row, savesByListing.get(row.id) ?? 0))
   },
   // AX-201 follow-up: real toggle. Try deleting the save first; if a row was
   // actually removed we're done (now unsaved), otherwise insert it (now saved).

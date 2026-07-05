@@ -16,6 +16,8 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
     in: jest.fn(() => builder),
     delete: jest.fn(() => builder),
     insert: jest.fn(() => builder),
+    single: jest.fn(() => builder),
+    maybeSingle: jest.fn(() => builder),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
@@ -29,7 +31,11 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { ListingRepository, LISTINGS_PAGE_SIZE } from '../ListingRepository';
+import {
+  ListingRepository,
+  LISTINGS_PAGE_SIZE,
+  type CreateListingInput,
+} from '../ListingRepository';
 
 const seller: ProfileRow = {
   id: 'seller-1',
@@ -162,6 +168,128 @@ describe('ListingRepository.getAll', () => {
     });
 
     await expect(ListingRepository.getAll('user-1')).rejects.toThrow('network down');
+  });
+});
+
+const validCreateInput: CreateListingInput = {
+  title: 'Desk lamp',
+  description: 'Works great',
+  price: 15,
+  is_free: false,
+  is_trade: false,
+  condition: 'Good',
+  category: 'Furniture',
+  pickup: 'UCC, Room 110',
+  image_urls: ['https://example.com/a.jpg'],
+};
+
+describe('ListingRepository.create', () => {
+  it('inserts with the caller-provided id/seller_id and maps the row with a seller join', async () => {
+    const row = makeListingRow({ id: 'new-listing-id', seller_id: seller.id, ...validCreateInput });
+    const listingsBuilder = makeQueryBuilder({ data: row, error: null });
+    const profilesBuilder = makeQueryBuilder({ data: seller, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return profilesBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await ListingRepository.create(seller.id, 'new-listing-id', validCreateInput);
+
+    expect(listingsBuilder.insert).toHaveBeenCalledWith({
+      id: 'new-listing-id',
+      seller_id: seller.id,
+      ...validCreateInput,
+    });
+    expect(profilesBuilder.eq).toHaveBeenCalledWith('id', seller.id);
+    expect(result.id).toBe('new-listing-id');
+    // Nothing can have saved a listing in the instant it's created.
+    expect(result.saved).toBe(false);
+  });
+
+  it('throws when the insert errors, without querying the seller profile', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('insert failed') });
+    const profilesBuilder = makeQueryBuilder({ data: seller, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return profilesBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(
+      ListingRepository.create(seller.id, 'l1', validCreateInput),
+    ).rejects.toThrow('insert failed');
+    expect(profilesBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('throws when the seller profile lookup errors', async () => {
+    const row = makeListingRow({ id: 'l1' });
+    const listingsBuilder = makeQueryBuilder({ data: row, error: null });
+    const profilesBuilder = makeQueryBuilder({
+      data: null,
+      error: new Error('profile lookup failed'),
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return profilesBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(
+      ListingRepository.create(seller.id, 'l1', validCreateInput),
+    ).rejects.toThrow('profile lookup failed');
+  });
+});
+
+describe('ListingRepository.getBySeller', () => {
+  it('returns own listings across all statuses, newest first, with per-listing save counts', async () => {
+    const rowA = makeListingRow({ id: 'l1', status: 'active' });
+    const rowB = makeListingRow({ id: 'l2', status: 'sold', price: 30 });
+    const listingsBuilder = makeQueryBuilder({ data: [rowA, rowB], error: null });
+    const savedBuilder = makeQueryBuilder({
+      data: [{ listing_id: 'l1' }, { listing_id: 'l1' }, { listing_id: 'l2' }],
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await ListingRepository.getBySeller(seller.id);
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+    expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(result).toHaveLength(2);
+    expect(result.find((l) => l.id === 'l1')?.saves).toBe(2);
+    expect(result.find((l) => l.id === 'l2')?.saves).toBe(1);
+    expect(result.find((l) => l.id === 'l2')?.status).toBe('sold');
+    expect(result.find((l) => l.id === 'l2')?.soldFor).toBe(30);
+  });
+
+  it('returns an empty list without querying saves when the seller has no listings', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: [], error: null });
+    const savedBuilder = makeQueryBuilder({ data: [], error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await ListingRepository.getBySeller(seller.id);
+
+    expect(result).toEqual([]);
+    expect(savedBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('throws when the listings query errors', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('network down') });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('network down');
   });
 });
 
