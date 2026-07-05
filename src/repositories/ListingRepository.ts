@@ -32,8 +32,6 @@ export type ListingsPage = {
 // AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
 export const LISTINGS_PAGE_SIZE = 20
 
-// getAll (AX-201), create/getBySeller (AX-302/AX-401) are real; getById and
-// getSavedByUser stay placeholders until their tickets (AX-203, AX-202) land.
 // The shape here is the contract screens/hooks build against so nothing
 // imports supabase directly.
 export const ListingRepository = {
@@ -86,7 +84,39 @@ export const ListingRepository = {
     return { items, rawCount: rows.length }
   },
   async getById(id: string): Promise<Listing | null> {
-    return null
+    const { data: row, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw error
+    if (!row) return null
+
+    const { data: seller, error: sellerError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', row.seller_id)
+      .maybeSingle()
+    if (sellerError) throw sellerError
+    if (!seller) return null
+
+    // No userId param on this method (callers only have the listing id), so
+    // resolve the viewer from the session to compute their own saved status.
+    const { data: sessionData } = await supabase.auth.getSession()
+    const viewerId = sessionData.session?.user.id
+    let isSaved = false
+    if (viewerId) {
+      const { data: savedRow, error: savedError } = await supabase
+        .from('saved_listings')
+        .select('listing_id')
+        .eq('user_id', viewerId)
+        .eq('listing_id', id)
+        .maybeSingle()
+      if (savedError) throw savedError
+      isSaved = !!savedRow
+    }
+
+    return toListing(row, seller, isSaved)
   },
   // AX-302/AX-401: listingId is caller-generated (see useCreateListing) so images
   // can be uploaded to their final path *before* this insert runs — this call only
@@ -197,5 +227,19 @@ export const ListingRepository = {
       if (row && seller) acc.push(toListing(row, seller, true))
       return acc
     }, [])
+  },
+  // Not yet called anywhere — wiring the view-count bump into
+  // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views
+  // RPC (0007) rather than a plain update(): listings_update_own (0002) scopes
+  // UPDATE to the seller only, so a non-owner viewer's update() would silently
+  // affect 0 rows under RLS instead of erroring — views would never increment
+  // for anyone but the seller. The RPC is SECURITY DEFINER so any authenticated
+  // viewer can bump the counter, the increment itself is a single atomic
+  // `views = views + 1` in SQL rather than a racy read-then-write, and the RPC
+  // skips the owner's own views server-side so a seller can't inflate their
+  // count. Per-viewer dedup (one count per unique viewer) is AX-203's call.
+  async incrementViews(id: string): Promise<void> {
+    const { error } = await supabase.rpc('increment_listing_views', { listing_id: id })
+    if (error) throw error
   },
 }
