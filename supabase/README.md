@@ -11,7 +11,7 @@ against a live database yet — review before applying.
 | `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`), indexes, and `enable row level security` on each. |
 | `migrations/0002_rls_policies.sql` | RLS policies + the `is_blocked()` helper. Apply **after** 0001. |
 | `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets (with size/mime-type limits) and their `storage.objects` policies (authenticated upload to own prefix, public URL read via the bucket's `public` flag, owner-only delete). |
-| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests. Run **after** 0001+0002. |
+| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002) **and** the storage.objects policies (0003). Run **after** 0001+0002+0003. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
@@ -21,9 +21,11 @@ against a live database yet — review before applying.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 
-After applying, run `tests/rls_policies_test.sql` (SQL editor or psql). It runs
-inside a transaction and `rollback`s, so it leaves nothing behind; it raises on
-the first failed assertion and prints `ALL RLS TESTS PASSED` on success.
+After applying (0001+0002+0003), run `tests/rls_policies_test.sql` (SQL editor
+or psql). It runs inside a transaction and `rollback`s, so it leaves nothing
+behind; it raises on the first failed assertion and prints `ALL RLS TESTS
+PASSED` on success. The storage scenarios (6–9) need the buckets from 0003 to
+exist, so apply 0003 before running the tests.
 
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
@@ -74,22 +76,26 @@ After the tables exist, regenerate app types:
   insert the profile explicitly (via `ProfileRepository.upsert`). If you'd rather
   auto-create a stub profile on `auth.users` insert, that's a one-trigger add —
   say the word.
-- Buckets are created `public` so `getPublicUrl()` works unauthenticated (that
-  route bypasses RLS entirely). The `select` policy on `storage.objects` is a
-  separate concern — it only gates `list()`/authenticated `download()` — and
-  is scoped `to authenticated` rather than `to anon, authenticated` like
-  `profiles_select_public`/`listings_select_public` (0002). That's deliberate,
-  not an oversight: a signed-out browser still resolves any known public image
-  URL either way (bucket-flag-driven, not policy-driven), but `to authenticated`
-  additionally stops an anonymous caller from `list()`-enumerating bucket
-  contents. Revisit if anon `list()`/authenticated-`download()` turns out to be
-  needed for parity with the anon-browsable listings/profiles.
+- **Storage "public read" is served by the bucket's `public = true` flag, not
+  by an RLS policy.** `getPublicUrl()` uses the `/object/public/` route, which
+  bypasses RLS, so anyone with a stored image URL can render it while signed
+  out (that's the "public read" the ticket asks for). The `select` policy on
+  `storage.objects` is a separate concern — it only governs the RLS-gated
+  paths (`list()` and authenticated `download()`) — and is scoped **owner-only**
+  (same `(storage.foldername(name))[1] = auth.uid()::text` predicate as
+  insert/delete), *not* broadly `to authenticated`. This stops any signed-in
+  user from `list()`-enumerating the whole bucket and harvesting every
+  seller_id / listing_id present; owners can still list their own uploads.
 - `file_size_limit` (5 MB listing-images, 2 MB avatars) and `allowed_mime_types`
   (`image/jpeg`, `image/png`, `image/webp`) are enforced at the bucket level as
   a baseline guardrail against arbitrarily large or non-image uploads, ahead of
   the real compression/validation pipeline (AX-401).
 - No update policy on either bucket — a replaced image/avatar is a delete +
   insert client-side, not an in-place overwrite.
+- Storage policies are covered by `tests/rls_policies_test.sql` (scenarios 6–9):
+  owner-prefix upload allowed / cross-prefix upload rejected, owner-scoped
+  select (no cross-user enumeration), owner-only delete, and anon locked out of
+  the RLS-gated paths.
 - `StorageRepository.uploadListingImages`, compression, upload progress, and
   the avatar upload UI are separate (AX-401 / AX-403) — this migration is only
   the bucket + policy layer.

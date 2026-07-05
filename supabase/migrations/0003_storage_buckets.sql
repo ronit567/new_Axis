@@ -3,7 +3,7 @@
 -- compression, avatar UI) is separate (AX-401 / AX-403).
 --
 -- Path convention (first folder segment is always the owning user's uid, so
--- one policy predicate covers both buckets):
+-- one predicate covers both buckets):
 --   listing-images: {seller_id}/{listing_id}/{filename}
 --   avatars:        {user_id}/{filename}
 --
@@ -18,21 +18,25 @@ values
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
--- listing-images: authenticated upload to own prefix, public read, owner-only
--- delete. No update policy — clients replace an image via delete + insert.
+-- listing-images: authenticated upload/delete/list scoped to the owner's own
+-- prefix. No update policy — clients replace an image via delete + insert.
 --
--- Read note: the bucket's `public = true` flag (not this policy) is what lets
--- `getPublicUrl()` serve a file to a signed-out request — that route bypasses
--- RLS entirely. The `select` policy below only gates `list()`/authenticated
--- `download()`, so it's deliberately scoped `to authenticated` rather than
--- `to anon, authenticated` (unlike 0002's anon-readable profiles/listings
--- policies) to stop an anonymous caller from enumerating bucket contents;
--- a known public image URL still resolves either way.
+-- Read model: "public read" is served by the bucket's `public = true` flag,
+-- not by an RLS policy. `getPublicUrl()` hits the /object/public/ route, which
+-- bypasses RLS entirely, so anyone with a stored image URL can render it while
+-- signed out. The SELECT policy below therefore only governs the RLS-gated
+-- paths (`list()` and authenticated `download()`), and is scoped owner-only
+-- (same predicate as insert/delete) so an authenticated user cannot enumerate
+-- other users' object paths — which would otherwise leak every seller_id /
+-- listing_id present in the bucket. Owners can still `list()` their own files.
 -- ---------------------------------------------------------------------------
-create policy "listing_images_select_authenticated"
+create policy "listing_images_select_own"
   on storage.objects for select
   to authenticated
-  using (bucket_id = 'listing-images');
+  using (
+    bucket_id = 'listing-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "listing_images_insert_own"
   on storage.objects for insert
@@ -53,10 +57,13 @@ create policy "listing_images_delete_own"
 -- ---------------------------------------------------------------------------
 -- avatars: same shape, keyed by user id only (no listing segment).
 -- ---------------------------------------------------------------------------
-create policy "avatars_select_authenticated"
+create policy "avatars_select_own"
   on storage.objects for select
   to authenticated
-  using (bucket_id = 'avatars');
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "avatars_insert_own"
   on storage.objects for insert
