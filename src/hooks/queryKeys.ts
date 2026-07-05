@@ -3,6 +3,7 @@
 export const queryKeys = {
   listings: (category?: string) => ['listings', category ?? 'all'] as const,
   listing: (id: string) => ['listing', id] as const,
+  search: (query: string, filters: unknown) => ['search', query, filters] as const,
   myListings: (userId: string) => ['myListings', userId] as const,
   // Deliberately NOT under the ['listings'] prefix: those caches are
   // InfiniteData pages, this one is a flat Listing[] — sharing the prefix

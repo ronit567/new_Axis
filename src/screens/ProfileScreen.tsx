@@ -15,6 +15,8 @@ import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import { useMyListings } from '../hooks/useListings';
+import { useSavedListings } from '../hooks/useSavedListings';
+import { useCurrentProfile } from '../hooks/useProfile';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -65,7 +67,19 @@ export default function ProfileScreen({ navigation }: Props) {
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [] } = useMyListings();
+  const { data: savedListings = [] } = useSavedListings();
+  // RootNavigator's profile-existence gate means this is already cached by
+  // the time the main app renders; the fallbacks only cover a cold refetch.
+  const { data: profile } = useCurrentProfile();
   const listingsPreview = myListings.slice(0, 3);
+
+  // Stats derive from the same queries as the previews so the numbers can't
+  // drift from the listings actually shown below.
+  const stats: [string, string][] = [
+    [String(myListings.filter((l) => l.status === 'active').length), 'Listings'],
+    [String(myListings.filter((l) => l.status === 'sold').length), 'Sold'],
+    [String(savedListings.length), 'Saved'],
+  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -87,23 +101,25 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {/* ── Profile info ── */}
         <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>RS</Text>
+          <View style={[styles.avatar, profile && { backgroundColor: profile.avatarColor }]}>
+            <Text style={styles.avatarText}>{profile?.initials ?? ''}</Text>
           </View>
           <View style={styles.nameRow}>
-            <Text style={styles.nameText}>Ronit S.</Text>
+            <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
           </View>
-          <Text style={styles.programText}>Ivey HBA · Year 2</Text>
+          <Text style={styles.programText}>
+            {profile ? `${profile.program} · Year ${profile.year}` : ' '}
+          </Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={14} color={COLORS.warning} />
-            <Text style={styles.ratingScore}> 5.0 </Text>
-            <Text style={styles.ratingCount}>(18)</Text>
+            <Text style={styles.ratingScore}> {profile?.rating.toFixed(1) ?? '–'} </Text>
+            <Text style={styles.ratingCount}>({profile?.reviewCount ?? 0})</Text>
           </View>
         </View>
 
         {/* ── Stats bar ── */}
         <View style={styles.statsCard}>
-          {[['6', 'Listings'], ['23', 'Sold'], ['8', 'Saved']].map(
+          {stats.map(
             ([n, l], i) => (
               <React.Fragment key={l}>
                 {i > 0 && <View style={styles.statDivider} />}

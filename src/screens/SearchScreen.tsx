@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -16,7 +17,9 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
-import { RootStackParamList, Listing } from "../types";
+import { RootStackParamList, Listing, ListingCondition } from "../types";
+import { useSearchListings } from "../hooks/useListings";
+import { useToggleSaved } from "../hooks/useSavedListings";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -24,57 +27,72 @@ import ErrorState from "../components/ErrorState";
 import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
 import { haptics } from "../lib/haptics";
-import { LISTINGS } from "../data/mockListings";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 const FILTER_CATEGORIES = ["Textbooks", "Electronics", "Furniture", "Tickets"];
-const CONDITIONS = ["Like new", "Good", "Any"];
+const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
+// The price slider's upper bound doubles as "no cap" — nothing is listed
+// above it, so treating it as a sentinel keeps the filter omitted rather
+// than passing a max that happens to include everything anyway.
+const PRICE_MAX_CAP = 500;
 
 export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
-  const [condition, setCondition] = useState("Like new");
-  const [priceMax, setPriceMax] = useState(80);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  // Screen opens with no filters applied so it shows every active listing
+  // until the user narrows things down.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [condition, setCondition] = useState("Any");
+  const [priceMax, setPriceMax] = useState(PRICE_MAX_CAP);
   const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
-  };
-
-  const results = LISTINGS.filter((l) => {
-    const matchQuery =
-      !query || l.title.toLowerCase().includes(query.toLowerCase());
-    const matchCat =
-      selectedCategories.length === 0 ||
-      selectedCategories.includes(l.category);
-    return matchQuery && matchCat;
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useSearchListings(query, {
+    categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+    priceMax: priceMax < PRICE_MAX_CAP ? priceMax : undefined,
+    condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
+  const toggleSavedMutation = useToggleSaved();
+
+  const results = data?.pages.flatMap((page) => page.items) ?? [];
 
   const toggleCategory = (cat: string) =>
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
 
+  const loadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  };
+
+  // Search is offset-paginated (see useSearchListings), so hasNextPage means
+  // there's at least one more page beyond what's loaded — say "N+" rather
+  // than implying results.length is the exact total match count.
+  const resultsCountLabel = hasNextPage ? `${results.length}+` : `${results.length}`;
+
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
       onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
-      onSave={() => {}}
+      onSave={() => toggleSavedMutation.mutate(item)}
       style={styles.card}
     />
   );
+
+  const ListFooter = isFetchingNextPage ? (
+    <View style={styles.footerLoading}>
+      <ActivityIndicator color={COLORS.primary} />
+    </View>
+  ) : null;
 
   return (
     <View style={styles.safe}>
@@ -132,7 +150,7 @@ export default function SearchScreen({ navigation }: Props) {
       {/* Results count + cancel */}
       <View style={styles.resultsRow}>
         <Text style={styles.resultsCount}>
-          {isLoading ? "Searching…" : `${results.length} results`}
+          {isLoading ? "Searching…" : `${resultsCountLabel} results`}
         </Text>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -152,10 +170,10 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
-      ) : hasError ? (
+      ) : isError ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : (
         <FlatList
@@ -178,6 +196,9 @@ export default function SearchScreen({ navigation }: Props) {
               onCta={() => setQuery('')}
             />
           }
+          ListFooterComponent={ListFooter}
+          onEndReachedThreshold={0.4}
+          onEndReached={loadMore}
         />
       )}
 
@@ -212,7 +233,7 @@ export default function SearchScreen({ navigation }: Props) {
                   haptics.tap();
                   setSelectedCategories([]);
                   setCondition("Any");
-                  setPriceMax(200);
+                  setPriceMax(PRICE_MAX_CAP);
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
@@ -254,15 +275,27 @@ export default function SearchScreen({ navigation }: Props) {
                 })}
               </View>
 
-              {/* Price Range */}
+              {/* Price Range — the track is display-only (not draggable); the
+                  fill/thumb mirror the +/− buttons' value so the visual can't
+                  drift from the real filter. */}
               <Text style={styles.filterLabel}>Price</Text>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>$0</Text>
                 <Text style={styles.priceLabel}>${priceMax}</Text>
               </View>
               <View style={styles.sliderTrack}>
-                <View style={styles.sliderFill} />
-                <View style={styles.sliderThumb} />
+                <View
+                  style={[
+                    styles.sliderFill,
+                    { width: `${(priceMax / PRICE_MAX_CAP) * 100}%` },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.sliderThumb,
+                    { left: `${(priceMax / PRICE_MAX_CAP) * 100}%` },
+                  ]}
+                />
               </View>
               <View style={styles.priceAdjustRow}>
                 <PressableScale
@@ -282,7 +315,7 @@ export default function SearchScreen({ navigation }: Props) {
                   style={styles.priceBtn}
                   onPress={() => {
                     haptics.tap();
-                    setPriceMax((m) => Math.min(500, m + 10));
+                    setPriceMax((m) => Math.min(PRICE_MAX_CAP, m + 10));
                   }}
                   scaleTo={0.9}
                   accessibilityRole="button"
@@ -337,7 +370,7 @@ export default function SearchScreen({ navigation }: Props) {
               accessibilityRole="button"
             >
               <Text style={styles.showResultsText}>
-                Show {results.length} results
+                Show {resultsCountLabel} results
               </Text>
             </PressableScale>
           </View>
@@ -421,6 +454,10 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+  },
+  footerLoading: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
   modalOverlay: {
     flex: 1,
@@ -518,14 +555,14 @@ const styles = StyleSheet.create({
   sliderFill: {
     position: "absolute",
     left: 0,
-    width: "60%",
     height: 4,
     backgroundColor: COLORS.primary,
     borderRadius: 2,
   },
   sliderThumb: {
     position: "absolute",
-    left: "58%",
+    // Centered on the end of the fill (left % is set inline from priceMax).
+    marginLeft: -9,
     width: 18,
     height: 18,
     borderRadius: 9,
