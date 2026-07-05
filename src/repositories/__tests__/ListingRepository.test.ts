@@ -15,9 +15,11 @@ function createBuilder(result: QueryResult) {
     select: (...args: any[]) => { record('select', args); return builder; },
     eq: (...args: any[]) => { record('eq', args); return builder; },
     ilike: (...args: any[]) => { record('ilike', args); return builder; },
+    or: (...args: any[]) => { record('or', args); return builder; },
     in: (...args: any[]) => { record('in', args); return builder; },
     lte: (...args: any[]) => { record('lte', args); return builder; },
     order: (...args: any[]) => { record('order', args); return builder; },
+    limit: (...args: any[]) => { record('limit', args); return builder; },
     then: (resolve: (r: QueryResult) => unknown) => resolve(result),
     calls,
   };
@@ -91,28 +93,39 @@ beforeEach(() => {
 });
 
 describe('ListingRepository.search', () => {
-  it('always scopes to active listings, ordered newest first', async () => {
+  it('always scopes to active listings, newest first, capped to the page limit', async () => {
     await ListingRepository.search('', {});
     expect(listingsBuilder.calls.eq).toEqual([['status', 'active']]);
     expect(listingsBuilder.calls.order).toEqual([['created_at', { ascending: false }]]);
-    expect(listingsBuilder.calls.ilike).toBeUndefined();
+    expect(listingsBuilder.calls.limit).toEqual([[50]]);
+    expect(listingsBuilder.calls.or).toBeUndefined();
     expect(listingsBuilder.calls.in).toBeUndefined();
     expect(listingsBuilder.calls.lte).toBeUndefined();
   });
 
-  it('applies a trimmed text filter as an ilike on title', async () => {
+  it('matches a trimmed text query against title OR description', async () => {
     await ListingRepository.search('  chem  ', {});
-    expect(listingsBuilder.calls.ilike).toEqual([['title', '%chem%']]);
+    expect(listingsBuilder.calls.or).toEqual([
+      ['title.ilike."%chem%",description.ilike."%chem%"'],
+    ]);
   });
 
-  it('omits the ilike filter for an empty/whitespace-only query', async () => {
+  it('omits the text filter for an empty/whitespace-only query', async () => {
     await ListingRepository.search('   ', {});
-    expect(listingsBuilder.calls.ilike).toBeUndefined();
+    expect(listingsBuilder.calls.or).toBeUndefined();
   });
 
-  it('escapes LIKE metacharacters in the search text so they match literally', async () => {
-    await ListingRepository.search('50% off_deal\\', {});
-    expect(listingsBuilder.calls.ilike).toEqual([['title', '%50\\% off\\_deal\\\\%']]);
+  it('escapes LIKE metacharacters and quotes the value so commas/quotes cannot break the or() filter', async () => {
+    // Input contains a comma (PostgREST separator), a percent + underscore
+    // (LIKE wildcards), and a backslash — all of which must survive as literal
+    // characters inside the or() filter string.
+    await ListingRepository.search('a,b%c_d\\', {});
+    // LIKE-escaped:  a,b\%c\_d\\   ->  pattern  %a,b\%c\_d\\%
+    // then backslashes doubled for the quoted or() value.
+    const value = '"%a,b\\\\%c\\\\_d\\\\\\\\%"';
+    expect(listingsBuilder.calls.or).toEqual([
+      [`title.ilike.${value},description.ilike.${value}`],
+    ]);
   });
 
   it('applies the category filter via an IN clause', async () => {
@@ -136,7 +149,9 @@ describe('ListingRepository.search', () => {
       priceMax: 60,
       condition: 'Good',
     });
-    expect(listingsBuilder.calls.ilike).toEqual([['title', '%chem%']]);
+    expect(listingsBuilder.calls.or).toEqual([
+      ['title.ilike."%chem%",description.ilike."%chem%"'],
+    ]);
     expect(listingsBuilder.calls.in).toEqual([['category', ['Textbooks']]]);
     expect(listingsBuilder.calls.lte).toEqual([['price', 60]]);
     expect(listingsBuilder.calls.eq).toEqual([['status', 'active'], ['condition', 'Good']]);
