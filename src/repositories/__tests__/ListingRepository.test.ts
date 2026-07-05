@@ -38,6 +38,7 @@ const seller: ProfileRow = {
   program: 'BMOS',
   year: 2,
   location: 'Elgin Hall',
+  bio: null,
   avatar_url: null,
   avatar_color: '#5C2D91',
   verified: true,

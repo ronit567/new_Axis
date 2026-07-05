@@ -55,8 +55,9 @@ function pickAvatarColor(id: string): string {
   return AVATAR_COLORS[hashToIndex(id, AVATAR_COLORS.length)];
 }
 
-// "AK" from "Aria K.", "L" from "Liam". Used only when the DB `initials` is null.
-function deriveInitials(name: string): string {
+// "AK" from "Aria K.", "L" from "Liam". Used when the DB `initials` is null,
+// and by SetupProfileScreen for a live avatar preview before the row exists.
+export function deriveInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '';
   return parts
@@ -118,6 +119,7 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     name: row.name,
     initials: row.initials ?? deriveInitials(row.name),
     program: row.program ?? '',
+    bio: row.bio ?? '',
     joinedDate: formatJoinedDate(row.created_at),
     // rating / reviewCount are 0 until the reviews table exists (AX-702).
     // The SellerProfile UI hides the rating block when there are no reviews.

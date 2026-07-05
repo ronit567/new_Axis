@@ -32,7 +32,11 @@ export function useUpsertProfile() {
       if (!user) throw new Error('Not signed in')
       return ProfileRepository.upsert(user.id, input)
     },
-    onSuccess: () => {
+    onSuccess: profile => {
+      // Set the cache directly (not just invalidate) so RootNavigator's
+      // profile-existence gate flips to the main app immediately instead of
+      // waiting on a background refetch.
+      queryClient.setQueryData(queryKeys.currentProfile, profile)
       queryClient.invalidateQueries({ queryKey: ['profile'] })
     },
   })

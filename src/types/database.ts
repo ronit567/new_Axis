@@ -10,6 +10,9 @@
 // MANUAL ADDITION (pending regen): `messages.read_at` was hand-added alongside
 // migration 0005 (read receipts). Same deal — regenerate after applying 0005.
 //
+// MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
+// migration 0003 (AX-301 onboarding). Drop this note once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -214,6 +217,7 @@ export type Database = {
         Row: {
           avatar_color: string | null
           avatar_url: string | null
+          bio: string | null
           created_at: string
           id: string
           initials: string | null
@@ -227,6 +231,7 @@ export type Database = {
         Insert: {
           avatar_color?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id: string
           initials?: string | null
@@ -240,6 +245,7 @@ export type Database = {
         Update: {
           avatar_color?: string | null
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           id?: string
           initials?: string | null

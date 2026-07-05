@@ -28,7 +28,7 @@ type AuthContextValue = {
   /** True while the persisted session is being restored on launch. */
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<SignUpResult>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   resend: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -43,8 +43,19 @@ async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function signUp(email: string, password: string): Promise<SignUpResult> {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+export async function signUp(
+  email: string,
+  password: string,
+  fullName?: string,
+): Promise<SignUpResult> {
+  // full_name rides in as user metadata so SetupProfile can prefill the name
+  // it needs to write `profiles.name` — otherwise the name typed here would
+  // be lost by the time the onboarding gate reaches SetupProfile.
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: fullName ? { data: { full_name: fullName } } : undefined,
+  });
   if (error) throw error;
   // Auto-confirm projects return a live session; onAuthStateChange will swap
   // the navigator, so the caller must not navigate to VerifyEmail.
