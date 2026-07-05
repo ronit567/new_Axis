@@ -161,9 +161,13 @@ export const ListingRepository = {
     if (!savedRows || savedRows.length === 0) return []
 
     const listingIds = savedRows.map((row) => row.listing_id)
+    // Match getAll: only active listings surface. A save on a listing that's
+    // since sold/deactivated just quietly drops off Saved rather than
+    // rendering with no "unavailable" indicator (ListingCard has none today).
     const { data: rows, error: listingsError } = await supabase
       .from('listings')
       .select('*')
+      .eq('status', 'active')
       .in('id', listingIds)
     if (listingsError) throw listingsError
     if (!rows || rows.length === 0) return []
@@ -189,22 +193,15 @@ export const ListingRepository = {
     }, [])
   },
   // Not yet called anywhere — wiring the view-count bump into
-  // ListingDetailScreen is AX-203's job. Plain read-then-write (not atomic);
-  // acceptable for a view counter, which tolerates undercounting under
-  // concurrent access far better than it'd tolerate a schema change here.
+  // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views
+  // RPC (0006) rather than a plain update(): listings_update_own (0002) scopes
+  // UPDATE to the seller only, so a non-owner viewer's update() would silently
+  // affect 0 rows under RLS instead of erroring — views would never increment
+  // for anyone but the seller. The RPC is SECURITY DEFINER so any authenticated
+  // viewer can bump the counter, and the increment itself is a single atomic
+  // `views = views + 1` in SQL rather than a racy read-then-write.
   async incrementViews(id: string): Promise<void> {
-    const { data: row, error } = await supabase
-      .from('listings')
-      .select('views')
-      .eq('id', id)
-      .maybeSingle()
+    const { error } = await supabase.rpc('increment_listing_views', { listing_id: id })
     if (error) throw error
-    if (!row) return
-
-    const { error: updateError } = await supabase
-      .from('listings')
-      .update({ views: row.views + 1 })
-      .eq('id', id)
-    if (updateError) throw updateError
   },
 }

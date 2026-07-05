@@ -29,11 +29,13 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
 
 const mockFrom = jest.fn();
 const mockGetSession = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
     auth: { getSession: (...args: unknown[]) => mockGetSession(...args) },
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -97,6 +99,8 @@ beforeEach(() => {
   mockFrom.mockReset();
   mockGetSession.mockReset();
   mockGetSession.mockResolvedValue({ data: { session: null } });
+  mockRpc.mockReset();
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe('ListingRepository.getAll', () => {
@@ -372,8 +376,34 @@ describe('ListingRepository.getSavedByUser', () => {
 
     const result = await ListingRepository.getSavedByUser('user-1');
 
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
     expect(result.map((l) => l.id)).toEqual(['l2', 'l1']);
     expect(result.every((l) => l.saved)).toBe(true);
+  });
+
+  it('excludes a saved listing that has since sold, matching getAll', async () => {
+    // The listings query is filtered server-side by `.eq('status', 'active')`;
+    // the mock just needs to reflect what an active-only filter would return
+    // (the sold row simply isn't in the result set).
+    const savedBuilder = makeQueryBuilder({
+      data: [{ listing_id: 'l1' }, { listing_id: 'l2' }],
+      error: null,
+    });
+    const listingsBuilder = makeQueryBuilder({
+      data: [makeListingRow({ id: 'l1', status: 'active' })],
+      error: null,
+    });
+    const sellersBuilder = makeQueryBuilder({ data: [seller], error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedBuilder;
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return sellersBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result.map((l) => l.id)).toEqual(['l1']);
   });
 
   it('returns an empty list without querying listings/sellers when nothing is saved', async () => {
@@ -423,36 +453,18 @@ describe('ListingRepository.getSavedByUser', () => {
 });
 
 describe('ListingRepository.incrementViews', () => {
-  it('reads the current view count and writes it back incremented by one', async () => {
-    const listingsBuilder = makeQueryBuilder({ data: { views: 5 }, error: null });
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'listings') return listingsBuilder;
-      throw new Error(`Unexpected table: ${table}`);
-    });
-
+  // Goes through the increment_listing_views RPC (migration 0006), not a plain
+  // update() — listings_update_own scopes UPDATE to the seller, so a non-owner
+  // viewer's update() would silently affect 0 rows under RLS. The RPC is
+  // SECURITY DEFINER and does the increment atomically in one SQL statement.
+  it('calls the increment_listing_views RPC with the listing id', async () => {
     await ListingRepository.incrementViews('l1');
 
-    expect(listingsBuilder.update).toHaveBeenCalledWith({ views: 6 });
+    expect(mockRpc).toHaveBeenCalledWith('increment_listing_views', { listing_id: 'l1' });
   });
 
-  it('does nothing when the listing does not exist', async () => {
-    const listingsBuilder = makeQueryBuilder({ data: null, error: null });
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'listings') return listingsBuilder;
-      throw new Error(`Unexpected table: ${table}`);
-    });
-
-    await ListingRepository.incrementViews('missing');
-
-    expect(listingsBuilder.update).not.toHaveBeenCalled();
-  });
-
-  it('throws when the read errors', async () => {
-    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('network down') });
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'listings') return listingsBuilder;
-      throw new Error(`Unexpected table: ${table}`);
-    });
+  it('throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
 
     await expect(ListingRepository.incrementViews('l1')).rejects.toThrow('network down');
   });

@@ -10,6 +10,10 @@
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `increment_listing_views` function was
+// hand-added alongside migration 0006 (AX-111 view counter RPC). Drop this
+// note once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -290,7 +294,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_listing_views: {
+        Args: { listing_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
