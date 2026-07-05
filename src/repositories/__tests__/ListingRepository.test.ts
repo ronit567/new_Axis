@@ -409,6 +409,16 @@ describe('ListingRepository.search', () => {
     expect(result.items[0].seller.id).toBe('s1');
   });
 
+  it('skips a row whose embedded seller is null (broken FK) instead of throwing, keeping rawCount at the fetched row count', async () => {
+    searchListingsResult = {
+      data: [makeSearchRow({ id: 'l1', seller: null }), makeSearchRow({ id: 'l2' })],
+      error: null,
+    };
+    const result = await ListingRepository.search('', {});
+    expect(result.items.map((r) => r.id)).toEqual(['l2']);
+    expect(result.rawCount).toBe(2);
+  });
+
   it('defaults saved to false when no current user is given', async () => {
     searchListingsResult = { data: [makeSearchRow({ id: 'l1' })], error: null };
     const { items: [result] } = await ListingRepository.search('', {});

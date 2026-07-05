@@ -195,12 +195,19 @@ export const ListingRepository = {
     if (error) throw error
     if (!data || data.length === 0) return { items: [], rawCount: 0 }
 
-    const rows = data as unknown as (ListingRow & { seller: ProfileRow })[]
+    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
     const savedIds = currentUserId
       ? await getSavedIds(currentUserId, rows.map((row) => row.id))
       : new Set<string>()
 
-    const items = rows.map(({ seller, ...row }) => toListing(row, seller, savedIds.has(row.id)))
+    // seller_id is a NOT NULL FK, so a missing seller means a broken
+    // reference — skip rather than crash the whole search response over one
+    // bad row (mirrors the same guard in getAll). rawCount still reflects
+    // rows.length so pagination isn't thrown off by a dropped row.
+    const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
+      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
+      return acc
+    }, [])
     return { items, rawCount: rows.length }
   },
 }
