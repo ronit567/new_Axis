@@ -7,6 +7,9 @@
 // generator after the migration is applied will reproduce them; drop this note
 // once it does.
 //
+// MANUAL ADDITION (pending regen): `messages.read_at` was hand-added alongside
+// migration 0005 (read receipts). Same deal — regenerate after applying 0005.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -119,6 +122,7 @@ export type Database = {
           created_at: string
           id: string
           listing_id: string | null
+          read_at: string | null
           receiver_id: string
           sender_id: string
         }
@@ -127,6 +131,7 @@ export type Database = {
           created_at?: string
           id?: string
           listing_id?: string | null
+          read_at?: string | null
           receiver_id: string
           sender_id: string
         }
@@ -135,6 +140,7 @@ export type Database = {
           created_at?: string
           id?: string
           listing_id?: string | null
+          read_at?: string | null
           receiver_id?: string
           sender_id?: string
         }
