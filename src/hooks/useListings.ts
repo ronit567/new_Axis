@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import * as Crypto from 'expo-crypto'
 import {
   useInfiniteQuery,
   useMutation,
@@ -14,6 +15,9 @@ import {
   LISTINGS_PAGE_SIZE,
   SEARCH_PAGE_SIZE,
 } from '../repositories/ListingRepository'
+import { StorageRepository, type LocalPhoto } from '../repositories/StorageRepository'
+
+export type { LocalPhoto }
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
@@ -106,17 +110,52 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
   })
 }
 
+// Form input: image_urls doesn't exist yet at submit time, only the local
+// picker photos — uploadListingImages produces the real URLs during the mutation.
+export type CreateListingFormInput = Omit<CreateListingInput, 'image_urls'> & {
+  photos: LocalPhoto[]
+}
+
 export function useCreateListing() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CreateListingInput) => {
+    mutationFn: async ({ photos, ...fields }: CreateListingFormInput) => {
       if (!user) throw new Error('Not signed in')
-      return ListingRepository.create(user.id, input)
+
+      // Generated up front so photos can upload to their final
+      // {seller_id}/{listing_id}/... path before the listing row exists.
+      const listingId = Crypto.randomUUID()
+      const { urls, paths } =
+        photos.length > 0
+          ? await StorageRepository.uploadListingImages(user.id, listingId, photos)
+          : { urls: [], paths: [] }
+
+      try {
+        return await ListingRepository.create(user.id, listingId, {
+          ...fields,
+          image_urls: urls,
+        })
+      } catch (error) {
+        // The row never got created — don't leave the uploaded photos orphaned.
+        await StorageRepository.deleteListingImages(paths)
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       queryClient.invalidateQueries({ queryKey: ['search'] })
+      if (user) queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
     },
+  })
+}
+
+// ManageListingsScreen: the current user's own listings, any status.
+export function useMyListings() {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.myListings(user?.id ?? ''),
+    queryFn: () => ListingRepository.getBySeller(user!.id),
+    enabled: !!user,
   })
 }
