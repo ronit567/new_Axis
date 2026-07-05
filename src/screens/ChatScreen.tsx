@@ -83,7 +83,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const handleViewListing = () => {
     if (!listing) return;
     haptics.tap();
-    navigation.navigate('ListingDetail', { listing });
+    navigation.navigate('ListingDetail', { listingId: listing.id });
   };
 
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {

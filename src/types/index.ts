@@ -3,6 +3,7 @@ export type Seller = {
   name: string;
   year: number;
   location: string;
+  program: string;
   dotColor: string;
 };
 
@@ -77,7 +78,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Main: undefined;
   Search: undefined;
-  ListingDetail: { listing: Listing };
+  ListingDetail: { listingId: string };
   SellerProfile: { seller: SellerProfile };
   CreateListing: undefined;
   Messages: undefined;

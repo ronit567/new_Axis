@@ -185,6 +185,76 @@ describe('ListingRepository.getAll', () => {
   });
 });
 
+describe('ListingRepository.getById', () => {
+  function mockGetByIdQueries(opts: {
+    listing: QueryResult<ListingRow | null>;
+    seller?: QueryResult<ProfileRow | null>;
+    saved?: QueryResult<{ listing_id: string } | null>;
+  }) {
+    const listingBuilder = makeQueryBuilder(opts.listing);
+    const sellerBuilder = makeQueryBuilder(opts.seller ?? { data: null, error: null });
+    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: null, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingBuilder;
+      if (table === 'profiles') return sellerBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { listingBuilder, sellerBuilder, savedBuilder };
+  }
+
+  it('fetches a listing by id with its seller and saved status', async () => {
+    const { listingBuilder, sellerBuilder } = mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: seller, error: null },
+      saved: { data: { listing_id: 'l1' }, error: null },
+    });
+
+    const result = await ListingRepository.getById('l1', 'user-1');
+
+    expect(listingBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(sellerBuilder.eq).toHaveBeenCalledWith('id', seller.id);
+    expect(result?.id).toBe('l1');
+    expect(result?.saved).toBe(true);
+  });
+
+  it('returns null with a friendly not-found result when the listing was deleted', async () => {
+    mockGetByIdQueries({ listing: { data: null, error: null } });
+
+    const result = await ListingRepository.getById('missing-id', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the seller reference is broken', async () => {
+    mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: null, error: null },
+    });
+
+    const result = await ListingRepository.getById('l1', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('throws when the listing query errors', async () => {
+    mockGetByIdQueries({ listing: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getById('l1', 'user-1')).rejects.toThrow('network down');
+  });
+
+  it('throws when the seller query errors', async () => {
+    mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: null, error: new Error('seller lookup failed') },
+    });
+
+    await expect(ListingRepository.getById('l1', 'user-1')).rejects.toThrow('seller lookup failed');
+  });
+});
+
 const validCreateInput: CreateListingInput = {
   title: 'Desk lamp',
   description: 'Works great',
@@ -319,6 +389,72 @@ describe('ListingRepository.getBySeller', () => {
     mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
 
     await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('rpc failed');
+  });
+});
+
+describe('ListingRepository.getActiveBySeller', () => {
+  function mockStorefrontQueries(opts: {
+    listings: QueryResult<ListingRow[]>;
+    seller?: QueryResult<ProfileRow | null>;
+    saved?: QueryResult<{ listing_id: string }[]>;
+  }) {
+    const listingsBuilder = makeQueryBuilder(opts.listings);
+    const profilesBuilder = makeQueryBuilder(opts.seller ?? { data: seller, error: null });
+    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return profilesBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { listingsBuilder, profilesBuilder, savedBuilder };
+  }
+
+  it("returns only the seller's active listings, newest first, with the viewer's saved flags", async () => {
+    const { listingsBuilder, savedBuilder } = mockStorefrontQueries({
+      listings: { data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })], error: null },
+      saved: { data: [{ listing_id: 'l2' }], error: null },
+    });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+    expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(savedBuilder.eq).toHaveBeenCalledWith('user_id', 'viewer-1');
+    expect(result.map((l) => l.id)).toEqual(['l1', 'l2']);
+    expect(result.find((l) => l.id === 'l2')?.saved).toBe(true);
+    expect(result.find((l) => l.id === 'l1')?.saved).toBe(false);
+  });
+
+  it('returns an empty list without profile/saved queries when the seller has no active listings', async () => {
+    const { profilesBuilder } = mockStorefrontQueries({ listings: { data: [], error: null } });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(result).toEqual([]);
+    expect(profilesBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty list when the seller profile reference is broken', async () => {
+    mockStorefrontQueries({
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      seller: { data: null, error: null },
+    });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('throws when the listings query errors', async () => {
+    mockStorefrontQueries({ listings: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getActiveBySeller(seller.id, 'viewer-1')).rejects.toThrow(
+      'network down',
+    );
   });
 });
 
@@ -606,76 +742,6 @@ describe('ListingRepository.search', () => {
     searchListingsResult = { data: [makeSearchRow({ id: 'l1' })], error: null };
     searchSavedResult = { data: null, error: new Error('saved-ids boom') };
     await expect(ListingRepository.search('', {}, 'u1')).rejects.toThrow('saved-ids boom');
-  });
-});
-
-describe('ListingRepository.getById', () => {
-  function mockTables(opts: {
-    listing?: QueryResult<ListingRow>;
-    seller?: QueryResult<ProfileRow>;
-    saved?: QueryResult<{ listing_id: string }>;
-  }) {
-    const listingBuilder = makeQueryBuilder(opts.listing ?? { data: makeListingRow(), error: null });
-    const sellerBuilder = makeQueryBuilder(opts.seller ?? { data: seller, error: null });
-    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: null, error: null });
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'listings') return listingBuilder;
-      if (table === 'profiles') return sellerBuilder;
-      if (table === 'saved_listings') return savedBuilder;
-      throw new Error(`Unexpected table: ${table}`);
-    });
-
-    return { listingBuilder, sellerBuilder, savedBuilder };
-  }
-
-  it('returns the listing with its seller when no one is signed in', async () => {
-    mockTables({});
-
-    const result = await ListingRepository.getById('l1');
-
-    expect(result?.id).toBe('l1');
-    expect(result?.seller.name).toBe(seller.name);
-    expect(result?.saved).toBe(false);
-  });
-
-  it('returns null when the listing does not exist', async () => {
-    mockTables({ listing: { data: null, error: null } });
-
-    const result = await ListingRepository.getById('missing');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns null when the seller lookup comes back empty (broken reference)', async () => {
-    mockTables({ seller: { data: null, error: null } });
-
-    const result = await ListingRepository.getById('l1');
-
-    expect(result).toBeNull();
-  });
-
-  it('marks the listing saved for the signed-in viewer who saved it', async () => {
-    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
-    mockTables({ saved: { data: { listing_id: 'l1' }, error: null } });
-
-    const result = await ListingRepository.getById('l1');
-
-    expect(result?.saved).toBe(true);
-  });
-
-  it('does not query saved_listings when no one is signed in', async () => {
-    const { savedBuilder } = mockTables({});
-
-    await ListingRepository.getById('l1');
-
-    expect(savedBuilder.select).not.toHaveBeenCalled();
-  });
-
-  it('throws when the listing query errors', async () => {
-    mockTables({ listing: { data: null, error: new Error('network down') } });
-
-    await expect(ListingRepository.getById('l1')).rejects.toThrow('network down');
   });
 });
 

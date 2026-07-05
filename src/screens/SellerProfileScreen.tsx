@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,7 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
-import { ARIA_LISTINGS } from '../data/mockListings';
+import { useSellerListings } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
@@ -25,6 +27,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const [following, setFollowing] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const { data: sellerListings = [], isLoading: listingsLoading } = useSellerListings(seller.id);
+  const toggleSavedMutation = useToggleSaved();
 
   const stars = Math.round(seller.rating);
 
@@ -70,25 +74,35 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           <Text style={styles.joinedText}>
             {seller.program} · Joined {seller.joinedDate}
           </Text>
-          <View style={styles.ratingRow}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Ionicons
-                key={i}
-                name={i < stars ? 'star' : 'star-outline'}
-                size={14}
-                color={COLORS.warning}
-              />
-            ))}
-            <Text style={styles.ratingText}>
-              {seller.rating} ({seller.reviewCount} reviews)
-            </Text>
-          </View>
+          {/* rating/reviewCount are deferred to AX-702 (mapper returns 0);
+              hide the block until reviews exist rather than showing an empty
+              zero-star "0 (0 reviews)". */}
+          {seller.reviewCount > 0 && (
+            <View style={styles.ratingRow}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Ionicons
+                  key={i}
+                  name={i < stars ? 'star' : 'star-outline'}
+                  size={14}
+                  color={COLORS.warning}
+                />
+              ))}
+              <Text style={styles.ratingText}>
+                {seller.rating} ({seller.reviewCount} reviews)
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Stats row */}
+        {/* Stats row. Listings comes from the real active listings we fetch
+            below so the count can't contradict the grid. Sold stays from the
+            profile (0 for now): listings_select_public (0002) only exposes a
+            seller's ACTIVE listings to non-owners, so another user's sold
+            count isn't queryable client-side — it needs the deferred
+            aggregate RPC (AX-702), same as rating/reviewCount. */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{seller.stats.listings}</Text>
+            <Text style={styles.statValue}>{sellerListings.length}</Text>
             <Text style={styles.statLabel}>Listings</Text>
           </View>
           <View style={styles.statDivider} />
@@ -138,14 +152,16 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         {/* Active Listings */}
         <View style={styles.listingsSection}>
           <Text style={styles.sectionTitle}>Active listings</Text>
-          {ARIA_LISTINGS.length > 0 ? (
+          {listingsLoading ? (
+            <ActivityIndicator color={COLORS.primary} style={styles.listingsLoading} />
+          ) : sellerListings.length > 0 ? (
             <View style={styles.listingsGrid}>
-              {ARIA_LISTINGS.map((item, index) => (
+              {sellerListings.map((item) => (
                 <ListingCard
                   key={item.id}
                   item={item}
-                  onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-                  onSave={() => {}}
+                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                  onSave={() => toggleSavedMutation.mutate(item)}
                   style={styles.gridCard}
                 />
               ))}
@@ -323,6 +339,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  listingsLoading: {
+    marginVertical: 24,
   },
   gridCard: {
     width: '47%',

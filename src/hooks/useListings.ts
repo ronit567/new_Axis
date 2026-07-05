@@ -70,7 +70,10 @@ export function useListing(id: string) {
   const { user } = useAuth()
   return useQuery({
     queryKey: queryKeys.listing(id),
-    queryFn: () => ListingRepository.getById(id),
+    queryFn: () => {
+      if (!user) return null
+      return ListingRepository.getById(id, user.id)
+    },
     enabled: !!user && !!id,
   })
 }
@@ -146,6 +149,10 @@ export function useCreateListing() {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
       queryClient.invalidateQueries({ queryKey: ['search'] })
       if (user) queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
+      // The seller-storefront cache lives outside the ['listings'] prefix, so
+      // without this a just-posted listing stays invisible on the seller's
+      // public profile until the stale timer expires.
+      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
     },
   })
 }
@@ -157,5 +164,15 @@ export function useMyListings() {
     queryKey: queryKeys.myListings(user?.id ?? ''),
     queryFn: () => ListingRepository.getBySeller(user!.id),
     enabled: !!user,
+  })
+}
+
+// SellerProfileScreen: another user's active listings (public storefront).
+export function useSellerListings(sellerId: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.sellerListings(sellerId),
+    queryFn: () => ListingRepository.getActiveBySeller(sellerId, user!.id),
+    enabled: !!user && !!sellerId,
   })
 }
