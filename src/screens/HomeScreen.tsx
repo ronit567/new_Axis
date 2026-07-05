@@ -20,6 +20,7 @@ import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import { useListings } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -32,7 +33,6 @@ const CATEGORIES = BROWSE_CATEGORIES;
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
-  const [savedIds, setSavedIds] = useState<string[]>([]);
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
   const category = activeCategory === 'All' ? undefined : activeCategory;
@@ -41,11 +41,13 @@ export default function HomeScreen({ navigation }: Props) {
     isLoading,
     isError,
     refetch,
+    refreshFirstPage,
     isRefetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
   } = useListings(category);
+  const toggleSavedMutation = useToggleSaved();
 
   const listings = data?.pages.flatMap(page => page.items) ?? [];
 
@@ -65,16 +67,11 @@ export default function HomeScreen({ navigation }: Props) {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
 
-  const toggleSave = (id: string) =>
-    setSavedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
-    );
-
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
-      item={{ ...item, saved: savedIds.includes(item.id) || item.saved }}
+      item={item}
       onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-      onSave={() => toggleSave(item.id)}
+      onSave={() => toggleSavedMutation.mutate(item.id)}
       style={styles.card}
     />
   );
@@ -207,7 +204,7 @@ export default function HomeScreen({ navigation }: Props) {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching && !isFetchingNextPage}
-              onRefresh={refetch}
+              onRefresh={refreshFirstPage}
               tintColor={COLORS.primary}
               colors={[COLORS.primary]}
             />

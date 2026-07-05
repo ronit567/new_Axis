@@ -90,7 +90,24 @@ export const ListingRepository = {
   async create(sellerId: string, data: CreateListingInput): Promise<Listing> {
     throw new Error('ListingRepository.create not implemented')
   },
-  async toggleSaved(listingId: string, userId: string): Promise<void> {},
+  // AX-201 follow-up: real toggle. Try deleting the save first; if a row was
+  // actually removed we're done (now unsaved), otherwise insert it (now saved).
+  // One round trip in the common case instead of a separate exists-check.
+  async toggleSaved(listingId: string, userId: string): Promise<void> {
+    const { data: deleted, error: deleteError } = await supabase
+      .from('saved_listings')
+      .delete()
+      .eq('user_id', userId)
+      .eq('listing_id', listingId)
+      .select('listing_id')
+    if (deleteError) throw deleteError
+    if (deleted && deleted.length > 0) return
+
+    const { error: insertError } = await supabase
+      .from('saved_listings')
+      .insert({ user_id: userId, listing_id: listingId })
+    if (insertError) throw insertError
+  },
   async getSavedByUser(userId: string): Promise<Listing[]> {
     return []
   },

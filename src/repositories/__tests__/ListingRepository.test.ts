@@ -14,6 +14,8 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
     order: jest.fn(() => builder),
     range: jest.fn(() => builder),
     in: jest.fn(() => builder),
+    delete: jest.fn(() => builder),
+    insert: jest.fn(() => builder),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
@@ -159,5 +161,70 @@ describe('ListingRepository.getAll', () => {
     });
 
     await expect(ListingRepository.getAll('user-1')).rejects.toThrow('network down');
+  });
+});
+
+describe('ListingRepository.toggleSaved', () => {
+  it('unsaves by deleting when a save row already exists', async () => {
+    const savedListingsBuilder = makeQueryBuilder({
+      data: [{ listing_id: 'l1' }],
+      error: null,
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedListingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.toggleSaved('l1', 'user-1');
+
+    expect(savedListingsBuilder.delete).toHaveBeenCalled();
+    expect(savedListingsBuilder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(savedListingsBuilder.eq).toHaveBeenCalledWith('listing_id', 'l1');
+    expect(savedListingsBuilder.insert).not.toHaveBeenCalled();
+  });
+
+  it('saves by inserting when no save row was deleted', async () => {
+    const savedListingsBuilder = makeQueryBuilder({ data: [], error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedListingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.toggleSaved('l1', 'user-1');
+
+    expect(savedListingsBuilder.insert).toHaveBeenCalledWith({
+      user_id: 'user-1',
+      listing_id: 'l1',
+    });
+  });
+
+  it('throws when the delete errors, without attempting an insert', async () => {
+    const savedListingsBuilder = makeQueryBuilder({
+      data: null,
+      error: new Error('delete failed'),
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedListingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.toggleSaved('l1', 'user-1')).rejects.toThrow('delete failed');
+    expect(savedListingsBuilder.insert).not.toHaveBeenCalled();
+  });
+
+  it('throws when the fallback insert errors', async () => {
+    // delete() resolves via the shared builder (empty — nothing to delete);
+    // insert() is overridden separately since it must resolve differently.
+    const savedListingsBuilder: any = makeQueryBuilder({ data: [], error: null });
+    savedListingsBuilder.insert = jest.fn(() => ({
+      then: (resolve: (value: QueryResult<unknown>) => unknown) =>
+        resolve({ data: null, error: new Error('insert failed') }),
+    }));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedListingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.toggleSaved('l1', 'user-1')).rejects.toThrow('insert failed');
   });
 });
