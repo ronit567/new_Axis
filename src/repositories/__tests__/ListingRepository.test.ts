@@ -229,3 +229,105 @@ describe('ListingRepository.toggleSaved', () => {
     await expect(ListingRepository.toggleSaved('l1', 'user-1')).rejects.toThrow('insert failed');
   });
 });
+
+describe('ListingRepository.getSavedByUser', () => {
+  function mockSavedQueries(opts: {
+    saved: QueryResult<{ listing_id: string }[]>;
+    listings?: QueryResult<ListingRow[]>;
+    sellers?: QueryResult<ProfileRow[]>;
+  }) {
+    const savedBuilder = makeQueryBuilder(opts.saved);
+    const listingsBuilder = makeQueryBuilder(opts.listings ?? { data: [], error: null });
+    const sellersBuilder = makeQueryBuilder(opts.sellers ?? { data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'saved_listings') return savedBuilder;
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return sellersBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { savedBuilder, listingsBuilder, sellersBuilder };
+  }
+
+  it('returns an empty list without querying listings/sellers when nothing is saved', async () => {
+    const { listingsBuilder, sellersBuilder } = mockSavedQueries({
+      saved: { data: [], error: null },
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result).toEqual([]);
+    expect(listingsBuilder.select).not.toHaveBeenCalled();
+    expect(sellersBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('maps saved rows to Listings, all marked saved, in most-recently-saved order', async () => {
+    const rowA = makeListingRow({ id: 'l1', title: 'Organic Chem 2 textbook' });
+    const rowB = makeListingRow({ id: 'l2', title: 'Desk lamp', seller_id: 'seller-2' });
+    const seller2: ProfileRow = { ...seller, id: 'seller-2', name: 'Liam' };
+    mockSavedQueries({
+      // saved_listings is ordered by created_at desc, so l2 was saved more
+      // recently than l1 even though the listings query below returns them
+      // in a different (arbitrary) order.
+      saved: { data: [{ listing_id: 'l2' }, { listing_id: 'l1' }], error: null },
+      listings: { data: [rowA, rowB], error: null },
+      sellers: { data: [seller, seller2], error: null },
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result.map((l) => l.id)).toEqual(['l2', 'l1']);
+    expect(result.every((l) => l.saved)).toBe(true);
+  });
+
+  it('filters saved listings to active status, same as the home feed', async () => {
+    const { listingsBuilder } = mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }], error: null },
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    await ListingRepository.getSavedByUser('user-1');
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+  });
+
+  it('skips a saved listing whose seller is missing rather than throwing', async () => {
+    const row = makeListingRow({ id: 'l1' });
+    mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }], error: null },
+      listings: { data: [row], error: null },
+      sellers: { data: [], error: null },
+    });
+
+    const result = await ListingRepository.getSavedByUser('user-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('throws when the saved_listings query errors', async () => {
+    mockSavedQueries({ saved: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getSavedByUser('user-1')).rejects.toThrow('network down');
+  });
+
+  it('throws when the listings query errors', async () => {
+    mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }], error: null },
+      listings: { data: null, error: new Error('listings down') },
+    });
+
+    await expect(ListingRepository.getSavedByUser('user-1')).rejects.toThrow('listings down');
+  });
+
+  it('throws when the sellers query errors', async () => {
+    mockSavedQueries({
+      saved: { data: [{ listing_id: 'l1' }], error: null },
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      sellers: { data: null, error: new Error('sellers down') },
+    });
+
+    await expect(ListingRepository.getSavedByUser('user-1')).rejects.toThrow('sellers down');
+  });
+});
