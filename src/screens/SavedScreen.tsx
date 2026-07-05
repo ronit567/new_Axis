@@ -60,7 +60,7 @@ export default function SavedScreen({ navigation }: Props) {
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
-      onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
       onSave={() => toggleSave(item.id)}
       style={styles.card}
     />

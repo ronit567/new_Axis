@@ -16,6 +16,7 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
     in: jest.fn(() => builder),
     delete: jest.fn(() => builder),
     insert: jest.fn(() => builder),
+    maybeSingle: jest.fn(() => builder),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
@@ -162,6 +163,76 @@ describe('ListingRepository.getAll', () => {
     });
 
     await expect(ListingRepository.getAll('user-1')).rejects.toThrow('network down');
+  });
+});
+
+describe('ListingRepository.getById', () => {
+  function mockGetByIdQueries(opts: {
+    listing: QueryResult<ListingRow | null>;
+    seller?: QueryResult<ProfileRow | null>;
+    saved?: QueryResult<{ listing_id: string } | null>;
+  }) {
+    const listingBuilder = makeQueryBuilder(opts.listing);
+    const sellerBuilder = makeQueryBuilder(opts.seller ?? { data: null, error: null });
+    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: null, error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingBuilder;
+      if (table === 'profiles') return sellerBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { listingBuilder, sellerBuilder, savedBuilder };
+  }
+
+  it('fetches a listing by id with its seller and saved status', async () => {
+    const { listingBuilder, sellerBuilder } = mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: seller, error: null },
+      saved: { data: { listing_id: 'l1' }, error: null },
+    });
+
+    const result = await ListingRepository.getById('l1', 'user-1');
+
+    expect(listingBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(sellerBuilder.eq).toHaveBeenCalledWith('id', seller.id);
+    expect(result?.id).toBe('l1');
+    expect(result?.saved).toBe(true);
+  });
+
+  it('returns null with a friendly not-found result when the listing was deleted', async () => {
+    mockGetByIdQueries({ listing: { data: null, error: null } });
+
+    const result = await ListingRepository.getById('missing-id', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the seller reference is broken', async () => {
+    mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: null, error: null },
+    });
+
+    const result = await ListingRepository.getById('l1', 'user-1');
+
+    expect(result).toBeNull();
+  });
+
+  it('throws when the listing query errors', async () => {
+    mockGetByIdQueries({ listing: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getById('l1', 'user-1')).rejects.toThrow('network down');
+  });
+
+  it('throws when the seller query errors', async () => {
+    mockGetByIdQueries({
+      listing: { data: makeListingRow(), error: null },
+      seller: { data: null, error: new Error('seller lookup failed') },
+    });
+
+    await expect(ListingRepository.getById('l1', 'user-1')).rejects.toThrow('seller lookup failed');
   });
 });
 

@@ -144,7 +144,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 <ListingCard
                   key={item.id}
                   item={item}
-                  onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                   onSave={() => {}}
                   style={styles.gridCard}
                 />

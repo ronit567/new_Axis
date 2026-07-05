@@ -73,6 +73,7 @@ export function toSeller(row: ProfileRow): Seller {
     name: row.name,
     year: row.year ?? DEFAULT_YEAR,
     location: row.location ?? '',
+    program: row.program ?? '',
     dotColor: DEFAULT_DOT_COLOR,
   };
 }

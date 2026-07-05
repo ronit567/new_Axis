@@ -61,7 +61,10 @@ export function useListing(id: string) {
   const { user } = useAuth()
   return useQuery({
     queryKey: queryKeys.listing(id),
-    queryFn: () => ListingRepository.getById(id),
+    queryFn: () => {
+      if (!user) return null
+      return ListingRepository.getById(id, user.id)
+    },
     enabled: !!user && !!id,
   })
 }

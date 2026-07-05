@@ -1,27 +1,12 @@
-import { Listing, MyListing, Seller, SellerProfile } from '../types';
-
-export const SELLER_ARIA: SellerProfile = {
-  id: 's3',
-  name: 'Aria K.',
-  initials: 'AK',
-  program: 'BMOS',
-  bio: '',
-  joinedDate: 'Sep 2024',
-  rating: 4.8,
-  reviewCount: 32,
-  year: 2,
-  verified: true,
-  stats: { listings: 12, sold: 47, replyTime: '~1h' },
-  avatarColor: '#5C2D91',
-};
+import { Listing, MyListing, Seller } from '../types';
 
 const SELLERS: Record<string, Seller> = {
-  s1: { id: 's1', name: 'Erica K.', year: 2, location: 'UCC', dotColor: '#5C2D91' },
-  s2: { id: 's2', name: 'Liam', year: 3, location: 'Saugeen', dotColor: '#34C759' },
-  s3: { id: 's3', name: 'Aria K.', year: 2, location: 'Elgin Hall', dotColor: '#34C759' },
-  s4: { id: 's4', name: 'Noah', year: 1, location: 'Alumni Hall', dotColor: '#5C2D91' },
-  s5: { id: 's5', name: 'Mia', year: 4, location: 'Medway', dotColor: '#34C759' },
-  s6: { id: 's6', name: 'Jake', year: 3, location: 'Huron', dotColor: '#5C2D91' },
+  s1: { id: 's1', name: 'Erica K.', year: 2, location: 'UCC', program: 'BMOS', dotColor: '#5C2D91' },
+  s2: { id: 's2', name: 'Liam', year: 3, location: 'Saugeen', program: 'Computer Science', dotColor: '#34C759' },
+  s3: { id: 's3', name: 'Aria K.', year: 2, location: 'Elgin Hall', program: 'BMOS', dotColor: '#34C759' },
+  s4: { id: 's4', name: 'Noah', year: 1, location: 'Alumni Hall', program: 'Engineering', dotColor: '#5C2D91' },
+  s5: { id: 's5', name: 'Mia', year: 4, location: 'Medway', program: 'Kinesiology', dotColor: '#34C759' },
+  s6: { id: 's6', name: 'Jake', year: 3, location: 'Huron', program: 'Economics', dotColor: '#5C2D91' },
 };
 
 export const LISTINGS: Listing[] = [

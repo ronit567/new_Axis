@@ -126,7 +126,7 @@ export default function ProfileScreen({ navigation }: Props) {
               <TouchableOpacity
                 key={i}
                 style={styles.listingItem}
-                onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+                onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                 activeOpacity={0.85}
               >
                 <HatchedThumb isSold={item.condition === 'Sold'} />

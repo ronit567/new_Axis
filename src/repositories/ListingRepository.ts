@@ -84,8 +84,38 @@ export const ListingRepository = {
 
     return { items, rawCount: rows.length }
   },
-  async getById(id: string): Promise<Listing | null> {
-    return null
+  // AX-501: detail view fetches fresh from the DB (not the possibly-stale
+  // object a list screen navigated with) so a listing deleted after being
+  // saved/messaged-about resolves to null instead of showing ghost data.
+  // No `status` filter here (unlike getAll) — sold listings must still open.
+  async getById(id: string, userId: string): Promise<Listing | null> {
+    const { data: row, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw error
+    if (!row) return null
+
+    const [{ data: seller, error: sellerError }, { data: savedRow, error: savedError }] =
+      await Promise.all([
+        supabase.from('profiles').select('*').eq('id', row.seller_id).maybeSingle(),
+        supabase
+          .from('saved_listings')
+          .select('listing_id')
+          .eq('user_id', userId)
+          .eq('listing_id', row.id)
+          .maybeSingle(),
+      ])
+    if (sellerError) throw sellerError
+    if (savedError) throw savedError
+
+    // seller_id is a NOT NULL FK, so a missing seller means a broken
+    // reference — treat the listing as unavailable rather than rendering it
+    // with no seller info (mirrors the skip-on-missing-seller rule in getAll).
+    if (!seller) return null
+
+    return toListing(row, seller, !!savedRow)
   },
   async create(sellerId: string, data: CreateListingInput): Promise<Listing> {
     throw new Error('ListingRepository.create not implemented')

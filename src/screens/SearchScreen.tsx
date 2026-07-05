@@ -70,7 +70,7 @@ export default function SearchScreen({ navigation }: Props) {
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
-      onPress={() => navigation.navigate("ListingDetail", { listing: item })}
+      onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
       onSave={() => {}}
       style={styles.card}
     />

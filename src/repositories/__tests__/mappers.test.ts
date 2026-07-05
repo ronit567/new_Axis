@@ -40,14 +40,16 @@ describe('toSeller', () => {
       name: 'Aria K.',
       year: 2,
       location: 'Elgin Hall',
+      program: 'BMOS',
       dotColor: '#9E9EAE',
     });
   });
 
-  it('defaults null year and location', () => {
-    const seller = toSeller({ ...sellerRow, year: null, location: null });
+  it('defaults null year, location, and program', () => {
+    const seller = toSeller({ ...sellerRow, year: null, location: null, program: null });
     expect(seller.year).toBe(1);
     expect(seller.location).toBe('');
+    expect(seller.program).toBe('');
   });
 });
 
