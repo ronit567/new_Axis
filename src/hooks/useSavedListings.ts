@@ -36,17 +36,24 @@ export function useToggleSaved() {
     onMutate: async (listing) => {
       if (!user) return undefined
       const savedKey = queryKeys.savedListings(user.id)
+      const listingKey = queryKeys.listing(listing.id)
       const willSave = !listing.saved
 
+      // The single-listing query must be cancelled too — its key ['listing', id]
+      // doesn't match the ['listings'] prefix, and an in-flight refetch landing
+      // mid-mutation would hand ListingDetailScreen the pre-toggle `saved`,
+      // visually reverting the user's tap.
       await Promise.all([
         queryClient.cancelQueries({ queryKey: savedKey }),
         queryClient.cancelQueries({ queryKey: ['listings'] }),
+        queryClient.cancelQueries({ queryKey: listingKey }),
       ])
 
       const previousSaved = queryClient.getQueryData<Listing[]>(savedKey)
       const previousListingsPages = queryClient.getQueriesData<InfiniteData<ListingsPage, number>>(
         { queryKey: ['listings'] },
       )
+      const previousListing = queryClient.getQueryData<Listing | null>(listingKey)
 
       queryClient.setQueryData<Listing[]>(savedKey, (old = []) =>
         willSave
@@ -68,7 +75,11 @@ export function useToggleSaved() {
           },
       )
 
-      return { savedKey, previousSaved, previousListingsPages }
+      queryClient.setQueryData<Listing | null>(listingKey, (old) =>
+        old ? { ...old, saved: willSave } : old,
+      )
+
+      return { savedKey, listingKey, previousSaved, previousListingsPages, previousListing }
     },
     onError: (_err, _listing, context) => {
       if (!context) return
@@ -76,6 +87,12 @@ export function useToggleSaved() {
       context.previousListingsPages.forEach(([key, data]) => {
         queryClient.setQueryData(key, data)
       })
+      // Only restore what was optimistically flipped — if the detail query was
+      // never fetched, previousListing is undefined and setQueryData would be
+      // a no-op anyway, but skip it explicitly for clarity.
+      if (context.previousListing !== undefined) {
+        queryClient.setQueryData(context.listingKey, context.previousListing)
+      }
     },
     onSuccess: (_data, listing) => {
       if (user) {
@@ -84,6 +101,10 @@ export function useToggleSaved() {
         })
       }
       queryClient.invalidateQueries({ queryKey: ['listings'] })
+      // Seller storefront lists carry saved flags too, but live outside the
+      // ['listings'] prefix (flat Listing[], not InfiniteData) — invalidate
+      // rather than patch optimistically.
+      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
       // Also invalidate the single-listing cache — ListingDetailScreen reads
       // `saved` off this query too, and without this it never learns the
       // toggle persisted, so a later refetch there would look unchanged.

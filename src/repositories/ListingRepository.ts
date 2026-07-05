@@ -161,6 +161,41 @@ export const ListingRepository = {
 
     return rows.map((row) => toMyListing(row, savesByListing.get(row.id) ?? 0))
   },
+  // SellerProfileScreen: another user's public storefront — active listings
+  // only (unlike getBySeller, which is the owner's own manage view), with the
+  // viewer's saved flags folded in. Same join/skip rules as getAll.
+  async getActiveBySeller(sellerId: string, viewerId: string): Promise<Listing[]> {
+    const { data: rows, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    if (!rows || rows.length === 0) return []
+
+    const [{ data: sellerRow, error: sellerError }, { data: savedRows, error: savedError }] =
+      await Promise.all([
+        supabase.from('profiles').select('*').eq('id', sellerId).maybeSingle(),
+        supabase
+          .from('saved_listings')
+          .select('listing_id')
+          .eq('user_id', viewerId)
+          .in(
+            'listing_id',
+            rows.map((row) => row.id),
+          ),
+      ])
+    if (sellerError) throw sellerError
+    if (savedError) throw savedError
+
+    // seller_id is a NOT NULL FK, so a missing profile means a broken
+    // reference — treat the storefront as empty rather than crash it.
+    if (!sellerRow) return []
+
+    const savedIds = new Set((savedRows ?? []).map((row) => row.listing_id))
+    return rows.map((row) => toListing(row, sellerRow, savedIds.has(row.id)))
+  },
   // AX-201 follow-up: real toggle. Try deleting the save first; if a row was
   // actually removed we're done (now unsaved), otherwise insert it (now saved).
   // One round trip in the common case instead of a separate exists-check.

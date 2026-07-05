@@ -7,7 +7,6 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { LISTINGS as MOCK_LISTINGS } from '../data/mockListings';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +14,7 @@ import { ComponentProps } from 'react';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
+import { useMyListings } from '../hooks/useListings';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -61,9 +61,12 @@ const MENU: MenuItem[] = [
   { icon: 'settings-outline', label: 'Settings', target: 'Settings' },
 ];
 
-const MY_LISTINGS = MOCK_LISTINGS.slice(0, 3);
-
 export default function ProfileScreen({ navigation }: Props) {
+  // Real own-listings preview (first 3) — mock ids here would navigate to a
+  // ListingDetail that now fetches from the DB and comes back empty.
+  const { data: myListings = [] } = useMyListings();
+  const listingsPreview = myListings.slice(0, 3);
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -121,27 +124,33 @@ export default function ProfileScreen({ navigation }: Props) {
               <Text style={styles.manageText}>Manage</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.listingsRow}>
-            {MY_LISTINGS.map((item, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.listingItem}
-                onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                activeOpacity={0.85}
-              >
-                <HatchedThumb isSold={item.condition === 'Sold'} />
-                <Text
-                  style={[
-                    styles.priceText,
-                    item.condition === 'Sold' ? styles.priceTextSold : null,
-                  ]}
+          {listingsPreview.length > 0 ? (
+            <View style={styles.listingsRow}>
+              {listingsPreview.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.listingItem}
+                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                  activeOpacity={0.85}
                 >
-                  ${item.price}
-                </Text>
-                <Text style={styles.statusText}>{item.condition}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <HatchedThumb isSold={item.status === 'sold'} />
+                  <Text
+                    style={[
+                      styles.priceText,
+                      item.status === 'sold' ? styles.priceTextSold : null,
+                    ]}
+                  >
+                    ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
+                  </Text>
+                  <Text style={styles.statusText}>
+                    {item.status === 'sold' ? 'Sold' : 'Active'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noListingsText}>No listings yet.</Text>
+          )}
         </View>
 
         {/* ── Menu card ── */}
@@ -345,6 +354,10 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: SIZES.xs,
+    color: COLORS.textSecondary,
+  },
+  noListingsText: {
+    fontSize: SIZES.sm,
     color: COLORS.textSecondary,
   },
 

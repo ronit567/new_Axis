@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,7 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
-import { ARIA_LISTINGS } from '../data/mockListings';
+import { useSellerListings } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
@@ -25,6 +27,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const [following, setFollowing] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const { data: sellerListings = [], isLoading: listingsLoading } = useSellerListings(seller.id);
+  const toggleSavedMutation = useToggleSaved();
 
   const stars = Math.round(seller.rating);
 
@@ -138,14 +142,16 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         {/* Active Listings */}
         <View style={styles.listingsSection}>
           <Text style={styles.sectionTitle}>Active listings</Text>
-          {ARIA_LISTINGS.length > 0 ? (
+          {listingsLoading ? (
+            <ActivityIndicator color={COLORS.primary} style={styles.listingsLoading} />
+          ) : sellerListings.length > 0 ? (
             <View style={styles.listingsGrid}>
-              {ARIA_LISTINGS.map((item, index) => (
+              {sellerListings.map((item) => (
                 <ListingCard
                   key={item.id}
                   item={item}
                   onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                  onSave={() => {}}
+                  onSave={() => toggleSavedMutation.mutate(item)}
                   style={styles.gridCard}
                 />
               ))}
@@ -323,6 +329,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  listingsLoading: {
+    marginVertical: 24,
   },
   gridCard: {
     width: '47%',

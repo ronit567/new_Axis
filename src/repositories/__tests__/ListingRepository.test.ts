@@ -381,6 +381,72 @@ describe('ListingRepository.getBySeller', () => {
   });
 });
 
+describe('ListingRepository.getActiveBySeller', () => {
+  function mockStorefrontQueries(opts: {
+    listings: QueryResult<ListingRow[]>;
+    seller?: QueryResult<ProfileRow | null>;
+    saved?: QueryResult<{ listing_id: string }[]>;
+  }) {
+    const listingsBuilder = makeQueryBuilder(opts.listings);
+    const profilesBuilder = makeQueryBuilder(opts.seller ?? { data: seller, error: null });
+    const savedBuilder = makeQueryBuilder(opts.saved ?? { data: [], error: null });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      if (table === 'profiles') return profilesBuilder;
+      if (table === 'saved_listings') return savedBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    return { listingsBuilder, profilesBuilder, savedBuilder };
+  }
+
+  it("returns only the seller's active listings, newest first, with the viewer's saved flags", async () => {
+    const { listingsBuilder, savedBuilder } = mockStorefrontQueries({
+      listings: { data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })], error: null },
+      saved: { data: [{ listing_id: 'l2' }], error: null },
+    });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+    expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(savedBuilder.eq).toHaveBeenCalledWith('user_id', 'viewer-1');
+    expect(result.map((l) => l.id)).toEqual(['l1', 'l2']);
+    expect(result.find((l) => l.id === 'l2')?.saved).toBe(true);
+    expect(result.find((l) => l.id === 'l1')?.saved).toBe(false);
+  });
+
+  it('returns an empty list without profile/saved queries when the seller has no active listings', async () => {
+    const { profilesBuilder } = mockStorefrontQueries({ listings: { data: [], error: null } });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(result).toEqual([]);
+    expect(profilesBuilder.select).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty list when the seller profile reference is broken', async () => {
+    mockStorefrontQueries({
+      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
+      seller: { data: null, error: null },
+    });
+
+    const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
+
+    expect(result).toEqual([]);
+  });
+
+  it('throws when the listings query errors', async () => {
+    mockStorefrontQueries({ listings: { data: null, error: new Error('network down') } });
+
+    await expect(ListingRepository.getActiveBySeller(seller.id, 'viewer-1')).rejects.toThrow(
+      'network down',
+    );
+  });
+});
+
 describe('ListingRepository.toggleSaved', () => {
   it('unsaves by deleting when a save row already exists', async () => {
     const savedListingsBuilder = makeQueryBuilder({

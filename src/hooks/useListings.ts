@@ -121,3 +121,13 @@ export function useMyListings() {
     enabled: !!user,
   })
 }
+
+// SellerProfileScreen: another user's active listings (public storefront).
+export function useSellerListings(sellerId: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.sellerListings(sellerId),
+    queryFn: () => ListingRepository.getActiveBySeller(sellerId, user!.id),
+    enabled: !!user && !!sellerId,
+  })
+}

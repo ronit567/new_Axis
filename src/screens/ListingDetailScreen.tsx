@@ -200,16 +200,19 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Seller Card */}
+          {/* Seller Card — disabled (and dimmed) until the full profile has
+              loaded, so a tap never silently does nothing mid-fetch. */}
           <PressableScale
-            style={styles.sellerCard}
+            style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
             onPress={() => {
               haptics.tap();
               if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
             }}
+            disabled={!sellerProfile}
             scaleTo={0.98}
             accessibilityRole="button"
             accessibilityLabel={`View seller ${listing.seller.name}`}
+            accessibilityState={{ disabled: !sellerProfile }}
           >
             <View style={styles.sellerAvatar}>
               <Text style={styles.sellerInitials}>{sellerInitials}</Text>
@@ -394,6 +397,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceAlt,
     borderRadius: 16,
     padding: 14,
+  },
+  sellerCardLoading: {
+    opacity: 0.6,
   },
   sellerAvatar: {
     width: 44,
