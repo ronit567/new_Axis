@@ -5,6 +5,7 @@ export const SELLER_ARIA: SellerProfile = {
   name: 'Aria K.',
   initials: 'AK',
   program: 'BMOS',
+  bio: '',
   joinedDate: 'Sep 2024',
   rating: 4.8,
   reviewCount: 32,

@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootStackParamList } from './src/types';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { useCurrentProfile } from './src/hooks/useProfile';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
 
@@ -35,24 +36,40 @@ import CommunityGuidelinesScreen from './src/screens/CommunityGuidelinesScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
- * One navigator, two mutually exclusive groups. The `isSignedIn` flag decides
- * which group is mounted — React Navigation animates the swap and resets the
- * other group's state automatically, so there's no manual navigate/reset.
+ * One navigator, three mutually exclusive groups, gated on session AND
+ * profile existence (not session alone — see AX-301): a signed-in user with
+ * no `profiles` row yet is routed to a mandatory SetupProfile step instead of
+ * the main app. React Navigation animates each swap and resets the outgoing
+ * group's state automatically, so there's no manual navigate/reset.
  */
 function RootNavigator() {
   const { isSignedIn, loading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useCurrentProfile();
 
   // Gate here rather than in AuthProvider so the provider tree (and
-  // NavigationContainer) stays mounted while the session is being restored.
-  if (loading) {
+  // NavigationContainer) stays mounted while the session/profile are loading.
+  if (loading || (isSignedIn && profileLoading)) {
     return <ActivitySpinner size="large" style={{ flex: 1 }} />;
   }
+
+  const needsOnboarding = isSignedIn && !profile;
 
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
     >
-      {isSignedIn ? (
+      {!isSignedIn ? (
+        <Stack.Group>
+          <Stack.Screen name="Welcome" component={WelcomeScreen} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+        </Stack.Group>
+      ) : needsOnboarding ? (
+        <Stack.Group>
+          <Stack.Screen name="SetupProfile" component={SetupProfileScreen} />
+        </Stack.Group>
+      ) : (
         <Stack.Group>
           <Stack.Screen name="Main" component={MainScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -76,14 +93,6 @@ function RootNavigator() {
             name="CommunityGuidelines"
             component={CommunityGuidelinesScreen}
           />
-        </Stack.Group>
-      ) : (
-        <Stack.Group>
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-          <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
-          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-          <Stack.Screen name="SetupProfile" component={SetupProfileScreen} />
         </Stack.Group>
       )}
     </Stack.Navigator>

@@ -8,13 +8,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
-import StepHeader from '../components/StepHeader';
+import InputField from '../components/InputField';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useUpsertProfile } from '../hooks/useProfile';
+import { deriveInitials } from '../repositories/mappers';
+import { isWesternEmail } from '../lib/email';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -31,17 +36,43 @@ const PROGRAMS = [
 
 const YEARS = [1, 2, 3, 4, 'Grad'];
 
-export default function SetupProfileScreen({ navigation }: Props) {
+function initialFullName(fullName: unknown): string {
+  return typeof fullName === 'string' ? fullName : '';
+}
+
+export default function SetupProfileScreen(_props: Props) {
+  const { user } = useAuth();
+  const upsertProfile = useUpsertProfile();
+  const [name, setName] = useState(() => initialFullName(user?.user_metadata?.full_name));
   const [program, setProgram] = useState('Ivey HBA');
   const [year, setYear] = useState<number | string>(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
-  // Persisting the profile (insert into the `profiles` table) and routing the
-  // user in afterward land in Phase 2, once that table + RLS exist. In the real
-  // flow the session created by verifyOtp already routes the user into the app,
-  // so this screen is currently bypassed — see the AI_context handoff notes.
-  const handleFinish = () => {};
+  const canFinish = name.trim().length > 0 && !upsertProfile.isPending;
+
+  // This screen is a mandatory gate — RootNavigator only mounts it when a
+  // signed-in user has no `profiles` row yet, so there's nothing to go back
+  // to and no manual navigation on success: the upsert's cache update flips
+  // useCurrentProfile from null, and RootNavigator swaps to the main app.
+  const handleFinish = async () => {
+    if (!canFinish) return;
+    try {
+      await upsertProfile.mutateAsync({
+        name: name.trim(),
+        program,
+        // 'Grad' has no numeric year; store null rather than fabricate one.
+        year: typeof year === 'number' ? year : null,
+        bio: aboutYou.trim(),
+        verified: isWesternEmail(user?.email ?? ''),
+      });
+    } catch (e) {
+      Alert.alert(
+        'Could not save profile',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -54,9 +85,6 @@ export default function SetupProfileScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <StepHeader currentStep={3} totalSteps={3} onBack={() => navigation.goBack()} />
-
-          <Text style={styles.stepLabel}>Step 3 of 3</Text>
           <Text style={styles.title}>Set up your profile</Text>
           <Text style={styles.subtitle}>
             A real name and photo build trust with buyers and sellers.
@@ -64,12 +92,20 @@ export default function SetupProfileScreen({ navigation }: Props) {
 
           <View style={styles.profileRow}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>RS</Text>
+              <Text style={styles.avatarInitials}>{deriveInitials(name) || '?'}</Text>
               <View style={styles.cameraBtn}>
                 <Text style={styles.cameraIcon}>📷</Text>
               </View>
             </View>
           </View>
+
+          <InputField
+            label="Full name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Ronit Sharma"
+            autoCapitalize="words"
+          />
 
           <Text style={styles.sectionLabel}>Program</Text>
           <TouchableOpacity
@@ -133,6 +169,8 @@ export default function SetupProfileScreen({ navigation }: Props) {
           <PrimaryButton
             title="Finish & explore"
             onPress={handleFinish}
+            disabled={!canFinish}
+            loading={upsertProfile.isPending}
             style={styles.finishBtn}
           />
         </ScrollView>
@@ -151,14 +189,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 40,
-  },
-  stepLabel: {
-    fontSize: SIZES.xs,
-    color: COLORS.textMuted,
-    marginBottom: 6,
-    fontWeight: '500',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   title: {
     fontSize: SIZES.xxl,
