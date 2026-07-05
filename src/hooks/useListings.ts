@@ -57,6 +57,7 @@ export function useCreateListing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listings'] })
+      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }
