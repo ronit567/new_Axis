@@ -21,6 +21,13 @@ export type ListingSearchFilters = {
   condition?: ListingCondition
 }
 
+// Postgres ILIKE treats \, %, and _ as pattern metacharacters. Escape them in
+// user-supplied text before wrapping it in %...% so a search for "50%" or
+// "intro_bio" matches literally instead of matching arbitrary characters.
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`)
+}
+
 // listing_id set the current user has saved, scoped to the given ids so the
 // IN() stays bounded to one page of search results instead of the user's
 // whole saved-listings history.
@@ -68,7 +75,7 @@ export const ListingRepository = {
       .select('*, seller:profiles!listings_seller_id_fkey(*)')
       .eq('status', 'active')
 
-    if (trimmed) request = request.ilike('title', `%${trimmed}%`)
+    if (trimmed) request = request.ilike('title', `%${escapeLikePattern(trimmed)}%`)
     if (filters.categories?.length) request = request.in('category', filters.categories)
     if (filters.priceMax != null) request = request.lte('price', filters.priceMax)
     if (filters.condition) request = request.eq('condition', filters.condition)

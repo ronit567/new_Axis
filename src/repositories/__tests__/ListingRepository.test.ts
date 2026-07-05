@@ -6,9 +6,10 @@
 type QueryResult = { data: any; error: any };
 
 function createBuilder(result: QueryResult) {
-  const calls: Record<string, any[]> = {};
+  const calls: Record<string, any[][]> = {};
   const record = (name: string, args: any[]) => {
-    calls[name] = args;
+    calls[name] = calls[name] || [];
+    calls[name].push(args);
   };
   const builder: any = {
     select: (...args: any[]) => { record('select', args); return builder; },
@@ -41,7 +42,7 @@ const mockFrom = jest.fn((table: string) => {
 });
 
 jest.mock('../../lib/supabase', () => ({
-  supabase: { from: (...args: any[]) => mockFrom(...args) },
+  supabase: { from: (table: string) => mockFrom(table) },
 }));
 
 import { ListingRepository } from '../ListingRepository';
@@ -92,8 +93,8 @@ beforeEach(() => {
 describe('ListingRepository.search', () => {
   it('always scopes to active listings, ordered newest first', async () => {
     await ListingRepository.search('', {});
-    expect(listingsBuilder.calls.eq).toEqual(['status', 'active']);
-    expect(listingsBuilder.calls.order).toEqual(['created_at', { ascending: false }]);
+    expect(listingsBuilder.calls.eq).toEqual([['status', 'active']]);
+    expect(listingsBuilder.calls.order).toEqual([['created_at', { ascending: false }]]);
     expect(listingsBuilder.calls.ilike).toBeUndefined();
     expect(listingsBuilder.calls.in).toBeUndefined();
     expect(listingsBuilder.calls.lte).toBeUndefined();
@@ -101,7 +102,7 @@ describe('ListingRepository.search', () => {
 
   it('applies a trimmed text filter as an ilike on title', async () => {
     await ListingRepository.search('  chem  ', {});
-    expect(listingsBuilder.calls.ilike).toEqual(['title', '%chem%']);
+    expect(listingsBuilder.calls.ilike).toEqual([['title', '%chem%']]);
   });
 
   it('omits the ilike filter for an empty/whitespace-only query', async () => {
@@ -109,19 +110,24 @@ describe('ListingRepository.search', () => {
     expect(listingsBuilder.calls.ilike).toBeUndefined();
   });
 
+  it('escapes LIKE metacharacters in the search text so they match literally', async () => {
+    await ListingRepository.search('50% off_deal\\', {});
+    expect(listingsBuilder.calls.ilike).toEqual([['title', '%50\\% off\\_deal\\\\%']]);
+  });
+
   it('applies the category filter via an IN clause', async () => {
     await ListingRepository.search('', { categories: ['Textbooks', 'Electronics'] });
-    expect(listingsBuilder.calls.in).toEqual(['category', ['Textbooks', 'Electronics']]);
+    expect(listingsBuilder.calls.in).toEqual([['category', ['Textbooks', 'Electronics']]]);
   });
 
   it('applies the price-max filter', async () => {
     await ListingRepository.search('', { priceMax: 50 });
-    expect(listingsBuilder.calls.lte).toEqual(['price', 50]);
+    expect(listingsBuilder.calls.lte).toEqual([['price', 50]]);
   });
 
   it('applies the condition filter', async () => {
     await ListingRepository.search('', { condition: 'Good' });
-    expect(listingsBuilder.calls.eq).toEqual(['condition', 'Good']);
+    expect(listingsBuilder.calls.eq).toEqual([['status', 'active'], ['condition', 'Good']]);
   });
 
   it('combines text, category, price-max, and condition filters together', async () => {
@@ -130,10 +136,10 @@ describe('ListingRepository.search', () => {
       priceMax: 60,
       condition: 'Good',
     });
-    expect(listingsBuilder.calls.ilike).toEqual(['title', '%chem%']);
-    expect(listingsBuilder.calls.in).toEqual(['category', ['Textbooks']]);
-    expect(listingsBuilder.calls.lte).toEqual(['price', 60]);
-    expect(listingsBuilder.calls.eq).toEqual(['condition', 'Good']);
+    expect(listingsBuilder.calls.ilike).toEqual([['title', '%chem%']]);
+    expect(listingsBuilder.calls.in).toEqual([['category', ['Textbooks']]]);
+    expect(listingsBuilder.calls.lte).toEqual([['price', 60]]);
+    expect(listingsBuilder.calls.eq).toEqual([['status', 'active'], ['condition', 'Good']]);
   });
 
   it('returns an accurate, empty result with no matches (and skips the saved-ids lookup)', async () => {
@@ -173,8 +179,8 @@ describe('ListingRepository.search', () => {
 
     expect(results.find((r) => r.id === 'l1')?.saved).toBe(true);
     expect(results.find((r) => r.id === 'l2')?.saved).toBe(false);
-    expect(savedBuilder.calls.eq).toEqual(['user_id', 'u1']);
-    expect(savedBuilder.calls.in).toEqual(['listing_id', ['l1', 'l2']]);
+    expect(savedBuilder.calls.eq).toEqual([['user_id', 'u1']]);
+    expect(savedBuilder.calls.in).toEqual([['listing_id', ['l1', 'l2']]]);
   });
 
   it('throws when the listings query errors', async () => {

@@ -26,15 +26,21 @@ import EmptyState from "../components/EmptyState";
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 const FILTER_CATEGORIES = ["Textbooks", "Electronics", "Furniture", "Tickets"];
-const CONDITIONS = ["Like new", "Good", "Any"];
+const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
+// The price slider's upper bound doubles as "no cap" — nothing is listed
+// above it, so treating it as a sentinel keeps the filter omitted rather
+// than passing a max that happens to include everything anyway.
+const PRICE_MAX_CAP = 500;
 
 export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState(["Textbooks"]);
-  const [condition, setCondition] = useState("Like new");
-  const [priceMax, setPriceMax] = useState(80);
+  // Screen opens with no filters applied so it shows every active listing
+  // until the user narrows things down.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [condition, setCondition] = useState("Any");
+  const [priceMax, setPriceMax] = useState(PRICE_MAX_CAP);
   const inputRef = useRef<TextInput>(null);
 
   const {
@@ -44,7 +50,7 @@ export default function SearchScreen({ navigation }: Props) {
     refetch,
   } = useSearchListings(query, {
     categories: selectedCategories.length > 0 ? selectedCategories : undefined,
-    priceMax,
+    priceMax: priceMax < PRICE_MAX_CAP ? priceMax : undefined,
     condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
 
@@ -180,7 +186,7 @@ export default function SearchScreen({ navigation }: Props) {
                 onPress={() => {
                   setSelectedCategories([]);
                   setCondition("Any");
-                  setPriceMax(200);
+                  setPriceMax(PRICE_MAX_CAP);
                 }}
               >
                 <Text style={styles.resetText}>Reset</Text>
@@ -237,7 +243,7 @@ export default function SearchScreen({ navigation }: Props) {
                 <Text style={styles.priceDisplay}>${priceMax}</Text>
                 <TouchableOpacity
                   style={styles.priceBtn}
-                  onPress={() => setPriceMax((m) => Math.min(500, m + 10))}
+                  onPress={() => setPriceMax((m) => Math.min(PRICE_MAX_CAP, m + 10))}
                 >
                   <Text style={styles.priceBtnText}>+</Text>
                 </TouchableOpacity>
