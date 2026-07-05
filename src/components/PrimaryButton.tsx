@@ -1,6 +1,7 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import { COLORS, SIZES } from '../constants/theme';
+import React, { useRef } from 'react';
+import { Animated, Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, SIZES, GRADIENTS, SHADOWS } from '../constants/theme';
 
 type Props = {
   title: string;
@@ -12,33 +13,52 @@ type Props = {
 };
 
 export default function PrimaryButton({ title, onPress, loading = false, style, textStyle, disabled = false }: Props) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const isInactive = disabled || loading;
+
+  const animateTo = (value: number) => {
+    Animated.timing(scale, { toValue: value, duration: 150, useNativeDriver: true }).start();
+  };
+
   return (
-    <TouchableOpacity
-      style={[styles.button, (disabled || loading) ? styles.disabled : null, style]}
-      onPress={onPress}
-      activeOpacity={0.85}
-      disabled={disabled || loading}
-    >
-      {loading ? (
-        <ActivityIndicator color={COLORS.white} />
-      ) : (
-        <Text style={[styles.text, textStyle]}>{title}</Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={[styles.wrapper, { transform: [{ scale }] }, style]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => !isInactive && animateTo(0.96)}
+        onPressOut={() => !isInactive && animateTo(1)}
+        disabled={isInactive}
+      >
+        <LinearGradient
+          colors={GRADIENTS.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.button, isInactive ? styles.disabled : null]}
+        >
+          {loading ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={[styles.text, textStyle]}>{title}</Text>
+          )}
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    width: '100%',
+    borderRadius: SIZES.borderRadius,
+    ...SHADOWS.brand,
+  },
   button: {
-    backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadius,
     height: SIZES.buttonHeight,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
   text: {
     color: COLORS.white,

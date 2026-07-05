@@ -3,17 +3,20 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
+import EmptyState from '../components/EmptyState';
 import { ARIA_LISTINGS } from '../data/mockListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
 
@@ -27,14 +30,32 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="dark" />
       {/* Nav bar */}
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <PressableScale
+          style={styles.iconBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+        </PressableScale>
+        <PressableScale
+          style={styles.iconBtn}
+          onPress={() => {
+            haptics.tap();
+            setReportVisible(true);
+          }}
+          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="More options"
+        >
           <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -55,7 +76,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 key={i}
                 name={i < stars ? 'star' : 'star-outline'}
                 size={14}
-                color="#F4A623"
+                color={COLORS.warning}
               />
             ))}
             <Text style={styles.ratingText}>
@@ -84,46 +105,59 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
         {/* Action buttons */}
         <View style={styles.actionRow}>
-          <TouchableOpacity
+          <PressableScale
             style={styles.messageBtn}
-            activeOpacity={0.85}
-            onPress={() =>
+            scaleTo={0.97}
+            onPress={() => {
+              haptics.tap();
               navigation.navigate('Chat', {
                 contact: {
                   initials: seller.initials,
                   name: seller.name,
                   avatarColor: seller.avatarColor,
                 },
-              })
-            }
+              });
+            }}
           >
             <Text style={styles.messageBtnText}>Message</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             style={[styles.followBtn, following ? styles.followBtnActive : null]}
-            onPress={() => setFollowing(f => !f)}
-            activeOpacity={0.85}
+            scaleTo={0.97}
+            onPress={() => {
+              haptics.tap();
+              setFollowing(f => !f);
+            }}
           >
             <Text style={[styles.followBtnText, following ? styles.followBtnTextActive : null]}>
               {following ? 'Following' : 'Follow'}
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Active Listings */}
         <View style={styles.listingsSection}>
           <Text style={styles.sectionTitle}>Active listings</Text>
-          <View style={styles.listingsGrid}>
-            {ARIA_LISTINGS.map((item, index) => (
-              <ListingCard
-                key={item.id}
-                item={item}
-                onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-                onSave={() => {}}
-                style={styles.gridCard}
-              />
-            ))}
-          </View>
+          {ARIA_LISTINGS.length > 0 ? (
+            <View style={styles.listingsGrid}>
+              {ARIA_LISTINGS.map((item, index) => (
+                <ListingCard
+                  key={item.id}
+                  item={item}
+                  onPress={() => navigation.navigate('ListingDetail', { listing: item })}
+                  onSave={() => {}}
+                  style={styles.gridCard}
+                />
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              icon="storefront-outline"
+              title={`${seller.name} doesn't have any active listings right now.`}
+              ctaLabel="Go back"
+              onCta={() => navigation.goBack()}
+            />
+          )}
         </View>
       </ScrollView>
       <ReportModal
@@ -153,7 +187,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F4F4F8',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -187,7 +221,7 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
   },
   joinedText: {
@@ -208,10 +242,11 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: 24,
-    backgroundColor: '#F8F8FB',
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: 16,
     paddingVertical: 16,
     marginBottom: 20,
+    ...SHADOWS.card,
   },
   statItem: {
     flex: 1,
@@ -219,9 +254,10 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.text,
     marginBottom: 3,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
     fontSize: 12,
@@ -230,7 +266,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 36,
-    backgroundColor: '#E4E4E4',
+    backgroundColor: COLORS.divider,
     alignSelf: 'center',
   },
   actionRow: {
@@ -242,10 +278,11 @@ const styles = StyleSheet.create({
   messageBtn: {
     flex: 1,
     height: 48,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...SHADOWS.brand,
   },
   messageBtnText: {
     color: COLORS.white,
@@ -255,7 +292,7 @@ const styles = StyleSheet.create({
   followBtn: {
     flex: 1,
     height: 48,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
     alignItems: 'center',
@@ -263,7 +300,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   followBtnActive: {
-    backgroundColor: '#F0EAFF',
+    backgroundColor: COLORS.primarySoft,
   },
   followBtnText: {
     color: COLORS.primary,
@@ -278,7 +315,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 14,
   },

@@ -44,6 +44,7 @@ yarn-error.*
 .vscode/
 .idea/
 .claude/
+.agents/
 *.suo
 *.ntvs*
 *.njsproj

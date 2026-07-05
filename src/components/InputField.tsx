@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, ViewStyle, TextInputProps } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ViewStyle, TextInputProps } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
+import PressableScale from './PressableScale';
+import AnimatedIconToggle from './AnimatedIconToggle';
 
 type Props = {
   label?: string;
@@ -54,16 +57,28 @@ export default function InputField({
           onBlur={() => setFocused(false)}
         />
         {isPassword && (
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.rightBtn}>
-            <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
-          </TouchableOpacity>
+          <PressableScale onPress={() => setShowPassword(!showPassword)} style={styles.rightBtn} hitSlop={8} scaleTo={0.85}>
+            <AnimatedIconToggle
+              active={showPassword}
+              activeName="eye-off-outline"
+              inactiveName="eye-outline"
+              activeColor={COLORS.textMuted}
+              inactiveColor={COLORS.textMuted}
+              size={18}
+            />
+          </PressableScale>
         )}
         {rightElement && !isPassword && <View style={styles.rightBtn}>{rightElement}</View>}
       </View>
       {hint ? (
-        <Text style={[styles.hint, hintType === 'success' ? styles.hintSuccess : null, hintType === 'error' ? styles.hintError : null]}>
-          {hintType === 'success' ? '✓ ' : ''}{hint}
-        </Text>
+        <View style={styles.hintRow}>
+          {hintType === 'success' ? (
+            <Ionicons name="checkmark-circle" size={13} color={COLORS.success} />
+          ) : null}
+          <Text style={[styles.hint, hintType === 'success' ? styles.hintSuccess : null, hintType === 'error' ? styles.hintError : null]}>
+            {hint}
+          </Text>
+        </View>
       ) : null}
     </View>
   );
@@ -91,6 +106,7 @@ const styles = StyleSheet.create({
   },
   inputWrapperFocused: {
     borderColor: COLORS.inputBorderFocused,
+    backgroundColor: COLORS.primaryTint,
   },
   input: {
     flex: 1,
@@ -100,13 +116,15 @@ const styles = StyleSheet.create({
   rightBtn: {
     paddingLeft: 8,
   },
-  eyeIcon: {
-    fontSize: 16,
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
   hint: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
-    marginTop: 4,
   },
   hintSuccess: {
     color: COLORS.success,

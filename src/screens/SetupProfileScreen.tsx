@@ -8,13 +8,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
+import InputField from '../components/InputField';
 import StepHeader from '../components/StepHeader';
+import RotatingChevron from '../components/RotatingChevron';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useUpsertProfile } from '../hooks/useProfile';
+import { deriveInitials } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -31,17 +38,46 @@ const PROGRAMS = [
 
 const YEARS = [1, 2, 3, 4, 'Grad'];
 
-export default function SetupProfileScreen({ navigation }: Props) {
+function initialFullName(fullName: unknown): string {
+  return typeof fullName === 'string' ? fullName : '';
+}
+
+export default function SetupProfileScreen(_props: Props) {
+  const { user } = useAuth();
+  const upsertProfile = useUpsertProfile();
+  const [name, setName] = useState(() => initialFullName(user?.user_metadata?.full_name));
   const [program, setProgram] = useState('Ivey HBA');
   const [year, setYear] = useState<number | string>(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
-  // Persisting the profile (insert into the `profiles` table) and routing the
-  // user in afterward land in Phase 2, once that table + RLS exist. In the real
-  // flow the session created by verifyOtp already routes the user into the app,
-  // so this screen is currently bypassed — see the AI_context handoff notes.
-  const handleFinish = () => {};
+  const canFinish = name.trim().length > 0 && !upsertProfile.isPending;
+
+  // This screen is a mandatory gate — RootNavigator only mounts it when a
+  // signed-in user has no `profiles` row yet, so there's nothing to go back
+  // to and no manual navigation on success: the upsert's cache update flips
+  // useCurrentProfile from null, and RootNavigator swaps to the main app.
+  //
+  // `verified` isn't set here — a DB trigger (migration 0004) recomputes it
+  // server-side from the user's real email, so a modified client can't claim
+  // a trust badge it hasn't earned by just sending `verified: true`.
+  const handleFinish = async () => {
+    if (!canFinish) return;
+    try {
+      await upsertProfile.mutateAsync({
+        name: name.trim(),
+        program,
+        // 'Grad' has no numeric year; store null rather than fabricate one.
+        year: typeof year === 'number' ? year : null,
+        bio: aboutYou.trim(),
+      });
+    } catch (e) {
+      Alert.alert(
+        'Could not save profile',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -54,7 +90,10 @@ export default function SetupProfileScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <StepHeader currentStep={3} totalSteps={3} onBack={() => navigation.goBack()} />
+          {/* No onBack: this is a mandatory gate reached after auth, so there's
+              nothing to return to — but the step indicator is kept so the flow
+              still reads as "Step 3 of 3" like CreateAccount/VerifyEmail. */}
+          <StepHeader currentStep={3} totalSteps={3} />
 
           <Text style={styles.stepLabel}>Step 3 of 3</Text>
           <Text style={styles.title}>Set up your profile</Text>
@@ -64,12 +103,20 @@ export default function SetupProfileScreen({ navigation }: Props) {
 
           <View style={styles.profileRow}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>RS</Text>
+              <Text style={styles.avatarInitials}>{deriveInitials(name) || '?'}</Text>
               <View style={styles.cameraBtn}>
-                <Text style={styles.cameraIcon}>📷</Text>
+                <Ionicons name="camera" size={12} color={COLORS.text} />
               </View>
             </View>
           </View>
+
+          <InputField
+            label="Full name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Ronit Sharma"
+            autoCapitalize="words"
+          />
 
           <Text style={styles.sectionLabel}>Program</Text>
           <TouchableOpacity
@@ -78,7 +125,7 @@ export default function SetupProfileScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.dropdownText}>{program}</Text>
-            <Text style={styles.dropdownChevron}>{showProgramPicker ? '▲' : '▼'}</Text>
+            <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
           {showProgramPicker && (
@@ -133,6 +180,8 @@ export default function SetupProfileScreen({ navigation }: Props) {
           <PrimaryButton
             title="Finish & explore"
             onPress={handleFinish}
+            disabled={!canFinish}
+            loading={upsertProfile.isPending}
             style={styles.finishBtn}
           />
         </ScrollView>
@@ -162,7 +211,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },
@@ -205,9 +254,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
   },
-  cameraIcon: {
-    fontSize: 11,
-  },
   sectionLabel: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
@@ -233,10 +279,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     color: COLORS.text,
   },
-  dropdownChevron: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
   dropdownList: {
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
@@ -253,7 +295,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   dropdownItemSelected: {
-    backgroundColor: '#F3EEFF',
+    backgroundColor: COLORS.primaryTint,
   },
   dropdownItemText: {
     fontSize: SIZES.base,

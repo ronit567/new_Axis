@@ -9,10 +9,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants/theme';
+import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import { SELLER_ARIA } from '../data/mockListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import PressableScale from '../components/PressableScale';
+import AnimatedIconToggle from '../components/AnimatedIconToggle';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
@@ -30,36 +33,83 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Top controls */}
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <PressableScale
+          style={styles.iconBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+        </PressableScale>
         <View style={styles.topRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <PressableScale
+            style={styles.iconBtn}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Share listing"
+          >
             <Ionicons name="share-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setSaved(s => !s)}>
-            <Ionicons
-              name={saved ? 'heart' : 'heart-outline'}
+          </PressableScale>
+          <PressableScale
+            style={styles.iconBtn}
+            onPress={() => {
+              haptics.tap();
+              setSaved(s => !s);
+            }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={saved ? 'Remove from saved' : 'Save listing'}
+            accessibilityState={{ selected: saved }}
+          >
+            <AnimatedIconToggle
+              active={saved}
+              activeName="heart"
+              inactiveName="heart-outline"
+              activeColor={COLORS.like}
+              inactiveColor={COLORS.text}
               size={20}
-              color={saved ? '#E63946' : COLORS.text}
             />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+          </PressableScale>
+          <PressableScale
+            style={styles.iconBtn}
+            onPress={() => {
+              haptics.tap();
+              setReportVisible(true);
+            }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Report listing"
+          >
             <Ionicons name="flag-outline" size={20} color={COLORS.text} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Image Carousel Placeholder */}
-        <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || '#EBE4F8' }]}>
-          <Text style={styles.imagePlaceholderText}>📷</Text>
+        <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
+          <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
         </View>
 
         {/* Carousel Dots */}
         <View style={styles.dotsRow}>
           {DOTS.map(i => (
-            <TouchableOpacity key={i} onPress={() => setActiveDot(i)}>
+            <TouchableOpacity
+              key={i}
+              onPress={() => {
+                haptics.tap();
+                setActiveDot(i);
+              }}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={`View image ${i + 1}`}
+              accessibilityState={{ selected: activeDot === i }}
+            >
               <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
             </TouchableOpacity>
           ))}
@@ -90,10 +140,15 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           {/* Seller Card */}
-          <TouchableOpacity
+          <PressableScale
             style={styles.sellerCard}
-            onPress={() => navigation.navigate('SellerProfile', { seller: SELLER_ARIA })}
-            activeOpacity={0.85}
+            onPress={() => {
+              haptics.tap();
+              navigation.navigate('SellerProfile', { seller: SELLER_ARIA });
+            }}
+            scaleTo={0.98}
+            accessibilityRole="button"
+            accessibilityLabel={`View seller ${listing.seller.name}`}
           >
             <View style={styles.sellerAvatar}>
               <Text style={styles.sellerInitials}>AK</Text>
@@ -108,7 +163,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               <Text style={styles.sellerMeta}>4.4 (152) · BMOS · Year {listing.seller.year}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          </PressableScale>
 
           <View style={styles.divider} />
 
@@ -127,13 +182,22 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
       {/* Bottom Action Bar */}
       <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity style={styles.offerBtn} activeOpacity={0.85}>
+        <PressableScale
+          style={styles.offerBtn}
+          onPress={() => haptics.tap()}
+          scaleTo={0.97}
+          accessibilityRole="button"
+          accessibilityLabel="Make offer"
+        >
           <Text style={styles.offerText}>Make offer</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </PressableScale>
+        <PressableScale
           style={styles.messageBtn}
-          activeOpacity={0.85}
-          onPress={() =>
+          scaleTo={0.97}
+          accessibilityRole="button"
+          accessibilityLabel="Message seller"
+          onPress={() => {
+            haptics.impact();
             navigation.navigate('Chat', {
               contact: {
                 initials: 'AK',
@@ -141,12 +205,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                 avatarColor: COLORS.primary,
               },
               listing,
-            })
-          }
+            });
+          }}
         >
           <Ionicons name="chatbubble-outline" size={17} color={COLORS.white} />
           <Text style={styles.messageText}>Message</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
       <ReportModal
         visible={reportVisible}
@@ -178,7 +242,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F4F4F8',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -190,10 +254,8 @@ const styles = StyleSheet.create({
     height: 260,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  imagePlaceholderText: {
-    fontSize: 48,
-    opacity: 0.3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   dotsRow: {
     flexDirection: 'row',
@@ -205,7 +267,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#D8D8E0',
+    backgroundColor: COLORS.stepInactive,
   },
   dotActive: {
     backgroundColor: COLORS.primary,
@@ -222,26 +284,27 @@ const styles = StyleSheet.create({
   },
   price: {
     fontSize: 28,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.text,
+    fontVariant: ['tabular-nums'],
   },
   conditionBadge: {
-    backgroundColor: '#F0EAFF',
-    borderRadius: 8,
+    backgroundColor: COLORS.primaryTint,
+    borderRadius: SIZES.borderRadiusSm,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   conditionText: {
     fontSize: 12,
     color: COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
-    lineHeight: 26,
+    lineHeight: 28,
   },
   meta: {
     fontSize: 13,
@@ -250,7 +313,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F4',
+    backgroundColor: COLORS.divider,
     marginVertical: 16,
   },
   description: {
@@ -262,8 +325,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 14,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 16,
     padding: 14,
   },
   sellerAvatar: {
@@ -290,7 +353,7 @@ const styles = StyleSheet.create({
   },
   sellerName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.text,
   },
   sellerVerified: {
@@ -310,21 +373,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 14,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 16,
     padding: 14,
   },
   locationIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F0EAFF',
+    backgroundColor: COLORS.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   locationTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
     color: COLORS.text,
     marginBottom: 2,
   },
@@ -338,13 +401,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F4',
+    borderTopColor: COLORS.divider,
     backgroundColor: COLORS.white,
+    ...SHADOWS.floating,
   },
   offerBtn: {
     flex: 1,
     height: 50,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
     alignItems: 'center',
@@ -353,21 +417,22 @@ const styles = StyleSheet.create({
   offerText: {
     color: COLORS.primary,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
   messageBtn: {
     flex: 1,
     height: 50,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
+    ...SHADOWS.brand,
   },
   messageText: {
     color: COLORS.white,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semibold,
   },
 });

@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { COLORS, SIZES } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
+import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
@@ -55,9 +57,9 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.backArrow}>‹</Text>
-          </TouchableOpacity>
+          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+          </PressableScale>
 
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>Sign in to your Axis account.</Text>
@@ -96,7 +98,7 @@ export default function SignInScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity style={styles.westernBtn} onPress={handleSSO} activeOpacity={0.85}>
-              <Text style={styles.westernBtnIcon}>🏛</Text>
+              <Ionicons name="school-outline" size={19} color={COLORS.text} />
               <Text style={styles.westernBtnText}>Continue with Western SSO</Text>
             </TouchableOpacity>
           </View>
@@ -133,15 +135,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 32,
   },
-  backArrow: {
-    fontSize: 24,
-    color: COLORS.text,
-    lineHeight: 28,
-    marginTop: -2,
-  },
   title: {
     fontSize: SIZES.xxl,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },
@@ -190,9 +186,6 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     height: SIZES.buttonHeight,
     gap: 10,
-  },
-  westernBtnIcon: {
-    fontSize: 18,
   },
   westernBtnText: {
     color: COLORS.text,
