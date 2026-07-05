@@ -1,5 +1,14 @@
-import { toListing, toSeller, toSellerProfile } from '../mappers';
-import type { ListingRow, ProfileRow } from '../../types/database';
+import {
+  sellerToContact,
+  toContact,
+  toConversation,
+  toListing,
+  toMessage,
+  toSeller,
+  toSellerProfile,
+} from '../mappers';
+import type { ListingRow, MessageRow, ProfileRow } from '../../types/database';
+import type { Seller } from '../../types';
 
 const sellerRow: ProfileRow = {
   id: 's1',
@@ -130,5 +139,137 @@ describe('toSellerProfile', () => {
     const second = toSellerProfile({ ...sellerRow, avatar_color: null }, stats).avatarColor;
     expect(first).toBe(second);
     expect(first).toMatch(/^#[0-9A-F]{6}$/i);
+  });
+});
+
+// --- Messaging (AX-113) ------------------------------------------------------
+
+const messageRow: MessageRow = {
+  id: 'm1',
+  listing_id: 'l1',
+  sender_id: 's1',
+  receiver_id: 'buyer-1',
+  body: 'Is this still available?',
+  created_at: '2026-07-01T10:00:00.000Z',
+  read_at: null,
+};
+
+describe('toMessage', () => {
+  it('maps a message row to the domain Message (snake_case -> camelCase)', () => {
+    expect(toMessage(messageRow)).toEqual({
+      id: 'm1',
+      listingId: 'l1',
+      senderId: 's1',
+      receiverId: 'buyer-1',
+      body: 'Is this still available?',
+      createdAt: '2026-07-01T10:00:00.000Z',
+      readAt: null,
+    });
+  });
+
+  it('carries a non-null readAt through unchanged', () => {
+    const read = toMessage({ ...messageRow, read_at: '2026-07-01T11:00:00.000Z' });
+    expect(read.readAt).toBe('2026-07-01T11:00:00.000Z');
+  });
+});
+
+describe('toContact', () => {
+  it('uses the row initials/avatar_color when present', () => {
+    expect(toContact(sellerRow)).toEqual({
+      id: 's1',
+      name: 'Aria K.',
+      initials: 'AK',
+      avatarColor: '#5C2D91',
+    });
+  });
+
+  it('derives initials from name and a deterministic palette color when both are null', () => {
+    const first = toContact({ ...sellerRow, initials: null, avatar_color: null, name: 'Liam' });
+    expect(first.initials).toBe('L');
+    expect(first.avatarColor).toMatch(/^#[0-9A-F]{6}$/i);
+    const second = toContact({ ...sellerRow, initials: null, avatar_color: null, name: 'Liam' });
+    expect(second.avatarColor).toBe(first.avatarColor); // same id => same color
+  });
+});
+
+describe('sellerToContact', () => {
+  const seller: Seller = {
+    id: 's1',
+    name: 'Aria K.',
+    year: 2,
+    location: 'Elgin Hall',
+    dotColor: '#9E9EAE',
+  };
+
+  it('derives initials from the seller name', () => {
+    expect(sellerToContact(seller)).toEqual({
+      id: 's1',
+      name: 'Aria K.',
+      initials: 'AK',
+      avatarColor: expect.stringMatching(/^#[0-9A-F]{6}$/i),
+    });
+  });
+
+  it('gives the same id a stable color regardless of name', () => {
+    const a = sellerToContact(seller).avatarColor;
+    const b = sellerToContact({ ...seller, name: 'Different Name' }).avatarColor;
+    expect(a).toBe(b); // color is seeded by id, not name
+  });
+});
+
+describe('toConversation', () => {
+  it('marks a conversation Selling when the joined listing belongs to the current user', () => {
+    const conversation = toConversation({
+      partner: sellerRow,
+      listing: { ...listingRow, seller_id: 'me' },
+      lastMessage: messageRow,
+      unreadCount: 2,
+      currentUserId: 'me',
+    });
+    expect(conversation.type).toBe('Selling');
+    expect(conversation.listingTitle).toBe(listingRow.title);
+    expect(conversation.listingPrice).toBe(listingRow.price);
+    expect(conversation.unreadCount).toBe(2);
+    expect(conversation.partnerId).toBe('s1');
+    expect(conversation.partner).toEqual(toContact(sellerRow));
+    expect(conversation.listingId).toBe(messageRow.listing_id);
+    expect(conversation.lastMessage).toBe(messageRow.body);
+  });
+
+  it('marks a conversation Buying when the joined listing belongs to someone else', () => {
+    const conversation = toConversation({
+      partner: sellerRow,
+      listing: { ...listingRow, seller_id: 'someone-else' },
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    expect(conversation.type).toBe('Buying');
+  });
+
+  it('nulls out listingTitle/listingPrice and defaults to Buying when the listing is missing', () => {
+    const conversation = toConversation({
+      partner: sellerRow,
+      listing: null,
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    expect(conversation.listingTitle).toBeNull();
+    expect(conversation.listingPrice).toBeNull();
+    expect(conversation.type).toBe('Buying');
+  });
+
+  it('formats lastMessageAt through timeAgo', () => {
+    const conversation = toConversation({
+      partner: sellerRow,
+      listing: listingRow,
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    expect(typeof conversation.lastMessageAt).toBe('string');
+    expect(conversation.lastMessageAt.length).toBeGreaterThan(0);
+    expect(conversation.lastMessageAt).toMatch(/ago|just now/);
   });
 });
