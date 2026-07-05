@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
-import { toListing } from './mappers'
-import { Listing } from '../types'
+import { toListing, toMyListing } from './mappers'
+import { Listing, MyListing } from '../types'
 
 export type CreateListingInput = {
   title: string
@@ -32,6 +32,8 @@ export type ListingsPage = {
 // AX-201: one page of the home feed. Kept in sync with useListings' getNextPageParam.
 export const LISTINGS_PAGE_SIZE = 20
 
+// The shape here is the contract screens/hooks build against so nothing
+// imports supabase directly.
 export const ListingRepository = {
   async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
     const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
@@ -116,22 +118,50 @@ export const ListingRepository = {
 
     return toListing(row, seller, isSaved)
   },
-  async create(sellerId: string, data: CreateListingInput): Promise<Listing> {
+  // AX-302/AX-401: listingId is caller-generated (see useCreateListing) so images
+  // can be uploaded to their final path *before* this insert runs — this call only
+  // ever persists image_urls that are already live in storage.
+  async create(sellerId: string, listingId: string, data: CreateListingInput): Promise<Listing> {
     const { data: row, error } = await supabase
       .from('listings')
-      .insert({ seller_id: sellerId, ...data })
+      .insert({ id: listingId, seller_id: sellerId, ...data })
       .select('*')
       .single()
     if (error) throw error
 
-    const { data: seller, error: sellerError } = await supabase
+    const { data: sellerRow, error: sellerError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', sellerId)
       .single()
     if (sellerError) throw sellerError
 
-    return toListing(row, seller, false)
+    // A listing can't already be saved by anyone the instant it's created.
+    return toListing(row, sellerRow, false)
+  },
+  // ManageListingsScreen's own-listings view (all statuses, not just active).
+  async getBySeller(sellerId: string): Promise<MyListing[]> {
+    const { data: rows, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    if (!rows || rows.length === 0) return []
+
+    // saved_select_own (0002) scopes saved_listings select to the caller's own
+    // rows, so querying the table directly here would only ever see whether
+    // *this* signed-in user saved their own listing — never the real count
+    // across everyone. my_listing_save_counts() (0006) is a SECURITY DEFINER
+    // RPC scoped to the caller's own listings that aggregates across users.
+    const { data: saveCounts, error: savesError } = await supabase.rpc('my_listing_save_counts')
+    if (savesError) throw savesError
+
+    const savesByListing = new Map(
+      (saveCounts ?? []).map(({ listing_id, saves }) => [listing_id, saves]),
+    )
+
+    return rows.map((row) => toMyListing(row, savesByListing.get(row.id) ?? 0))
   },
   // AX-201 follow-up: real toggle. Try deleting the save first; if a row was
   // actually removed we're done (now unsaved), otherwise insert it (now saved).
@@ -151,6 +181,9 @@ export const ListingRepository = {
       .insert({ user_id: userId, listing_id: listingId })
     if (insertError) throw insertError
   },
+  // AX-202: saved listings, most-recently-saved first. Two round trips (saved
+  // ids, then the listings/sellers themselves) since saved_listings has no
+  // listing columns of its own to select alongside.
   async getSavedByUser(userId: string): Promise<Listing[]> {
     const { data: savedRows, error: savedError } = await supabase
       .from('saved_listings')
@@ -161,9 +194,11 @@ export const ListingRepository = {
     if (!savedRows || savedRows.length === 0) return []
 
     const listingIds = savedRows.map((row) => row.listing_id)
-    // Match getAll: only active listings surface. A save on a listing that's
-    // since sold/deactivated just quietly drops off Saved rather than
-    // rendering with no "unavailable" indicator (ListingCard has none today).
+    // Match getAll's active-only filter: there's no "sold"/"unavailable" badge
+    // in the UI yet, so a sold listing would look identical to a live one in
+    // the Saved list — excluding it here avoids a misleading duplicate-looking
+    // entry. Revisit once a status badge exists (users may want to see that a
+    // saved item sold rather than have it silently disappear).
     const { data: rows, error: listingsError } = await supabase
       .from('listings')
       .select('*')
@@ -179,12 +214,13 @@ export const ListingRepository = {
       .in('id', sellerIds)
     if (sellersError) throw sellersError
 
-    const rowById = new Map(rows.map((row) => [row.id, row]))
     const sellerById = new Map((sellers ?? []).map((seller) => [seller.id, seller]))
+    const rowById = new Map(rows.map((row) => [row.id, row]))
 
-    // Walk listingIds (not rows) to preserve most-recently-saved-first order;
-    // a listing whose row or seller didn't come back (deleted since being
-    // saved) is skipped rather than crashing the whole list.
+    // Walk listingIds (already ordered by save recency) rather than rows, so
+    // the result preserves save order instead of the `in (...)` query's order.
+    // seller_id is a NOT NULL FK, so a missing seller means a broken
+    // reference — skip rather than crash the whole list over one bad row.
     return listingIds.reduce<Listing[]>((acc, id) => {
       const row = rowById.get(id)
       const seller = row && sellerById.get(row.seller_id)
@@ -194,7 +230,7 @@ export const ListingRepository = {
   },
   // Not yet called anywhere — wiring the view-count bump into
   // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views
-  // RPC (0006) rather than a plain update(): listings_update_own (0002) scopes
+  // RPC rather than a plain update(): listings_update_own (0002) scopes
   // UPDATE to the seller only, so a non-owner viewer's update() would silently
   // affect 0 rows under RLS instead of erroring — views would never increment
   // for anyone but the seller. The RPC is SECURITY DEFINER so any authenticated

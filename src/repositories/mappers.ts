@@ -5,7 +5,7 @@
 // and image/color placeholders. Repositories call these; screens never map.
 // Keep all mapping logic here so no screen reinvents it.
 
-import type { Listing, Seller, SellerProfile } from '../types';
+import type { Listing, MyListing, Seller, SellerProfile } from '../types';
 import type { ListingRow, ProfileRow } from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
@@ -97,6 +97,25 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     views: row.views,
     postedAgo: timeAgo(row.created_at),
     pickup: row.pickup ?? '',
+  };
+}
+
+// ManageListingsScreen's own-listings view. `saves` is aggregated by the
+// caller (a count across saved_listings, same batch-join shape as toListing's
+// isSaved) rather than read off the row, since it isn't a column.
+export function toMyListing(row: ListingRow, saves: number): MyListing {
+  return {
+    id: row.id,
+    title: row.title,
+    price: row.price,
+    status: row.status === 'sold' ? 'sold' : 'active',
+    category: row.category ?? DEFAULT_CATEGORY,
+    views: row.views,
+    saves,
+    postedAgo: timeAgo(row.created_at),
+    imageColor: pickImageColor(row.id),
+    // No separate "sale price" column — a sold listing keeps its list price.
+    soldFor: row.status === 'sold' ? row.price : undefined,
   };
 }
 

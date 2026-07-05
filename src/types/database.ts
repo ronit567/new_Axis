@@ -11,8 +11,12 @@
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
 // MANUAL ADDITION (pending regen): the `increment_listing_views` function was
-// hand-added alongside migration 0006 (AX-111 view counter RPC). Drop this
+// hand-added alongside migration 0007 (AX-111 view counter RPC). Drop this
 // note once regenerated.
+//
+// MANUAL ADDITION (pending regen): the `my_listing_save_counts` function was
+// hand-added alongside migration 0006 (AX-401 save counts). Drop this note
+// once regenerated.
 //
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
@@ -297,6 +301,10 @@ export type Database = {
       increment_listing_views: {
         Args: { listing_id: string }
         Returns: undefined
+      }
+      my_listing_save_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: { listing_id: string; saves: number }[]
       }
     }
     Enums: {
