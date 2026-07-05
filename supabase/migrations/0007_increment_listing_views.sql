@@ -11,13 +11,22 @@
 -- trusted for: increment views by exactly 1 for one row, nothing broader.
 -- The `views = views + 1` runs as a single statement, so it's atomic —
 -- no read-then-write race under concurrent views.
+--
+-- The seller is excluded (`seller_id <> auth.uid()`) so owners can't inflate
+-- their own listing's count by revisiting it — enforced here rather than at
+-- the call site so no client path can skip it. auth.uid() still resolves the
+-- *caller's* JWT inside a SECURITY DEFINER function, so this compares against
+-- the real viewer, not the function owner.
 create or replace function public.increment_listing_views(listing_id uuid)
   returns void
   language sql
   security definer
   set search_path = public
 as $$
-  update public.listings set views = views + 1 where id = listing_id;
+  update public.listings
+     set views = views + 1
+   where id = listing_id
+     and seller_id <> auth.uid();
 $$;
 
 -- EXECUTE is granted to `authenticated` only: the app currently gates every

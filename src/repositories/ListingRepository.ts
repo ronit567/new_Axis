@@ -230,12 +230,14 @@ export const ListingRepository = {
   },
   // Not yet called anywhere — wiring the view-count bump into
   // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views
-  // RPC rather than a plain update(): listings_update_own (0002) scopes
+  // RPC (0007) rather than a plain update(): listings_update_own (0002) scopes
   // UPDATE to the seller only, so a non-owner viewer's update() would silently
   // affect 0 rows under RLS instead of erroring — views would never increment
   // for anyone but the seller. The RPC is SECURITY DEFINER so any authenticated
-  // viewer can bump the counter, and the increment itself is a single atomic
-  // `views = views + 1` in SQL rather than a racy read-then-write.
+  // viewer can bump the counter, the increment itself is a single atomic
+  // `views = views + 1` in SQL rather than a racy read-then-write, and the RPC
+  // skips the owner's own views server-side so a seller can't inflate their
+  // count. Per-viewer dedup (one count per unique viewer) is AX-203's call.
   async incrementViews(id: string): Promise<void> {
     const { error } = await supabase.rpc('increment_listing_views', { listing_id: id })
     if (error) throw error
