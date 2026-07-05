@@ -19,6 +19,7 @@ import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
 import { useListing } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
 import { useProfile } from '../hooks/useProfile';
 import { deriveInitials } from '../repositories/mappers';
 
@@ -33,6 +34,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   // real data ready; the nested `listing.seller` is a lightweight summary,
   // not the full SellerProfile the SellerProfile screen needs.
   const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
+  const toggleSavedMutation = useToggleSaved();
 
   const [saved, setSaved] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
@@ -105,6 +107,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             onPress={() => {
               haptics.tap();
               setSaved(s => !s);
+              // Optimistic; roll back if the DB write fails since this
+              // toggle (unlike list screens) has no other source of truth
+              // driving it in the meantime.
+              toggleSavedMutation.mutate(listing.id, {
+                onError: () => setSaved(s => !s),
+              });
             }}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             scaleTo={0.9}
