@@ -15,7 +15,7 @@ import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import { SAVED_LISTINGS } from '../data/mockListings';
+import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { RootStackParamList, Listing } from '../types';
 
 type Props = {
@@ -26,15 +26,10 @@ const TABS = ['Items', 'Saved searches'];
 
 export default function SavedScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
-  const [savedItems, setSavedItems] = useState(SAVED_LISTINGS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const { data, isLoading, isError, refetch } = useSavedListings();
+  const toggleSavedMutation = useToggleSaved();
+  const savedItems = data ?? [];
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const anim = Animated.loop(
@@ -48,20 +43,11 @@ export default function SavedScreen({ navigation }: Props) {
     return () => anim.stop();
   }, [isLoading, pulseAnim]);
 
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
-  };
-
-  const toggleSave = (id: string) =>
-    setSavedItems(prev => prev.filter(l => l.id !== id));
-
   const renderItem = ({ item }: { item: Listing }) => (
     <ListingCard
       item={item}
-      onPress={() => navigation.navigate('ListingDetail', { listing: item })}
-      onSave={() => toggleSave(item.id)}
+      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+      onSave={() => toggleSavedMutation.mutate(item)}
       style={styles.card}
     />
   );
@@ -98,10 +84,10 @@ export default function SavedScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
-      ) : hasError && activeTab === 'Items' ? (
+      ) : isError && activeTab === 'Items' ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
       ) : activeTab === 'Items' ? (
         <FlatList

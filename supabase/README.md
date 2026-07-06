@@ -11,15 +11,19 @@ against a live database yet — review before applying.
 | `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`), indexes, and `enable row level security` on each. |
 | `migrations/0002_rls_policies.sql` | RLS policies + the `is_blocked()` helper. Apply **after** 0001. |
 | `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets (with size/mime-type limits) and their `storage.objects` policies (authenticated upload to own prefix, public URL read via the bucket's `public` flag, owner-only delete). |
-| `migrations/0005_messages_read_receipts.sql` | `messages.read_at` (receiver-only update via column grant), the unread partial index, and adds `messages` to the Realtime publication. |
-| `migrations/0006_conversation_list_view.sql` | `conversation_list` view (`security_invoker`): one row per (listing, partner) thread — last message + unread count — for the caller. Backs the Messages inbox. Apply **after** 0005. |
-| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002) **and** the storage.objects policies (0003). Run **after** 0001+0002+0003. |
+| `migrations/0006_saved_listing_counts.sql` | `my_listing_save_counts()` — a `SECURITY DEFINER` RPC, scoped to the caller's own listings, that aggregates `saved_listings` across users (a direct table query is RLS-scoped to the caller's own save row, so it can't produce a real count). |
+| `migrations/0007_increment_listing_views.sql` | `increment_listing_views()` — a `SECURITY DEFINER` RPC that atomically bumps a listing's view counter for any authenticated viewer *except the owner* (RLS scopes plain UPDATEs to the seller, which would leave views frozen for real browsers; the owner exclusion stops self-inflation). |
+| `migrations/0008_messages_read_receipts.sql` | `messages.read_at` (receiver-only update via column grant), the unread partial index, and adds `messages` to the Realtime publication. |
+| `migrations/0009_conversation_list_view.sql` | `conversation_list` view (`security_invoker`): one row per (listing, partner) thread — last message + unread count — for the caller. Backs the Messages inbox. Apply **after** 0008. |
+| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0003), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0003+0006. |
+| `tests/messages_read_receipts_test.sql` | Read-receipt + `conversation_list` policy tests (receiver-only `read_at` writes, column-grant immutability, unread counts). Run **after** 0008+0009. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
-- **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, then
-  `health_check.sql`. I can drive this directly once the MCP is connected.
+- **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, `0006`,
+  `0007`, `0008`, `0009`, then `health_check.sql`. I can drive this directly once
+  the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 

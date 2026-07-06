@@ -1,7 +1,7 @@
 -- Messages: read receipts + Realtime (AX-113; groundwork for AX-501/AX-503).
 --
--- Numbered 0005 on purpose: the open PRs for storage buckets and profile
--- onboarding both stake out 0003/0004. Do not renumber below them.
+-- Numbered 0008: 0003-0007 are taken by the storage/onboarding/save-count/
+-- view-counter migrations already on main. Do not renumber below them.
 
 -- read_at: null = unread. Set by the receiver when they open the thread.
 alter table public.messages

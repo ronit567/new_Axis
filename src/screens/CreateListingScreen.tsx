@@ -21,6 +21,7 @@ import { LISTING_CATEGORIES } from '../constants/categories';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
+import { useCreateListing, type LocalPhoto } from '../hooks/useListings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
@@ -40,7 +41,8 @@ export default function CreateListingScreen({ navigation }: Props) {
   const [isFree, setIsFree] = useState(false);
   const [isTrade, setIsTrade] = useState(false);
   const [condition, setCondition] = useState('Like new');
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const createListing = useCreateListing();
 
   const canPost = title.trim().length > 0 && (price.length > 0 || isFree);
 
@@ -61,7 +63,10 @@ export default function CreateListingScreen({ navigation }: Props) {
             aspect: [1, 1],
           });
           if (!result.canceled) {
-            setPhotos(prev => [...prev, result.assets[0].uri].slice(0, MAX_PHOTOS));
+            const asset = result.assets[0];
+            setPhotos(prev =>
+              [...prev, { uri: asset.uri, mimeType: asset.mimeType ?? null }].slice(0, MAX_PHOTOS)
+            );
           }
         },
       },
@@ -81,7 +86,10 @@ export default function CreateListingScreen({ navigation }: Props) {
           });
           if (!result.canceled) {
             setPhotos(prev =>
-              [...prev, ...result.assets.map(a => a.uri)].slice(0, MAX_PHOTOS)
+              [...prev, ...result.assets.map(a => ({ uri: a.uri, mimeType: a.mimeType ?? null }))].slice(
+                0,
+                MAX_PHOTOS,
+              )
             );
           }
         },
@@ -109,10 +117,28 @@ export default function CreateListingScreen({ navigation }: Props) {
     if (!isTrade) setIsFree(false);
   };
 
-  const handlePost = () => {
-    if (canPost) {
-      haptics.impact();
+  const handlePost = async () => {
+    if (!canPost || createListing.isPending) return;
+    haptics.impact();
+    try {
+      await createListing.mutateAsync({
+        title: title.trim(),
+        description: description.trim(),
+        price: isFree ? 0 : parseFloat(price) || 0,
+        is_free: isFree,
+        is_trade: isTrade,
+        condition: condition as 'Like new' | 'Good' | 'Fair',
+        category,
+        // No pickup-location input on this screen yet — left blank until one exists.
+        pickup: '',
+        photos,
+      });
       navigation.goBack();
+    } catch (error) {
+      Alert.alert(
+        "Couldn't post listing",
+        error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+      );
     }
   };
 
@@ -137,13 +163,13 @@ export default function CreateListingScreen({ navigation }: Props) {
           style={styles.headerPostBtn}
           scaleTo={0.9}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          disabled={!canPost}
+          disabled={!canPost || createListing.isPending}
           accessibilityLabel="Post listing"
           accessibilityRole="button"
-          accessibilityState={{ disabled: !canPost }}
+          accessibilityState={{ disabled: !canPost || createListing.isPending }}
         >
           <Text style={[styles.postText, canPost ? styles.postTextActive : null]}>
-            Post
+            {createListing.isPending ? 'Posting…' : 'Post'}
           </Text>
         </PressableScale>
       </View>
@@ -160,9 +186,9 @@ export default function CreateListingScreen({ navigation }: Props) {
           {/* Photos */}
           <Text style={styles.sectionHeading}>Photos</Text>
           <View style={styles.photosRow}>
-            {photos.map((uri, index) => (
-              <View key={uri + index} style={styles.photoThumb}>
-                <Image source={{ uri }} style={styles.photoThumbImage} />
+            {photos.map((photo, index) => (
+              <View key={photo.uri + index} style={styles.photoThumb}>
+                <Image source={{ uri: photo.uri }} style={styles.photoThumbImage} />
                 <PressableScale
                   style={styles.photoRemoveBtn}
                   onPress={() => handleRemovePhoto(index)}
@@ -331,12 +357,14 @@ export default function CreateListingScreen({ navigation }: Props) {
         <PressableScale
           style={[styles.postBtn, !canPost ? styles.postBtnDisabled : null]}
           onPress={handlePost}
-          disabled={!canPost}
+          disabled={!canPost || createListing.isPending}
           accessibilityLabel="Post listing"
           accessibilityRole="button"
-          accessibilityState={{ disabled: !canPost }}
+          accessibilityState={{ disabled: !canPost || createListing.isPending }}
         >
-          <Text style={styles.postBtnText}>Post listing</Text>
+          <Text style={styles.postBtnText}>
+            {createListing.isPending ? 'Posting…' : 'Post listing'}
+          </Text>
         </PressableScale>
       </View>
     </SafeAreaView>

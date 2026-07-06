@@ -29,7 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listingId, partnerId, partner, listing, listingTitle, listingPrice } = route.params;
+  const { listingId, partnerId, partner, listingTitle, listingPrice } = route.params;
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
@@ -50,9 +50,6 @@ export default function ChatScreen({ navigation, route }: Props) {
     markRead.mutate({ listingId, partnerId });
   }, [messages, user?.id, listingId, partnerId, markRead]);
 
-  const title = listing?.title ?? listingTitle;
-  const price = listing?.price ?? listingPrice;
-
   const handleSend = () => {
     const text = inputText.trim();
     if (!text) return;
@@ -69,10 +66,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   };
 
+  // Only offered when the thread has a listing we can still show (title
+  // present means the row is visible under RLS) — ListingDetail loads by id.
+  const canViewListing = listingId !== null && listingTitle != null;
   const handleViewListing = () => {
-    if (!listing) return;
+    if (listingId === null) return;
     haptics.tap();
-    navigation.navigate('ListingDetail', { listing });
+    navigation.navigate('ListingDetail', { listingId });
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -120,7 +120,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         <View style={styles.headerInfo}>
           <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
         </View>
-        {listing && (
+        {canViewListing && (
           <PressableScale
             style={styles.viewBtn}
             onPress={handleViewListing}
@@ -143,14 +143,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       </View>
 
       {/* Listing preview banner */}
-      {(listing || listingTitle) && (
+      {listingTitle != null && (
         <View style={styles.listingBanner}>
           <View style={styles.listingThumb} />
           <View style={styles.listingInfo}>
-            <Text style={styles.listingTitle}>{title}</Text>
-            {price != null && <Text style={styles.listingPrice}>${price}</Text>}
+            <Text style={styles.listingTitle}>{listingTitle}</Text>
+            {listingPrice != null && <Text style={styles.listingPrice}>${listingPrice}</Text>}
           </View>
-          {listing && (
+          {canViewListing && (
             <PressableScale style={styles.viewBannerBtn} onPress={handleViewListing} scaleTo={0.94}>
               <Text style={styles.viewBannerBtnText}>View</Text>
             </PressableScale>

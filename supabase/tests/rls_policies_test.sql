@@ -1,7 +1,8 @@
 -- Axis — RLS policy tests (owner vs non-owner vs anon vs blocked).
 --
--- 0001 + 0002 + 0003 must already be applied (the storage scenarios need the
--- buckets created in 0003 to exist). Execute this whole file in the Supabase
+-- 0001 + 0002 + 0003 + 0006 must already be applied (the storage scenarios
+-- need the buckets created in 0003; scenario 12 needs the
+-- my_listing_save_counts() function from 0006). Execute this whole file in the Supabase
 -- SQL editor or via psql against the project DB. It:
 --   * runs inside BEGIN ... ROLLBACK, so it leaves NO data behind (storage
 --     objects inserted below roll back with the surrounding transaction);
@@ -426,6 +427,44 @@ select pg_temp.assert(
   'owner must still read their own object under the RESTRICTIVE policy');
 reset role;
 drop policy test_stray_permissive_select_all on storage.objects;
+
+-- ── Scenario 12: my_listing_save_counts() (0006) aggregates saves across
+--    users for the caller's own listings — bypassing saved_select_own's
+--    per-user restriction (0002) just enough to do that, and no further.
+--    OTHER and BLOCKED both save OWNER's active listing (aaaa).
+insert into public.saved_listings (user_id, listing_id) values
+  ('22222222-2222-2222-2222-222222222222', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  ('33333333-3333-3333-3333-333333333333', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}', true);
+-- Direct table access only ever sees the caller's OWN save row (saved_select_own)
+-- — this is exactly the gap the RPC exists to work around, not a real count.
+select pg_temp.assert(
+  (select count(*) from public.saved_listings) = 1,
+  'direct saved_listings select must stay scoped to the caller''s own save row');
+-- The RPC bypasses that just enough to sum saves-by-anyone for the caller's
+-- own listings: aaaa has 2 saves (OTHER + BLOCKED); bbbb has none, so no row.
+select pg_temp.assert(
+  (select count(*) from public.my_listing_save_counts()) = 1,
+  'owner should get exactly one save-count row (only aaaa has any saves)');
+select pg_temp.assert(
+  (select saves from public.my_listing_save_counts()
+     where listing_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 2,
+  'aaaa should show 2 saves, aggregated across OTHER and BLOCKED');
+reset role;
+
+-- OTHER owns no listings, so the RPC must return nothing for them even though
+-- OTHER is one of the users who saved OWNER's listing — it can't be used to
+-- learn how many saves someone else's listing has.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+select pg_temp.assert(
+  (select count(*) from public.my_listing_save_counts()) = 0,
+  'a caller with no listings of their own must get an empty result, never another seller''s counts');
+reset role;
 
 -- If we got here, every assertion passed.
 do $$ begin raise notice 'ALL RLS TESTS PASSED'; end $$;

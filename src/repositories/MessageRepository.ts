@@ -20,7 +20,7 @@ export type MessageEventHandlers = {
 }
 
 export const MessageRepository = {
-  // getConversations reads the conversation_list view (migration 0006): one
+  // getConversations reads the conversation_list view (migration 0009): one
   // row per (listing, partner) thread — the thread's last message columns plus
   // its unread count, bucketed server-side under the caller's RLS. Partner and
   // listing hydration stays a client-side manual join, same style as
@@ -119,7 +119,7 @@ export const MessageRepository = {
   },
 
   // Receiver-side read receipt: stamps every unread incoming message in the
-  // thread. RLS + the column grant from migration 0005 keep this receiver-only
+  // thread. RLS + the column grant from migration 0008 keep this receiver-only
   // and read_at-only.
   async markConversationRead(
     listingId: string | null,

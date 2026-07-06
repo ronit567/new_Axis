@@ -8,15 +8,23 @@
 // once it does.
 //
 // MANUAL ADDITION (pending regen): `messages.read_at` was hand-added alongside
-// migration 0005 (read receipts). Same deal — regenerate after applying 0005.
+// migration 0008 (read receipts). Same deal — regenerate after applying 0008.
 //
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
 //
-// MANUAL ADDITION: the `conversation_list` view (migration 0006) was hand-added
-// with tight nullability. NOTE: the generator emits every view column as
-// nullable (PG can't infer NOT NULL through a view) — after regenerating, keep
-// this hand-tightened Views entry rather than the generated one.
+// MANUAL ADDITION: the `conversation_list` view was hand-added with tight
+// nullability. NOTE: the generator emits every view column as nullable (PG
+// can't infer NOT NULL through a view) — after regenerating, keep this
+// hand-tightened Views entry rather than the generated one.
+//
+// MANUAL ADDITION (pending regen): the `increment_listing_views` function was
+// hand-added alongside migration 0007 (AX-111 view counter RPC). Drop this
+// note once regenerated.
+//
+// MANUAL ADDITION (pending regen): the `my_listing_save_counts` function was
+// hand-added alongside migration 0006 (AX-401 save counts). Drop this note
+// once regenerated.
 //
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
@@ -314,7 +322,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      increment_listing_views: {
+        Args: { listing_id: string }
+        Returns: undefined
+      }
+      my_listing_save_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: { listing_id: string; saves: number }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -338,5 +353,4 @@ export type ConversationListRow = DefaultSchema['Views']['conversation_list']['R
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 
-export type ListingCondition = 'Like new' | 'Good' | 'Fair'
 export type ListingStatus = 'active' | 'sold'

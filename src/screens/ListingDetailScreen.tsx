@@ -1,36 +1,99 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
-import { SELLER_ARIA } from '../data/mockListings';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
 import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
 import { useAuth } from '../context/AuthContext';
-import { sellerToContact } from '../repositories/mappers';
+import { useListing } from '../hooks/useListings';
+import { useToggleSaved } from '../hooks/useSavedListings';
+import { useProfile } from '../hooks/useProfile';
+import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
 const DOTS = [0, 1, 2, 3];
 
 export default function ListingDetailScreen({ navigation, route }: Props) {
-  const { listing } = route.params;
+  const { listingId } = route.params;
+  const { data: listing, isLoading, isError, refetch } = useListing(listingId);
+  // Fetched alongside the listing so tapping through to the seller card has
+  // real data ready; the nested `listing.seller` is a lightweight summary,
+  // not the full SellerProfile the SellerProfile screen needs.
+  const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
+  const toggleSavedMutation = useToggleSaved();
 
-  const [saved, setSaved] = useState(listing.saved);
+  const [saved, setSaved] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
   const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+
+  // `saved` is optimistic local state: flip immediately, roll back on failure.
+  // The mutation takes the full listing with the pre-tap saved flag — local
+  // state may be ahead of the query cache if the user toggles before a
+  // refetch lands, so `saved` (not `listing.saved`) is the source of truth.
+  const handleToggleSave = () => {
+    if (!listing) return;
+    haptics.tap();
+    const wasSaved = saved;
+    setSaved(!wasSaved);
+    toggleSavedMutation.mutate(
+      { ...listing, saved: wasSaved },
+      { onError: () => setSaved(wasSaved) },
+    );
+  };
+
+  useEffect(() => {
+    if (listing) setSaved(listing.saved);
+  }, [listing]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState message="Something went wrong. Please try again." onRetry={() => refetch()} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!listing) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <EmptyState
+          icon="alert-circle-outline"
+          title="This listing is no longer available."
+          ctaLabel="Go back"
+          onCta={() => navigation.goBack()}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const sellerInitials = deriveInitials(listing.seller.name);
   const isOwnListing = user?.id === listing.seller.id;
 
   return (
@@ -59,10 +122,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           </PressableScale>
           <PressableScale
             style={styles.iconBtn}
-            onPress={() => {
-              haptics.tap();
-              setSaved(s => !s);
-            }}
+            onPress={handleToggleSave}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             scaleTo={0.9}
             accessibilityRole="button"
@@ -143,19 +203,22 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Seller Card */}
+          {/* Seller Card — disabled (and dimmed) until the full profile has
+              loaded, so a tap never silently does nothing mid-fetch. */}
           <PressableScale
-            style={styles.sellerCard}
+            style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
             onPress={() => {
               haptics.tap();
-              navigation.navigate('SellerProfile', { seller: SELLER_ARIA });
+              if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
             }}
+            disabled={!sellerProfile}
             scaleTo={0.98}
             accessibilityRole="button"
             accessibilityLabel={`View seller ${listing.seller.name}`}
+            accessibilityState={{ disabled: !sellerProfile }}
           >
             <View style={styles.sellerAvatar}>
-              <Text style={styles.sellerInitials}>AK</Text>
+              <Text style={styles.sellerInitials}>{sellerInitials}</Text>
             </View>
             <View style={styles.sellerInfo}>
               <View style={styles.sellerNameRow}>
@@ -164,7 +227,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                   <View style={[styles.onlineDot, { backgroundColor: listing.seller.dotColor }]} />
                 </View>
               </View>
-              <Text style={styles.sellerMeta}>4.4 (152) · BMOS · Year {listing.seller.year}</Text>
+              <Text style={styles.sellerMeta}>{listing.seller.program} · Year {listing.seller.year}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </PressableScale>
@@ -207,7 +270,6 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                 listingId: listing.id,
                 partnerId: listing.seller.id,
                 partner: sellerToContact(listing.seller),
-                listing,
                 listingTitle: listing.title,
                 listingPrice: listing.price,
               });
@@ -232,6 +294,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topBar: {
     flexDirection: 'row',
@@ -334,6 +401,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceAlt,
     borderRadius: 16,
     padding: 14,
+  },
+  sellerCardLoading: {
+    opacity: 0.6,
   },
   sellerAvatar: {
     width: 44,

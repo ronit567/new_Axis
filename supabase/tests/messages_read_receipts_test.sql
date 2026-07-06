@@ -1,9 +1,9 @@
--- Axis — read-receipt policy tests (migration 0005).
+-- Axis — read-receipt policy tests (migration 0008).
 --
 -- Same harness as rls_policies_test.sql: runs inside BEGIN ... ROLLBACK,
 -- switches identity via set local role + request.jwt.claims, raises on the
 -- first failed assertion, prints ALL READ-RECEIPT TESTS PASSED on success.
--- Kept as a separate file so it can run independently after 0005 is applied.
+-- Kept as a separate file so it can run independently after 0008 is applied.
 
 begin;
 

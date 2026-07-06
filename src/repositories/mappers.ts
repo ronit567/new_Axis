@@ -10,6 +10,7 @@ import type {
   Conversation,
   Listing,
   Message,
+  MyListing,
   Seller,
   SellerProfile,
 } from '../types';
@@ -80,6 +81,7 @@ export function toSeller(row: ProfileRow): Seller {
     name: row.name,
     year: row.year ?? DEFAULT_YEAR,
     location: row.location ?? '',
+    program: row.program ?? '',
     dotColor: DEFAULT_DOT_COLOR,
   };
 }
@@ -104,6 +106,25 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     views: row.views,
     postedAgo: timeAgo(row.created_at),
     pickup: row.pickup ?? '',
+  };
+}
+
+// ManageListingsScreen's own-listings view. `saves` is aggregated by the
+// caller (a count across saved_listings, same batch-join shape as toListing's
+// isSaved) rather than read off the row, since it isn't a column.
+export function toMyListing(row: ListingRow, saves: number): MyListing {
+  return {
+    id: row.id,
+    title: row.title,
+    price: row.price,
+    status: row.status === 'sold' ? 'sold' : 'active',
+    category: row.category ?? DEFAULT_CATEGORY,
+    views: row.views,
+    saves,
+    postedAgo: timeAgo(row.created_at),
+    imageColor: pickImageColor(row.id),
+    // No separate "sale price" column — a sold listing keeps its list price.
+    soldFor: row.status === 'sold' ? row.price : undefined,
   };
 }
 

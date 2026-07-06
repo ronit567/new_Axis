@@ -3,6 +3,7 @@ export type Seller = {
   name: string;
   year: number;
   location: string;
+  program: string;
   dotColor: string;
 };
 
@@ -20,6 +21,11 @@ export type SellerProfile = {
   stats: { listings: number; sold: number; replyTime: string };
   avatarColor: string;
 };
+
+// The finite set of condition values the UI offers (create-listing form,
+// search filters) — domain-level, not derived from the DB schema, so screens
+// and hooks can depend on it without reaching into src/types/database.
+export type ListingCondition = 'Like new' | 'Good' | 'Fair';
 
 export type Listing = {
   id: string;
@@ -99,18 +105,17 @@ export type RootStackParamList = {
   Settings: undefined;
   Main: undefined;
   Search: undefined;
-  ListingDetail: { listing: Listing };
+  ListingDetail: { listingId: string };
   SellerProfile: { seller: SellerProfile };
   CreateListing: undefined;
   Messages: undefined;
   // IDs drive the data; `partner` is display info so the header renders before
-  // any fetch. `listing` is optional and only enables the "View" round-trip
-  // until ListingDetail can load by id (AX-203).
+  // any fetch. listingTitle/listingPrice feed the banner, and a present title
+  // also enables the "View" round-trip (ListingDetail loads by id).
   Chat: {
     listingId: string | null;
     partnerId: string;
     partner: Contact;
-    listing?: Listing;
     listingTitle?: string;
     listingPrice?: number;
   };
