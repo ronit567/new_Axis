@@ -321,7 +321,7 @@ describe('MessageRepository.getMessages', () => {
 });
 
 describe('MessageRepository.send', () => {
-  it('inserts listing_id/sender_id/receiver_id/body and returns the mapped domain Message', async () => {
+  it('inserts the client-generated id plus listing/sender/receiver/body and returns the mapped domain Message', async () => {
     const insertedRow = makeMessageRow({
       id: 'm-new',
       listing_id: 'lst1',
@@ -337,12 +337,14 @@ describe('MessageRepository.send', () => {
     mockTables({ messages: messagesBuilder });
 
     const result = await MessageRepository.send('me', {
+      id: 'm-new',
       listingId: 'lst1',
       receiverId: 'p1',
       body: 'Is this still available?',
     });
 
     expect(messagesBuilder.insert).toHaveBeenCalledWith({
+      id: 'm-new',
       listing_id: 'lst1',
       sender_id: 'me',
       receiver_id: 'p1',
@@ -367,7 +369,12 @@ describe('MessageRepository.send', () => {
     );
     mockTables({ messages: messagesBuilder });
 
-    await MessageRepository.send('me', { listingId: null, receiverId: 'p1', body: 'Hey' });
+    await MessageRepository.send('me', {
+      id: 'm-new',
+      listingId: null,
+      receiverId: 'p1',
+      body: 'Hey',
+    });
 
     expect(messagesBuilder.insert).toHaveBeenCalledWith(
       expect.objectContaining({ listing_id: null }),

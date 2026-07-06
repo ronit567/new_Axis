@@ -129,12 +129,23 @@ export default function MessagesScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <EmptyState
-              icon="chatbubble-ellipses-outline"
-              title="No conversations yet. Start a chat by messaging a seller on any listing."
-              ctaLabel="Browse listings"
-              onCta={() => navigation.navigate('Main')}
-            />
+            conversations.length > 0 ? (
+              // Threads exist, just none under this filter — don't imply an
+              // empty inbox.
+              <EmptyState
+                icon="chatbubble-ellipses-outline"
+                title={`No ${activeFilter.toLowerCase()} conversations yet.`}
+                ctaLabel="Show all"
+                onCta={() => setActiveFilter('All')}
+              />
+            ) : (
+              <EmptyState
+                icon="chatbubble-ellipses-outline"
+                title="No conversations yet. Start a chat by messaging a seller on any listing."
+                ctaLabel="Browse listings"
+                onCta={() => navigation.navigate('Main')}
+              />
+            )
           }
           refreshControl={
             <RefreshControl
@@ -283,22 +294,5 @@ const styles = StyleSheet.create({
   skeletonRowContent: {
     flex: 1,
     gap: 8,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 40,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

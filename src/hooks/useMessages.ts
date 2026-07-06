@@ -32,8 +32,10 @@ export function useMessages(listingId: string | null, partnerId: string) {
   })
 }
 
-// Optimistic send: the bubble appears instantly under a temp id, rolls back on
-// error, and is reconciled with the server row by the settled invalidation.
+// Optimistic send: the bubble appears instantly under the message's real
+// (client-generated) id, rolls back on error, and is reconciled with the
+// server row — by the realtime echo and the settled invalidation — via that
+// same id.
 export function useSendMessage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -48,7 +50,7 @@ export function useSendMessage() {
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<Message[]>(key)
       const optimistic: Message = {
-        id: `optimistic-${Date.now()}`,
+        id: input.id,
         listingId: input.listingId,
         senderId: user.id,
         receiverId: input.receiverId,
@@ -127,19 +129,13 @@ export function useMessagesRealtime() {
       onInsert: (message) => {
         queryClient.setQueryData<Message[]>(threadKey(message), (old) => {
           if (!old) return old
-          // The settled invalidation can race the subscription — dedup by id.
-          if (old.some((existing) => existing.id === message.id)) return old
-          // Our own send echoing back before the mutation settles: replace the
-          // optimistic bubble instead of appending a duplicate.
-          const optimisticIndex = old.findIndex(
-            (existing) =>
-              existing.id.startsWith('optimistic-') &&
-              existing.senderId === message.senderId &&
-              existing.body === message.body,
-          )
-          if (optimisticIndex !== -1) {
+          // Ids are client-generated, so an own send echoing back shares its
+          // optimistic entry's id — replace it (the server row carries the
+          // canonical created_at). Also dedups against the settled refetch.
+          const index = old.findIndex((existing) => existing.id === message.id)
+          if (index !== -1) {
             const next = [...old]
-            next[optimisticIndex] = message
+            next[index] = message
             return next
           }
           return [...old, message]
@@ -150,7 +146,13 @@ export function useMessagesRealtime() {
         queryClient.setQueryData<Message[]>(threadKey(message), (old) =>
           old?.map((existing) => (existing.id === message.id ? message : existing)),
         )
-        queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
+        // Only reads of messages *I received* change my unread counts (a read
+        // on another device clearing the inbox dot). The partner reading my
+        // sent messages only affects the "Read" label, already updated above —
+        // skip the 3-query inbox rebuild for those.
+        if (message.receiverId === userId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
+        }
       },
     })
   }, [userId, queryClient])

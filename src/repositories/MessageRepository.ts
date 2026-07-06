@@ -9,6 +9,10 @@ import type {
 } from '../types/database'
 
 export type SendMessageInput = {
+  // Client-generated UUID (the row's actual id). The optimistic cache entry,
+  // the realtime echo, and the mutation result all carry the same id, so every
+  // reconciliation path keys on it — no temp-id/body matching heuristics.
+  id: string
   listingId: string | null
   receiverId: string
   body: string
@@ -107,6 +111,7 @@ export const MessageRepository = {
     const { data: row, error } = await supabase
       .from('messages')
       .insert({
+        id: data.id,
         listing_id: data.listingId,
         sender_id: senderId,
         receiver_id: data.receiverId,

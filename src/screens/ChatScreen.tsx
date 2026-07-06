@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import * as Crypto from 'expo-crypto';
 import { COLORS, SIZES, GRADIENTS, FONTS, SHADOWS } from '../constants/theme';
 import { Message, RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -33,7 +34,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
-  const messages = data ?? [];
+  const messages = useMemo(() => data ?? [], [data]);
   const sendMessage = useSendMessage();
   const markRead = useMarkConversationRead();
   // Newest unread id we've already requested a receipt for. Re-arms whenever a
@@ -61,7 +62,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     haptics.tap();
     setInputText('');
     sendMessage.mutate(
-      { listingId, receiverId: partnerId, body: text },
+      { id: Crypto.randomUUID(), listingId, receiverId: partnerId, body: text },
       {
         onError: () => {
           // Put the failed message back (unless they've already typed more)
@@ -86,40 +87,42 @@ export default function ChatScreen({ navigation, route }: Props) {
   // Read receipt, iMessage-style: only under the newest of my sent messages
   // the partner has opened. Realtime UPDATEs flip readAt in the cache, so this
   // moves live while the thread is open.
-  let lastReadSentId: string | null = null;
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const m = messages[i];
-    if (m.senderId === user?.id && m.readAt !== null) {
-      lastReadSentId = m.id;
-      break;
+  const lastReadSentId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m.senderId === user?.id && m.readAt !== null) return m.id;
     }
-  }
+    return null;
+  }, [messages, user?.id]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const sent = item.senderId === user?.id;
-    return (
-      <View style={[styles.bubbleWrap, sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
-        {sent ? (
-          <LinearGradient
-            colors={GRADIENTS.primary}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.bubble, styles.bubbleSent]}
-          >
-            <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.body}</Text>
-          </LinearGradient>
-        ) : (
-          <View style={[styles.bubble, styles.bubbleReceived]}>
-            <Text style={styles.bubbleText}>{item.body}</Text>
-          </View>
-        )}
-        <Text style={styles.timestamp}>
-          {formatClockTime(item.createdAt)}
-          {item.id === lastReadSentId ? ' · Read' : ''}
-        </Text>
-      </View>
-    );
-  };
+  const renderMessage = useCallback(
+    ({ item }: { item: Message }) => {
+      const sent = item.senderId === user?.id;
+      return (
+        <View style={[styles.bubbleWrap, sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
+          {sent ? (
+            <LinearGradient
+              colors={GRADIENTS.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.bubble, styles.bubbleSent]}
+            >
+              <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.body}</Text>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.bubble, styles.bubbleReceived]}>
+              <Text style={styles.bubbleText}>{item.body}</Text>
+            </View>
+          )}
+          <Text style={styles.timestamp}>
+            {formatClockTime(item.createdAt)}
+            {item.id === lastReadSentId ? ' · Read' : ''}
+          </Text>
+        </View>
+      );
+    },
+    [user?.id, lastReadSentId],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -188,9 +191,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       >
         {/* Messages */}
         {isPending ? (
-          <View style={styles.centerFill}>
-            <ActivitySpinner />
-          </View>
+          <ActivitySpinner style={styles.centerFill} />
         ) : isError ? (
           <ErrorState message="Couldn't load messages." onRetry={() => refetch()} />
         ) : (
@@ -217,8 +218,6 @@ export default function ChatScreen({ navigation, route }: Props) {
             placeholder="Message..."
             placeholderTextColor={COLORS.textMuted}
             multiline
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
           />
           <PressableScale
             style={[styles.sendBtn, inputText.trim() ? styles.sendBtnActive : null]}
@@ -350,10 +349,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  // ActivitySpinner centers its own content; this just fills the list area.
   centerFill: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   messageList: {
     paddingHorizontal: 16,
