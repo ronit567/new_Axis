@@ -29,9 +29,11 @@ const TABS: Tab[] = [
 type Props = {
   activeTab: TabName;
   onTabPress: (tab: TabName) => void;
+  // Total unread messages; > 0 renders a count bubble on the Messages tab.
+  messagesBadge?: number;
 };
 
-export default function BottomTabBar({ activeTab, onTabPress }: Props) {
+export default function BottomTabBar({ activeTab, onTabPress, messagesBadge = 0 }: Props) {
   const insets = useSafeAreaInsets();
 
   // Split the home-indicator inset evenly above and below the row so the
@@ -68,11 +70,20 @@ export default function BottomTabBar({ activeTab, onTabPress }: Props) {
               </LinearGradient>
             ) : (
               <>
-                <Ionicons
-                  name={isActive ? tab.activeIcon : tab.icon}
-                  size={22}
-                  color={isActive ? COLORS.primary : COLORS.textMuted}
-                />
+                <View>
+                  <Ionicons
+                    name={isActive ? tab.activeIcon : tab.icon}
+                    size={22}
+                    color={isActive ? COLORS.primary : COLORS.textMuted}
+                  />
+                  {tab.name === 'Messages' && messagesBadge > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {messagesBadge > 9 ? '9+' : messagesBadge}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.label, isActive ? styles.labelActive : null]}>
                   {tab.label}
                 </Text>
@@ -123,5 +134,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: -18,
     ...SHADOWS.brand,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
+  },
+  badgeText: {
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '700',
+    includeFontPadding: false,
   },
 });

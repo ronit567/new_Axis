@@ -83,14 +83,23 @@ export function useMarkConversationRead() {
       if (!user) throw new Error('Not signed in')
       return MessageRepository.markConversationRead(input.listingId, input.partnerId, user.id)
     },
-    // Refresh the inbox so the unread dot clears; the open thread's own cache
-    // doesn't render read state yet, so it can stay as-is.
-    onSuccess: () => {
-      if (user) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.conversations(user.id),
-        })
-      }
+    // Stamp the thread cache directly (the realtime UPDATE echo would do it
+    // too, but this also converges when the socket is down), then refresh the
+    // inbox so the unread dot clears. The timestamp is approximate until the
+    // next refetch replaces it with the server's value.
+    onSuccess: (_data, input) => {
+      if (!user) return
+      const readAt = new Date().toISOString()
+      queryClient.setQueryData<Message[]>(
+        queryKeys.messages(input.listingId, input.partnerId),
+        (old) =>
+          old?.map((m) =>
+            m.receiverId === user.id && m.readAt === null ? { ...m, readAt } : m,
+          ),
+      )
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations(user.id),
+      })
     },
   })
 }

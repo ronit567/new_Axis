@@ -36,17 +36,22 @@ export default function ChatScreen({ navigation, route }: Props) {
   const messages = data ?? [];
   const sendMessage = useSendMessage();
   const markRead = useMarkConversationRead();
-  const hasMarkedRead = useRef(false);
+  // Newest unread id we've already requested a receipt for. Re-arms whenever a
+  // newer unread message lands (e.g. via realtime while the thread is open),
+  // so receipts keep flowing for the whole time the user is looking at the
+  // thread — not just on first open.
+  const lastMarkedUnreadId = useRef<string | null>(null);
 
   const [inputText, setInputText] = useState('');
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
   useEffect(() => {
-    if (hasMarkedRead.current) return;
-    const hasUnread = messages.some(m => m.receiverId === user?.id && m.readAt === null);
-    if (!hasUnread) return;
-    hasMarkedRead.current = true;
+    const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);
+    if (unread.length === 0) return;
+    const newestUnreadId = unread[unread.length - 1].id;
+    if (lastMarkedUnreadId.current === newestUnreadId) return;
+    lastMarkedUnreadId.current = newestUnreadId;
     markRead.mutate({ listingId, partnerId });
   }, [messages, user?.id, listingId, partnerId, markRead]);
 
@@ -59,6 +64,9 @@ export default function ChatScreen({ navigation, route }: Props) {
       { listingId, receiverId: partnerId, body: text },
       {
         onError: () => {
+          // Put the failed message back (unless they've already typed more)
+          // so it isn't lost with the rolled-back bubble.
+          setInputText(current => (current.length > 0 ? current : text));
           Alert.alert('Message not sent', 'Please try again.');
         },
       },
@@ -74,6 +82,18 @@ export default function ChatScreen({ navigation, route }: Props) {
     haptics.tap();
     navigation.navigate('ListingDetail', { listingId });
   };
+
+  // Read receipt, iMessage-style: only under the newest of my sent messages
+  // the partner has opened. Realtime UPDATEs flip readAt in the cache, so this
+  // moves live while the thread is open.
+  let lastReadSentId: string | null = null;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const m = messages[i];
+    if (m.senderId === user?.id && m.readAt !== null) {
+      lastReadSentId = m.id;
+      break;
+    }
+  }
 
   const renderMessage = ({ item }: { item: Message }) => {
     const sent = item.senderId === user?.id;
@@ -93,7 +113,10 @@ export default function ChatScreen({ navigation, route }: Props) {
             <Text style={styles.bubbleText}>{item.body}</Text>
           </View>
         )}
-        <Text style={styles.timestamp}>{formatClockTime(item.createdAt)}</Text>
+        <Text style={styles.timestamp}>
+          {formatClockTime(item.createdAt)}
+          {item.id === lastReadSentId ? ' · Read' : ''}
+        </Text>
       </View>
     );
   };
