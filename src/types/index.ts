@@ -12,6 +12,7 @@ export type SellerProfile = {
   name: string;
   initials: string;
   program: string;
+  location: string;
   bio: string;
   joinedDate: string;
   rating: number;

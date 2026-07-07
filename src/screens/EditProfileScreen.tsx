@@ -7,18 +7,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, SellerProfile } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { haptics } from '../lib/haptics';
+import { useCurrentProfile, useUpsertProfile } from '../hooks/useProfile';
+import { deriveInitials } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -38,18 +42,71 @@ const YEARS = [1, 2, 3, 4, 'Grad'];
 const BIO_MAX = 150;
 
 export default function EditProfileScreen({ navigation }: Props) {
-  const [name, setName] = useState('Ronit S.');
-  const [program, setProgram] = useState('Ivey HBA');
-  const [year, setYear] = useState<number | string>(2);
-  const [bio, setBio] = useState('2nd-year Ivey student, mostly selling textbooks & dorm stuff.');
-  const [pickupArea, setPickupArea] = useState('UCC');
+  const { data: profile, isLoading } = useCurrentProfile();
+
+  if (isLoading || !profile) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <PressableScale
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+          </PressableScale>
+          <Text style={styles.headerTitle}>Edit profile</Text>
+          <View style={styles.saveHeaderBtn} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <EditProfileForm navigation={navigation} profile={profile} />;
+}
+
+function EditProfileForm({
+  navigation,
+  profile,
+}: {
+  navigation: Props['navigation'];
+  profile: SellerProfile;
+}) {
+  const upsertProfile = useUpsertProfile();
+  const [name, setName] = useState(profile.name);
+  const [program, setProgram] = useState(profile.program || 'Ivey HBA');
+  const [year, setYear] = useState<number | string>(profile.year);
+  const [bio, setBio] = useState(profile.bio);
+  const [pickupArea, setPickupArea] = useState(profile.location);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
 
   const [bioFocused, setBioFocused] = useState(false);
 
-  const handleSave = () => {
+  const canSave = name.trim().length > 0 && !upsertProfile.isPending;
+
+  const handleSave = async () => {
+    if (!canSave) return;
     haptics.impact();
-    navigation.goBack();
+    try {
+      await upsertProfile.mutateAsync({
+        name: name.trim(),
+        program,
+        // 'Grad' has no numeric year; store null rather than fabricate one.
+        year: typeof year === 'number' ? year : null,
+        bio: bio.trim(),
+        location: pickupArea.trim(),
+      });
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Could not save changes', e instanceof Error ? e.message : 'Please try again.');
+    }
   };
 
   return (
@@ -73,8 +130,9 @@ export default function EditProfileScreen({ navigation }: Props) {
           onPress={handleSave}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           scaleTo={0.92}
+          disabled={!canSave}
         >
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={[styles.saveText, !canSave ? styles.saveTextDisabled : null]}>Save</Text>
         </PressableScale>
       </View>
 
@@ -89,8 +147,8 @@ export default function EditProfileScreen({ navigation }: Props) {
         >
           {/* Avatar */}
           <View style={styles.avatarSection}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>RS</Text>
+            <View style={[styles.avatar, { backgroundColor: profile.avatarColor }]}>
+              <Text style={styles.avatarText}>{deriveInitials(name) || '?'}</Text>
               <View style={styles.cameraBtn}>
                 <Ionicons name="camera" size={13} color={COLORS.white} />
               </View>
@@ -199,7 +257,13 @@ export default function EditProfileScreen({ navigation }: Props) {
             placeholder="e.g. UCC, Richmond Row"
           />
 
-          <PrimaryButton title="Save changes" onPress={handleSave} style={styles.saveBtn} />
+          <PrimaryButton
+            title="Save changes"
+            onPress={handleSave}
+            disabled={!canSave}
+            loading={upsertProfile.isPending}
+            style={styles.saveBtn}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -243,6 +307,14 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  saveTextDisabled: {
+    opacity: 0.4,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   body: {
     paddingHorizontal: 24,

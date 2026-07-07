@@ -142,6 +142,7 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     name: row.name,
     initials: row.initials ?? deriveInitials(row.name),
     program: row.program ?? '',
+    location: row.location ?? '',
     bio: row.bio ?? '',
     joinedDate: formatJoinedDate(row.created_at),
     // rating / reviewCount are 0 until the reviews table exists (AX-702).

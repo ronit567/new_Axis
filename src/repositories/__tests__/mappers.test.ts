@@ -129,6 +129,7 @@ describe('toSellerProfile', () => {
       name: 'Aria K.',
       initials: 'AK',
       program: 'BMOS',
+      location: 'Elgin Hall',
       bio: 'Loves campus food.',
       year: 2,
       verified: true,
@@ -142,6 +143,10 @@ describe('toSellerProfile', () => {
 
   it('defaults bio to an empty string when null', () => {
     expect(toSellerProfile({ ...sellerRow, bio: null }, stats).bio).toBe('');
+  });
+
+  it('defaults location to an empty string when null', () => {
+    expect(toSellerProfile({ ...sellerRow, location: null }, stats).location).toBe('');
   });
 
   it('derives initials from name when the column is null', () => {
