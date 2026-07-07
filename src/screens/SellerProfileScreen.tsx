@@ -15,6 +15,8 @@ import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
 import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
+import { useCreateReport } from '../hooks/useReports';
+import { useBlockUser } from '../hooks/useBlocks';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
@@ -26,9 +28,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const { seller } = route.params;
   const [following, setFollowing] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
-  const [blocked, setBlocked] = useState(false);
   const { data: sellerListings = [], isLoading: listingsLoading } = useSellerListings(seller.id);
   const toggleSavedMutation = useToggleSaved();
+  const createReport = useCreateReport();
+  const blockUser = useBlockUser();
 
   const stars = Math.round(seller.rating);
 
@@ -186,7 +189,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         target="user"
         targetName={seller.name}
         onClose={() => setReportVisible(false)}
-        onBlock={() => setBlocked(true)}
+        onSubmit={(reason) =>
+          createReport.mutateAsync({ targetType: 'user', targetUserId: seller.id, reason })
+        }
+        onBlock={() => blockUser.mutateAsync(seller.id)}
       />
     </SafeAreaView>
   );

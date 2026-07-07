@@ -24,6 +24,8 @@ import ErrorState from '../components/ErrorState';
 import { haptics } from '../lib/haptics';
 import { useAuth } from '../context/AuthContext';
 import { useMessages, useSendMessage, useMarkConversationRead } from '../hooks/useMessages';
+import { useCreateReport } from '../hooks/useReports';
+import { useBlockUser } from '../hooks/useBlocks';
 import { formatClockTime } from '../lib/timeAgo';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
@@ -37,6 +39,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const messages = useMemo(() => data ?? [], [data]);
   const sendMessage = useSendMessage();
   const markRead = useMarkConversationRead();
+  const createReport = useCreateReport();
+  const blockUser = useBlockUser();
   // Newest unread id we've already requested a receipt for. Re-arms whenever a
   // newer unread message lands (e.g. via realtime while the thread is open),
   // so receipts keep flowing for the whole time the user is looking at the
@@ -241,7 +245,15 @@ export default function ChatScreen({ navigation, route }: Props) {
         target="chat"
         targetName={partner.name}
         onClose={() => setReportVisible(false)}
-        onBlock={() => {}}
+        onSubmit={(reason) =>
+          createReport.mutateAsync({
+            targetType: 'chat',
+            targetUserId: partnerId,
+            targetListingId: listingId ?? undefined,
+            reason,
+          })
+        }
+        onBlock={() => blockUser.mutateAsync(partnerId)}
       />
     </SafeAreaView>
   );
