@@ -277,11 +277,12 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 **AC:** picking photos uploads them; the listing shows real images; a failed upload doesn't create a broken listing.
 **Depends on:** AX-101. **Size:** L. **Blocks:** AX-302 completion.
 
-### AX-402 — Render real listing images (cards + detail) ⬜
+### AX-402 — Render real listing images (cards + detail) ✅
 **Why:** `ListingCard` and detail currently use `imageColor` placeholders.
 **Tasks:** show `image_urls[0]` on cards, gallery/carousel on detail; keep `imageColor` as the loading/empty fallback; add caching (`expo-image` recommended over RN `Image` for perf).
 **AC:** listings display uploaded photos with a graceful fallback.
 **Depends on:** AX-401. **Size:** M.
+**Done:** `Listing.imageUrls` (from `image_urls`) flows through the mapper. `ListingCard` layers an `expo-image` over the existing `imageColor` tile, so the placeholder shows until the photo decodes (or permanently, if there are no photos). `ListingDetailScreen`'s carousel is a real horizontal-paging `ScrollView` over `imageUrls` with dots driven by actual photo count (hidden entirely for 0-1 photos) instead of the old hardcoded 4-dot mock.
 
 ### AX-403 — Avatar images ⬜
 **Tasks:** optional profile photo upload; keep initials+color as fallback (already the design). Storage `avatars` bucket.
