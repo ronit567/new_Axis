@@ -20,7 +20,8 @@ import { timeAgo } from '../lib/timeAgo';
 // --- Deterministic placeholder palettes -------------------------------------
 // These reproduce the pastel card backgrounds and avatar colors from the mock so
 // skeletons/placeholders look identical after migrating to live data. Real
-// images (AX-402) and avatar uploads (AX-403) render on top of these fallbacks.
+// images (AX-402) render on top of these fallbacks; avatar uploads (AX-403)
+// will do the same.
 const IMAGE_COLORS = ['#E8E0F5', '#E4ECF8', '#EBE4F8', '#F0E8F8', '#E8ECF0', '#EDE8F8'] as const;
 const AVATAR_COLORS = ['#5C2D91', '#7B4BB0', '#8E5DC4', '#6B3AA0', '#4C2478'] as const;
 
@@ -95,10 +96,11 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     category: row.category ?? DEFAULT_CATEGORY,
     seller: toSeller(seller),
     saved: isSaved,
-    // imageColor is always a deterministic placeholder color; the real image
-    // (image_urls[0]) is rendered over it in AX-402. Empty image_urls => this is
-    // all the card shows, so it must stay stable per id.
+    // imageColor is always a deterministic placeholder color, rendered as the
+    // loading/empty fallback behind imageUrls (AX-402). Empty image_urls =>
+    // this is all the card shows, so it must stay stable per id.
     imageColor: pickImageColor(row.id),
+    imageUrls: row.image_urls,
     // No `badge` column exists in the schema yet (the mock's "Price ↓" was
     // fabricated). Always null until a badge/price-history feature is designed.
     badge: null,
