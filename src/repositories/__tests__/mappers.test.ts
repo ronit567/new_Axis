@@ -97,6 +97,15 @@ describe('toListing', () => {
     expect(other).toBe(toListing({ ...listingRow, id: 'different-id' }, sellerRow, false).imageColor);
   });
 
+  it('passes image_urls through unchanged for imageUrls', () => {
+    expect(toListing(listingRow, sellerRow, false).imageUrls).toEqual([]);
+    const withPhotos = { ...listingRow, image_urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'] };
+    expect(toListing(withPhotos, sellerRow, false).imageUrls).toEqual([
+      'https://example.com/a.jpg',
+      'https://example.com/b.jpg',
+    ]);
+  });
+
   it('applies fallbacks for nullable DB columns', () => {
     const listing = toListing(
       { ...listingRow, condition: null, category: null, description: null, pickup: null },
