@@ -17,17 +17,19 @@ against a live database yet — review before applying.
 | `migrations/0009_conversation_list_view.sql` | `conversation_list` view (`security_invoker`): one row per (listing, partner) thread — last message + unread count — for the caller. Backs the Messages inbox. Apply **after** 0008. |
 | `migrations/0010_delete_account.sql` | `delete_own_account()` — a `SECURITY DEFINER` RPC that deletes the caller's `auth.users` row; every owned row (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`) cascades away in the same statement via the `on delete cascade` FKs already in 0001. Backs AX-704 (Settings → Danger zone → Delete account). |
 | `migrations/0011_reports.sql` | `reports` table (reporter, target user/listing, reason, status) + RLS: reporter can file and read back their own reports; nobody else can. Backs the ReportModal submit flow (AX-703). |
+| `migrations/0012_reports_queue.sql` | `reports_queue` view — a plain (non-`security_invoker`) triage view over `reports` that joins in reporter/target names + emails + the listing title, ordered open-first. Revoked from `anon`/`authenticated`, so it's reachable only via Studio / a `service_role` connection. Backs AX-707 (compliance review queue). Apply **after** 0011. |
 | `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0003), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0003+0006. |
 | `tests/messages_read_receipts_test.sql` | Read-receipt + `conversation_list` policy tests (receiver-only `read_at` writes, column-grant immutability, unread counts). Run **after** 0008+0009. |
 | `tests/delete_account_test.sql` | `delete_own_account()` tests: anon has no EXECUTE grant, the caller's full cascade graph (profile/listing/saved_listing/messages-both-directions/notification/blocks) is gone, an unrelated user's rows are untouched, and calling it again post-delete is a no-op. Run **after** 0010. |
 | `tests/reports_test.sql` | Reports policy tests (reporter can file + read own, cross-user select/insert denied, anon denied, `reports_target_present` constraint enforced). Run **after** 0011. |
+| `tests/reports_queue_test.sql` | `reports_queue` tests: anon + authenticated are both denied (revoked), and the view owner sees the report with reporter/target names + emails + listing title joined in. Run **after** 0012. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
 - **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, `0006`,
-  `0007`, `0008`, `0009`, `0010`, `0011`, then `health_check.sql`. I can drive this
-  directly once the MCP is connected.
+  `0007`, `0008`, `0009`, `0010`, `0011`, `0012`, then `health_check.sql`. I can drive
+  this directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 
@@ -36,8 +38,8 @@ or psql). It runs inside a transaction and `rollback`s, so it leaves nothing
 behind; it raises on the first failed assertion and prints `ALL RLS TESTS
 PASSED` on success. The storage scenarios (6–9) need the buckets from 0003 to
 exist, so apply 0003 before running the tests. After applying 0010, run
-`tests/delete_account_test.sql`; after applying 0011, run `tests/reports_test.sql`
-the same way.
+`tests/delete_account_test.sql`; after applying 0011, run `tests/reports_test.sql`;
+after applying 0012, run `tests/reports_queue_test.sql` the same way.
 
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
