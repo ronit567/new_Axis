@@ -276,22 +276,28 @@ describe('MessageRepository.getConversations', () => {
 });
 
 describe('MessageRepository.getMessages', () => {
+  // sender_id/receiver_id are uuid columns; getMessages requires UUID ids
+  // because it embeds them into PostgREST's `.or()` filter grammar.
+  const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
+  const USER_ID = '22222222-2222-4222-8222-222222222222';
+
   it('queries both message directions ordered oldest-first, filtered by listing_id, and maps rows to domain Messages', async () => {
     const row = makeMessageRow({
       id: 'm1',
       listing_id: 'lst1',
-      sender_id: 'p1',
-      receiver_id: 'me',
+      sender_id: PARTNER_ID,
+      receiver_id: USER_ID,
       body: 'Hi',
       read_at: null,
     });
     const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [row], error: null });
     mockTables({ messages: messagesBuilder });
 
-    const result = await MessageRepository.getMessages('lst1', 'p1', 'me');
+    const result = await MessageRepository.getMessages('lst1', PARTNER_ID, USER_ID);
 
     expect(messagesBuilder.or).toHaveBeenCalledWith(
-      'and(sender_id.eq.me,receiver_id.eq.p1),and(sender_id.eq.p1,receiver_id.eq.me)',
+      `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
+        `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
     );
     expect(messagesBuilder.order).toHaveBeenCalledWith('created_at', { ascending: true });
     expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
@@ -300,8 +306,8 @@ describe('MessageRepository.getMessages', () => {
       {
         id: 'm1',
         listingId: 'lst1',
-        senderId: 'p1',
-        receiverId: 'me',
+        senderId: PARTNER_ID,
+        receiverId: USER_ID,
         body: 'Hi',
         createdAt: row.created_at,
         readAt: null,
@@ -313,10 +319,20 @@ describe('MessageRepository.getMessages', () => {
     const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
     mockTables({ messages: messagesBuilder });
 
-    await MessageRepository.getMessages(null, 'p1', 'me');
+    await MessageRepository.getMessages(null, PARTNER_ID, USER_ID);
 
     expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
     expect(messagesBuilder.eq).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-UUID partnerId before issuing any query, so injected PostgREST filter syntax cannot reach `.or()`', async () => {
+    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    mockTables({ messages: messagesBuilder });
+
+    await expect(
+      MessageRepository.getMessages('lst1', `${PARTNER_ID}),and(sender_id.eq.${USER_ID}`, USER_ID),
+    ).rejects.toThrow(/partnerId must be a UUID/);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
 

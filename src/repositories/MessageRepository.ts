@@ -23,6 +23,20 @@ export type MessageEventHandlers = {
   onUpdate: (message: Message) => void
 }
 
+// getMessages embeds these ids into PostgREST's `.or()` filter grammar, which —
+// unlike `.eq()`/`.insert()`/`.update()` — is not parameterized: a value
+// carrying `,`, `(`, or `)` could restructure the filter. partnerId in
+// particular arrives via navigation route params (deep-linkable). Both are
+// always profile UUIDs, so we reject anything that isn't one before it reaches
+// the filter string rather than trying to escape the grammar.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function assertUuid(value: string, label: string): void {
+  if (!UUID_RE.test(value)) {
+    throw new Error(`MessageRepository: ${label} must be a UUID`)
+  }
+}
+
 export const MessageRepository = {
   // getConversations reads the conversation_list view (migration 0009): one
   // row per (listing, partner) thread — the thread's last message columns plus
@@ -90,6 +104,8 @@ export const MessageRepository = {
     partnerId: string,
     userId: string,
   ): Promise<Message[]> {
+    assertUuid(userId, 'userId')
+    assertUuid(partnerId, 'partnerId')
     let query = supabase
       .from('messages')
       .select('*')
