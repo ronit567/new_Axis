@@ -354,11 +354,13 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 **AC:** real ratings on seller profiles; until built, **hide the rating UI** rather than show fake stars.
 **Depends on:** AX-112. **Size:** L. **Near-term:** the "hide fake stars" half is a 30-min ticket — do it before launch even if reviews slip.
 
-### AX-703 — Report & block are functional ⬜
+### AX-703 — Report & block are functional 🟨
 **Why:** `ReportModal` UI exists (COMP-01) but likely isn't persisted.
 **Tasks:** `reports` table + `blocks` table; wire the existing modal; filter blocked users out of feeds/messages.
 **AC:** reporting persists; blocking hides the user's content and messages.
 **Depends on:** AX-101. **Size:** M.
+**Done (code):** `public.blocks` + `is_blocked()` already existed (0001/0002) and were doing real work — `listings_select_public`/`profiles_select_public` hide a blocked party's listings/profile, and `MessageRepository.getConversations` drops a thread from the inbox once the partner's profile becomes RLS-unreadable. What was missing was the write path: the Block button only ever flipped local `useState`, and ReportModal's submit only flipped local `submitted` state — neither touched the database. This ticket adds `public.reports` (migration `0010_reports.sql`: reporter/target_type/target_user_id/target_listing_id/reason/status, `reports_target_present` CHECK, reporter-only insert+select RLS) plus `ReportRepository`/`BlockRepository` and `useCreateReport`/`useBlockUser` hooks, and wires `ReportModal` (now takes `onSubmit`/async `onBlock` props instead of faking success) into `ListingDetailScreen`, `SellerProfileScreen`, and `ChatScreen`. `useBlockUser` invalidates the listings/search/sellerListings/profile/conversations/savedListings caches on success so a block takes effect immediately instead of on next natural refetch. Policy tests added in `tests/reports_test.sql`.
+**Not done — needs a live project:** migration `0010` has **not been applied** to the Supabase project (no MCP/CLI access in the session that wrote this), so `reports_test.sql` hasn't actually run and the ReportModal submit path will 404/error against `public.reports` until it is. Apply `0010` (see `supabase/README.md`), run `tests/reports_test.sql`, then re-verify by hand with 2 accounts (block, confirm the other's listings/profile disappear and their conversation drops from the inbox both ways) before flipping this to ✅.
 
 ### AX-704 — Account deletion actually deletes ⬜
 **Why:** there's a `feature/t6-account-deletion` branch — verify it does a real deletion (auth user + cascade), not just a sign-out.

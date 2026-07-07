@@ -26,6 +26,10 @@
 // hand-added alongside migration 0006 (AX-401 save counts). Drop this note
 // once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `reports` table + ReportRow alias were
+// hand-added alongside migration 0010 (AX-703 report/block). Same deal —
+// regenerate after applying 0010.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -271,6 +275,61 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string
+          status: string
+          target_listing_id: string | null
+          target_type: string
+          target_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          reporter_id: string
+          status?: string
+          target_listing_id?: string | null
+          target_type: string
+          target_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          status?: string
+          target_listing_id?: string | null
+          target_type?: string
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_listing_id_fkey"
+            columns: ["target_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_listings: {
         Row: {
           created_at: string
@@ -352,5 +411,6 @@ export type MessageRow = DefaultSchema['Tables']['messages']['Row']
 export type ConversationListRow = DefaultSchema['Views']['conversation_list']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
+export type ReportRow = DefaultSchema['Tables']['reports']['Row']
 
 export type ListingStatus = 'active' | 'sold'

@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { useListing } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useProfile } from '../hooks/useProfile';
+import { useCreateReport } from '../hooks/useReports';
 import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
@@ -36,6 +37,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   // not the full SellerProfile the SellerProfile screen needs.
   const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
   const toggleSavedMutation = useToggleSaved();
+  const createReport = useCreateReport();
 
   const [saved, setSaved] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
@@ -285,6 +287,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         target="listing"
         targetName={listing.title}
         onClose={() => setReportVisible(false)}
+        onSubmit={(reason) =>
+          createReport.mutateAsync({
+            targetType: 'listing',
+            targetListingId: listing.id,
+            targetUserId: listing.seller.id,
+            reason,
+          })
+        }
       />
     </SafeAreaView>
   );

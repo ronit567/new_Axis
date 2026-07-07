@@ -12,10 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { COLORS, FONTS } from '../constants/theme';
 import { haptics } from '../lib/haptics';
-
-export type ReportTarget = 'listing' | 'user' | 'chat';
-
-type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
+import { ReportReason, ReportTarget } from '../types';
 
 const REASONS: { key: ReportReason; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'spam',           label: 'Spam',            icon: 'alert-circle-outline' },
@@ -29,17 +26,28 @@ type Props = {
   target: ReportTarget;
   targetName?: string;
   onClose: () => void;
-  onBlock?: () => void;
+  onSubmit: (reason: ReportReason) => Promise<void>;
+  onBlock?: () => Promise<void>;
 };
 
-export default function ReportModal({ visible, target, targetName, onClose, onBlock }: Props) {
+export default function ReportModal({ visible, target, targetName, onClose, onSubmit, onBlock }: Props) {
   const [selected, setSelected] = useState<ReportReason | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
 
-  const handleSubmit = () => {
-    if (!selected) return;
+  const handleSubmit = async () => {
+    if (!selected || submitting) return;
     haptics.impact();
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      await onSubmit(selected);
+      setSubmitted(true);
+    } catch {
+      Alert.alert('Something went wrong', "We couldn't submit your report. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -48,15 +56,23 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
     onClose();
   };
 
-  const handleBlock = () => {
-    setSelected(null);
-    setSubmitted(false);
-    Alert.alert(
-      'User blocked',
-      `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
-      [{ text: 'OK' }],
-    );
-    onBlock?.();
+  const handleBlock = async () => {
+    if (blocking) return;
+    setBlocking(true);
+    try {
+      await onBlock?.();
+      setSelected(null);
+      setSubmitted(false);
+      Alert.alert(
+        'User blocked',
+        `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
+        [{ text: 'OK' }],
+      );
+    } catch {
+      Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");
+    } finally {
+      setBlocking(false);
+    }
   };
 
   const targetLabel =
@@ -82,9 +98,16 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
               Thanks for letting us know. Our team will review this {targetLabel}.
             </Text>
             {(target === 'user' || target === 'chat') && (
-              <TouchableOpacity style={styles.blockBtn} onPress={handleBlock} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={[styles.blockBtn, blocking && styles.blockBtnDisabled]}
+                onPress={handleBlock}
+                disabled={blocking}
+                activeOpacity={0.8}
+              >
                 <Ionicons name="hand-left-outline" size={16} color={COLORS.error} />
-                <Text style={styles.blockBtnText}>Block {targetName ?? 'this user'}</Text>
+                <Text style={styles.blockBtnText}>
+                  {blocking ? 'Blocking…' : `Block ${targetName ?? 'this user'}`}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.doneBtn} onPress={handleClose} activeOpacity={0.85}>
@@ -135,13 +158,13 @@ export default function ReportModal({ visible, target, targetName, onClose, onBl
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, selected ? styles.submitBtnActive : styles.submitBtnDisabled]}
+              style={[styles.submitBtn, selected && !submitting ? styles.submitBtnActive : styles.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={!selected}
+              disabled={!selected || submitting}
               activeOpacity={0.85}
             >
-              <Text style={[styles.submitBtnText, !selected && styles.submitBtnTextDisabled]}>
-                Submit report
+              <Text style={[styles.submitBtnText, (!selected || submitting) && styles.submitBtnTextDisabled]}>
+                {submitting ? 'Submitting…' : 'Submit report'}
               </Text>
             </TouchableOpacity>
           </>
@@ -307,6 +330,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     width: '100%',
     justifyContent: 'center',
+  },
+  blockBtnDisabled: {
+    opacity: 0.5,
   },
   blockBtnText: {
     fontSize: 15,

@@ -93,6 +93,13 @@ export type Conversation = {
   type: 'Buying' | 'Selling';
 };
 
+// AX-703: report + block. ReportTarget mirrors the ReportModal UI's three
+// entry points (listing detail, seller profile, chat); ReportReason is the
+// finite list its reason picker offers. Single source of truth for both the
+// component and ReportRepository, so they can't drift.
+export type ReportTarget = 'listing' | 'user' | 'chat';
+export type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
+
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
