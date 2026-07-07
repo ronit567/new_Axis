@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -80,7 +81,7 @@ function NotifItem({ item, onPress }: { item: Notification; onPress: () => void 
 }
 
 export default function NotificationsScreen({ navigation }: Props) {
-  const { data = [], isLoading, isError, refetch } = useNotifications();
+  const { data = [], isLoading, isError, refetch, isRefetching } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
 
@@ -166,7 +167,18 @@ export default function NotificationsScreen({ navigation }: Props) {
           onCta={() => navigation.navigate('Main')}
         />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.body}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
+        >
           {/* Today */}
           {todayNotifs.length > 0 && (
             <>
