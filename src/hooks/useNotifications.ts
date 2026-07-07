@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NotificationRepository } from '../repositories/NotificationRepository'
 import { useAuth } from '../context/AuthContext'
@@ -26,10 +27,35 @@ export function useUnreadNotificationCount() {
     },
     enabled: !!user,
     // refetchOnWindowFocus is globally off (QueryProvider) — the bell stays
-    // fresh via mutation invalidation plus a remount on tab focus, so a short
-    // staleTime here just avoids refetching on every remount in between.
+    // fresh via realtime + mutation invalidation (both bypass staleTime), so a
+    // short staleTime here just avoids refetching on every remount in between.
     staleTime: 30_000,
   })
+}
+
+// Live notification stream (AX-601). Mount once inside the signed-in shell
+// (MainScreen), like useMessagesRealtime. INSERTs (0012 triggers firing) and
+// UPDATEs (read flips from another device) both invalidate the list and the
+// bell count — the refetch redoes the actor/listing joins, so no cache
+// patching from the raw row.
+export function useNotificationsRealtime() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const userId = user?.id
+
+  useEffect(() => {
+    if (!userId) return undefined
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications(userId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.unreadNotificationCount(userId),
+      })
+    }
+    return NotificationRepository.subscribe(userId, {
+      onInsert: invalidate,
+      onUpdate: invalidate,
+    })
+  }, [userId, queryClient])
 }
 
 // Optimistic like useToggleSaved: flip the tapped row to read and decrement

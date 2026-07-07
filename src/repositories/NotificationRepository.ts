@@ -3,6 +3,11 @@ import { toNotification } from './mappers'
 import type { Notification } from '../types'
 import type { ListingRow, NotificationRow, ProfileRow } from '../types/database'
 
+export type NotificationEventHandlers = {
+  onInsert: (row: NotificationRow) => void
+  onUpdate: (row: NotificationRow) => void
+}
+
 export const NotificationRepository = {
   // Newest-first, capped at `limit`. Batch-joins actor profiles and listings
   // (same manual-join shape as MessageRepository.getConversations) rather than
@@ -88,5 +93,40 @@ export const NotificationRepository = {
       .eq('user_id', userId)
       .eq('read', false)
     if (error) throw error
+  },
+
+  // Realtime: stream INSERTs (new notifications from the 0012 triggers) and
+  // UPDATEs (read flips, e.g. from another device). Handlers get the raw row —
+  // consumers only invalidate caches, and the domain mapping needs the
+  // actor/listing joins that list() does anyway. Filtered to this user's rows
+  // (RLS enforces the same bound; the filter keeps the channel from waking on
+  // other users' events). Returns the unsubscribe fn.
+  subscribe(userId: string, handlers: NotificationEventHandlers): () => void {
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => handlers.onInsert(payload.new as NotificationRow),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => handlers.onUpdate(payload.new as NotificationRow),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   },
 }

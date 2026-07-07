@@ -21,10 +21,14 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
 }
 
 const mockFrom = jest.fn();
+const mockChannel = jest.fn();
+const mockRemoveChannel = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    channel: (...args: unknown[]) => mockChannel(...args),
+    removeChannel: (...args: unknown[]) => mockRemoveChannel(...args),
   },
 }));
 
@@ -272,5 +276,88 @@ describe('NotificationRepository.markAllRead', () => {
     });
 
     await expect(NotificationRepository.markAllRead('me')).rejects.toThrow('boom');
+  });
+});
+
+describe('NotificationRepository.subscribe', () => {
+  function makeChannelObj() {
+    const channelObj: any = {
+      on: jest.fn(() => channelObj),
+      subscribe: jest.fn(() => channelObj),
+    };
+    return channelObj;
+  }
+
+  it("registers INSERT and UPDATE postgres_changes listeners filtered to the user's rows", () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+
+    NotificationRepository.subscribe('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
+
+    expect(mockChannel).toHaveBeenCalledWith('notifications-me');
+    expect(channelObj.on).toHaveBeenCalledTimes(2);
+    expect(channelObj.subscribe).toHaveBeenCalledTimes(1);
+
+    const [insertEvent, insertConfig] = channelObj.on.mock.calls[0];
+    const [updateEvent, updateConfig] = channelObj.on.mock.calls[1];
+    expect(insertEvent).toBe('postgres_changes');
+    expect(updateEvent).toBe('postgres_changes');
+    expect(insertConfig).toEqual({
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: 'user_id=eq.me',
+    });
+    expect(updateConfig).toEqual({
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'notifications',
+      filter: 'user_id=eq.me',
+    });
+  });
+
+  it('passes the raw INSERT row to onInsert', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onInsert = jest.fn();
+    const onUpdate = jest.fn();
+
+    NotificationRepository.subscribe('me', { onInsert, onUpdate });
+
+    const insertCallback = channelObj.on.mock.calls[0][2];
+    const row = makeNotificationRow({ id: 'n-new', read: false });
+    insertCallback({ new: row });
+
+    expect(onInsert).toHaveBeenCalledWith(row);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('passes the raw UPDATE row to onUpdate', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onInsert = jest.fn();
+    const onUpdate = jest.fn();
+
+    NotificationRepository.subscribe('me', { onInsert, onUpdate });
+
+    const updateCallback = channelObj.on.mock.calls[1][2];
+    const row = makeNotificationRow({ id: 'n1', read: true, read_at: '2026-07-04T12:00:00.000Z' });
+    updateCallback({ new: row });
+
+    expect(onUpdate).toHaveBeenCalledWith(row);
+    expect(onInsert).not.toHaveBeenCalled();
+  });
+
+  it('returns an unsubscribe function that calls removeChannel with the channel', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+
+    const unsubscribe = NotificationRepository.subscribe('me', {
+      onInsert: jest.fn(),
+      onUpdate: jest.fn(),
+    });
+    unsubscribe();
+
+    expect(mockRemoveChannel).toHaveBeenCalledWith(channelObj);
   });
 });
