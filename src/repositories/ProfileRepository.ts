@@ -50,4 +50,11 @@ export const ProfileRepository = {
     if (error) throw error
     return toProfile(data)
   },
+  // Deletes the caller's auth.users row via the delete_own_account() RPC
+  // (migration 0010) — see that migration for the cascade this triggers.
+  // Irreversible; there is no undo path once this resolves.
+  async deleteAccount(): Promise<void> {
+    const { error } = await supabase.rpc('delete_own_account')
+    if (error) throw error
+  },
 }
