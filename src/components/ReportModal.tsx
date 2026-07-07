@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -36,21 +36,35 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
   const [submitting, setSubmitting] = useState(false);
   const [blocking, setBlocking] = useState(false);
 
+  // RN's Modal keeps this component mounted while visible={false}, so an
+  // onSubmit/onBlock promise that resolves *after* the user dismisses the sheet
+  // would otherwise write stale state (flip `submitted` to true and show the
+  // "Report submitted" confirmation the next time it opens). This ref tracks
+  // whether the sheet is still open; handleClose flips it synchronously (a
+  // setState here would lag the resolving promise).
+  const openRef = useRef(visible);
+  useEffect(() => {
+    openRef.current = visible;
+  }, [visible]);
+
   const handleSubmit = async () => {
     if (!selected || submitting) return;
     haptics.impact();
     setSubmitting(true);
     try {
       await onSubmit(selected);
-      setSubmitted(true);
+      if (openRef.current) setSubmitted(true);
     } catch {
-      Alert.alert('Something went wrong', "We couldn't submit your report. Please try again.");
+      if (openRef.current) {
+        Alert.alert('Something went wrong', "We couldn't submit your report. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    openRef.current = false;
     setSelected(null);
     setSubmitted(false);
     // Also clear the in-flight flags: RN's Modal keeps this component mounted
@@ -67,15 +81,19 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
     setBlocking(true);
     try {
       await onBlock?.();
-      Alert.alert(
-        'User blocked',
-        `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
-        // Close (rather than fall back to the reason-picker view) once the
-        // user has acknowledged the block.
-        [{ text: 'OK', onPress: handleClose }],
-      );
+      if (openRef.current) {
+        Alert.alert(
+          'User blocked',
+          `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
+          // Close (rather than fall back to the reason-picker view) once the
+          // user has acknowledged the block.
+          [{ text: 'OK', onPress: handleClose }],
+        );
+      }
     } catch {
-      Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");
+      if (openRef.current) {
+        Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");
+      }
     } finally {
       setBlocking(false);
     }
