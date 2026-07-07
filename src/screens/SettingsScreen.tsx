@@ -19,6 +19,7 @@ import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import { useAuth } from '../context/AuthContext';
+import { useDeleteAccount } from '../hooks/useProfile';
 import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -117,11 +118,12 @@ function RowDivider() {
 
 export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();
+  const deleteAccount = useDeleteAccount();
   const [pushNotif, setPushNotif] = useState(true);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
-  const canDelete = confirmText === 'DELETE';
+  const canDelete = confirmText === 'DELETE' && !deleteAccount.isPending;
 
   const closeDeleteModal = () => {
     setDeleteModalVisible(false);
@@ -142,11 +144,14 @@ export default function SettingsScreen({ navigation }: Props) {
   const handleDeleteAccount = async () => {
     if (!canDelete) return;
     try {
-      await signOut();
+      // Deletes the auth user + cascades through their owned data server-side
+      // (migration 0010), then signs the now-gone session out locally.
+      // RootNavigator reacts to the session change; no manual navigation.
+      await deleteAccount.mutateAsync();
       closeDeleteModal();
     } catch (e) {
       Alert.alert(
-        'Sign out failed',
+        'Delete account failed',
         e instanceof Error ? e.message : 'Please try again.',
       );
     }
@@ -299,7 +304,9 @@ export default function SettingsScreen({ navigation }: Props) {
               }}
               scaleTo={0.97}
             >
-              <Text style={styles.deleteButtonText}>Permanently delete account</Text>
+              <Text style={styles.deleteButtonText}>
+                {deleteAccount.isPending ? 'Deleting…' : 'Permanently delete account'}
+              </Text>
             </PressableScale>
 
             <PressableScale
