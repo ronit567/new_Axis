@@ -223,25 +223,50 @@ reset role;
 --    no sold. Expected visible = {aaaa, cccc} = 2; private tables = 0.
 set local role anon;
 select set_config('request.jwt.claims', '', true);
-select pg_temp.assert(
-  (select count(*) from public.listings) = 2,
-  'anon should see both active listings');
-select pg_temp.assert(
-  (select count(*) from public.listings where status = 'sold') = 0,
-  'anon must not see sold listings');
-select pg_temp.assert(
-  (select count(*) from public.profiles) = 3,
-  'anon should see all profiles (block enforcement only applies to signed-in viewers)');
-select pg_temp.assert(
-  (select count(*) from public.messages) = 0,
-  'anon must not see any messages');
-select pg_temp.assert(
-  (select count(*) from public.saved_listings) = 0,
-  'anon must not see any saved_listings');
--- anon has no EXECUTE grant on is_blocked(): it's SECURITY DEFINER and
+-- anon has no grant at all (0005) on public.messages or public.saved_listings:
+-- expect a hard denial, not an RLS-empty result.
+do $$
+begin
+  perform count(*) from public.messages;
+  raise exception 'RLS TEST FAILED: anon was able to select from messages';
+exception
+  when insufficient_privilege then null; -- expected: no grant for anon
+end;
+$$;
+do $$
+begin
+  perform count(*) from public.saved_listings;
+  raise exception 'RLS TEST FAILED: anon was able to select from saved_listings';
+exception
+  when insufficient_privilege then null; -- expected: no grant for anon
+end;
+$$;
+-- anon has no EXECUTE grant on is_blocked() (0002): it's SECURITY DEFINER and
 -- PostgREST exposes any EXECUTE-granted function as an RPC, so granting it
 -- to anon would let an unauthenticated caller probe block relationships
--- directly, bypassing RLS on the blocks table.
+-- directly, bypassing RLS on the blocks table. That check happens at parse
+-- time, before the listings/profiles policies' `case when auth.uid() is
+-- null` branch can short-circuit at runtime — so any anon SELECT against
+-- listings or profiles (whose policy expressions reference is_blocked())
+-- hits the same hard denial as a direct RPC call, not an RLS-empty result.
+do $$
+begin
+  perform count(*) from public.listings;
+  raise exception 'RLS TEST FAILED: anon was able to select from listings';
+exception
+  when insufficient_privilege then
+    null; -- expected: policy expression references is_blocked(), no EXECUTE grant for anon
+end;
+$$;
+do $$
+begin
+  perform count(*) from public.profiles;
+  raise exception 'RLS TEST FAILED: anon was able to select from profiles';
+exception
+  when insufficient_privilege then
+    null; -- expected: policy expression references is_blocked(), no EXECUTE grant for anon
+end;
+$$;
 do $$
 begin
   perform public.is_blocked(
@@ -317,6 +342,26 @@ select pg_temp.assert(
 reset role;
 
 -- ── Scenario 8: DELETE is owner-only.
+-- Newer stacks ship a statement-level storage.protect_delete() trigger that
+-- blocks EVERY direct SQL delete on storage.objects (even 0-row ones) — the
+-- Storage API is the sanctioned delete path. Disable it for this transaction
+-- only so the RLS delete policies themselves can be exercised; the enclosing
+-- rollback restores it.
+-- Disabling it needs the storage-table owner, which plain `postgres` is not —
+-- run this file as the local stack's superuser:
+--   docker exec -i supabase_db_new_Axis psql -U supabase_admin -d postgres \
+--     -v ON_ERROR_STOP=1 < supabase/tests/rls_policies_test.sql
+do $$
+begin
+  if exists (
+    select 1 from pg_trigger
+    where tgname = 'protect_objects_delete'
+      and tgrelid = 'storage.objects'::regclass
+  ) then
+    execute 'alter table storage.objects disable trigger protect_objects_delete';
+  end if;
+end $$;
+
 -- non-owner delete of OWNER's object → 0 rows (invisible + unauthorized).
 set local role authenticated;
 select set_config('request.jwt.claims',

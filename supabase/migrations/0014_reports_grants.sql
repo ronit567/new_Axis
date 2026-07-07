@@ -1,0 +1,13 @@
+-- Axis — 0014: missing table grants for reports.
+--
+-- 0011 created public.reports with RLS policies but no GRANTs. This project
+-- does not auto-grant on new public tables (see 0005), so `authenticated`
+-- could not touch the table at all — every report submission failed with
+-- "permission denied for table reports" regardless of the policies. Caught by
+-- supabase/tests/reports_test.sql the first time it ran against a real
+-- database (local stack).
+--
+-- Surface matches the policies in 0011: users file reports (insert) and read
+-- back their own (select). No update/delete — moderation state changes happen
+-- server-side, not from the client.
+grant select, insert on public.reports to authenticated;
