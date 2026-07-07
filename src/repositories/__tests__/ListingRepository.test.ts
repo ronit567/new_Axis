@@ -876,3 +876,81 @@ describe('ListingRepository.incrementViews', () => {
     await expect(ListingRepository.incrementViews('l1')).rejects.toThrow('network down');
   });
 });
+
+describe('ListingRepository.markSold', () => {
+  it('updates status to sold scoped to the owner', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.markSold('l1', seller.id);
+
+    expect(listingsBuilder.update).toHaveBeenCalledWith({ status: 'sold' });
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+  });
+
+  it('throws when the update errors', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('update failed') });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.markSold('l1', seller.id)).rejects.toThrow('update failed');
+  });
+});
+
+describe('ListingRepository.relist', () => {
+  it('updates status to active scoped to the owner', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.relist('l1', seller.id);
+
+    expect(listingsBuilder.update).toHaveBeenCalledWith({ status: 'active' });
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+  });
+
+  it('throws when the update errors', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('update failed') });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.relist('l1', seller.id)).rejects.toThrow('update failed');
+  });
+});
+
+describe('ListingRepository.deleteListing', () => {
+  it('hard-deletes scoped to the owner', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.deleteListing('l1', seller.id);
+
+    expect(listingsBuilder.delete).toHaveBeenCalled();
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+  });
+
+  it('throws when the delete errors', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: new Error('delete failed') });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(ListingRepository.deleteListing('l1', seller.id)).rejects.toThrow('delete failed');
+  });
+});
