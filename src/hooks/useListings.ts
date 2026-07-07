@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
 } from '@tanstack/react-query'
 import {
   ListingRepository,
@@ -20,6 +21,7 @@ import { StorageRepository, type LocalPhoto } from '../repositories/StorageRepos
 export type { LocalPhoto }
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
+import { MyListing } from '../types'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -174,5 +176,111 @@ export function useSellerListings(sellerId: string) {
     queryKey: queryKeys.sellerListings(sellerId),
     queryFn: () => ListingRepository.getActiveBySeller(sellerId, user!.id),
     enabled: !!user && !!sellerId,
+  })
+}
+
+// Every cache a status change / delete can affect. Home feed, search, and
+// storefronts all filter status='active', so a sold/deleted row must drop (and a
+// relisted row reappear); the owner's saved list drops it if they saved their own
+// listing; the detail cache flips status or becomes null after delete.
+function invalidateAfterListingMutation(
+  queryClient: QueryClient,
+  userId: string,
+  listingId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: ['listings'] })
+  queryClient.invalidateQueries({ queryKey: ['search'] })
+  queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
+  queryClient.invalidateQueries({ queryKey: queryKeys.myListings(userId) })
+  queryClient.invalidateQueries({ queryKey: queryKeys.savedListings(userId) })
+  queryClient.invalidateQueries({ queryKey: queryKeys.listing(listingId) })
+}
+
+// AX-304: ManageListingsScreen's "mark sold" action. Optimistically flips the
+// row in the myListings cache (and derives soldFor from price, matching
+// toMyListing) so the tab counts/badge update instantly; onSuccess invalidates
+// every other cache the status change can affect.
+export function useMarkListingSold() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (listingId: string) => {
+      if (!user) throw new Error('Not signed in')
+      return ListingRepository.markSold(listingId, user.id)
+    },
+    onMutate: async (listingId) => {
+      if (!user) return undefined
+      const key = queryKeys.myListings(user.id)
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<MyListing[]>(key)
+      queryClient.setQueryData<MyListing[]>(key, (old) =>
+        old?.map((l) =>
+          l.id === listingId ? { ...l, status: 'sold' as const, soldFor: l.price } : l,
+        ),
+      )
+      return { key, previous }
+    },
+    onError: (_e, _v, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous)
+    },
+    onSuccess: (_d, listingId) => {
+      if (user) invalidateAfterListingMutation(queryClient, user.id, listingId)
+    },
+  })
+}
+
+// AX-304: ManageListingsScreen's "relist" action — the inverse of markSold.
+export function useRelistListing() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (listingId: string) => {
+      if (!user) throw new Error('Not signed in')
+      return ListingRepository.relist(listingId, user.id)
+    },
+    onMutate: async (listingId) => {
+      if (!user) return undefined
+      const key = queryKeys.myListings(user.id)
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<MyListing[]>(key)
+      queryClient.setQueryData<MyListing[]>(key, (old) =>
+        old?.map((l) =>
+          l.id === listingId ? { ...l, status: 'active' as const, soldFor: undefined } : l,
+        ),
+      )
+      return { key, previous }
+    },
+    onError: (_e, _v, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous)
+    },
+    onSuccess: (_d, listingId) => {
+      if (user) invalidateAfterListingMutation(queryClient, user.id, listingId)
+    },
+  })
+}
+
+// AX-304: ManageListingsScreen's "delete" action.
+export function useDeleteListing() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (listingId: string) => {
+      if (!user) throw new Error('Not signed in')
+      return ListingRepository.deleteListing(listingId, user.id)
+    },
+    onMutate: async (listingId) => {
+      if (!user) return undefined
+      const key = queryKeys.myListings(user.id)
+      await queryClient.cancelQueries({ queryKey: key })
+      const previous = queryClient.getQueryData<MyListing[]>(key)
+      queryClient.setQueryData<MyListing[]>(key, (old) => old?.filter((l) => l.id !== listingId))
+      return { key, previous }
+    },
+    onError: (_e, _v, context) => {
+      if (context) queryClient.setQueryData(context.key, context.previous)
+    },
+    onSuccess: (_d, listingId) => {
+      if (user) invalidateAfterListingMutation(queryClient, user.id, listingId)
+    },
   })
 }
