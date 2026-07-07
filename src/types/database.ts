@@ -34,6 +34,10 @@
 // hand-added alongside migration 0011 (AX-703 report/block). Same deal —
 // regenerate after applying 0011.
 //
+// MANUAL ADDITION (pending regen): `notifications.actor_id`/`read_at` were
+// hand-added alongside migration 0012 (AX-601/602 notification generation).
+// Drop this note once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -194,30 +198,43 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_id: string | null
           created_at: string
           id: string
           listing_id: string | null
           read: boolean
+          read_at: string | null
           type: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
           id?: string
           listing_id?: string | null
           read?: boolean
+          read_at?: string | null
           type: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
           id?: string
           listing_id?: string | null
           read?: boolean
+          read_at?: string | null
           type?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_listing_id_fkey"
             columns: ["listing_id"]
