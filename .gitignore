@@ -26,6 +26,9 @@ android/
 .env.production
 *.env
 
+# Cloud DB dumps (contain real auth hashes/tokens — never commit)
+cloud_*.sql
+
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*
