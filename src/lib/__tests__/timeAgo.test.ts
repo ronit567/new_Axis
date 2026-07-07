@@ -1,4 +1,4 @@
-import { timeAgo } from '../timeAgo';
+import { formatClockTime, timeAgo } from '../timeAgo';
 
 // Fixed reference point so every case is deterministic.
 const NOW = new Date('2026-07-02T12:00:00.000Z');
@@ -62,5 +62,29 @@ describe('timeAgo', () => {
 
   it('degrades gracefully on unparseable input', () => {
     expect(timeAgo('not-a-date', NOW)).toBe('just now');
+  });
+});
+
+describe('formatClockTime', () => {
+  // Built from local-time constructors (not UTC ISO literals) so the assertions
+  // are timezone-safe regardless of where the test runs.
+  it('formats an afternoon time as 12-hour clock with AM/PM', () => {
+    expect(formatClockTime(new Date(2026, 0, 5, 14, 14).toISOString())).toBe('2:14 PM');
+  });
+
+  it('formats midnight as 12:xx AM', () => {
+    expect(formatClockTime(new Date(2026, 0, 5, 0, 5).toISOString())).toBe('12:05 AM');
+  });
+
+  it('formats noon as 12:xx PM', () => {
+    expect(formatClockTime(new Date(2026, 0, 5, 12, 0).toISOString())).toBe('12:00 PM');
+  });
+
+  it('pads single-digit minutes', () => {
+    expect(formatClockTime(new Date(2026, 0, 5, 9, 4).toISOString())).toBe('9:04 AM');
+  });
+
+  it('degrades to an empty string on unparseable input', () => {
+    expect(formatClockTime('not-a-date')).toBe('');
   });
 });

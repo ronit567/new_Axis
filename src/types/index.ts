@@ -66,6 +66,33 @@ export type Contact = {
   name: string;
 };
 
+export type Message = {
+  id: string;
+  listingId: string | null;
+  senderId: string;
+  receiverId: string;
+  body: string;
+  createdAt: string; // ISO — screens format for display
+  readAt: string | null; // null = the receiver hasn't opened it yet
+};
+
+// One row in the Messages inbox. Identity is (listingId, partnerId) — the same
+// two people can have separate threads about different listings.
+export type Conversation = {
+  partnerId: string;
+  partner: Contact;
+  listingId: string | null;
+  // Null when the listing is gone or RLS-hidden (e.g. sold and not ours);
+  // the conversation itself stays visible.
+  listingTitle: string | null;
+  listingPrice: number | null;
+  lastMessage: string;
+  lastMessageAt: string; // relative label via timeAgo ("2m ago")
+  unreadCount: number;
+  // 'Selling' when the thread is about the current user's own listing.
+  type: 'Buying' | 'Selling';
+};
+
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
@@ -82,7 +109,16 @@ export type RootStackParamList = {
   SellerProfile: { seller: SellerProfile };
   CreateListing: undefined;
   Messages: undefined;
-  Chat: { listing?: Listing; contact?: Contact };
+  // IDs drive the data; `partner` is display info so the header renders before
+  // any fetch. listingTitle/listingPrice feed the banner, and a present title
+  // also enables the "View" round-trip (ListingDetail loads by id).
+  Chat: {
+    listingId: string | null;
+    partnerId: string;
+    partner: Contact;
+    listingTitle?: string;
+    listingPrice?: number;
+  };
   Notifications: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;

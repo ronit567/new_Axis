@@ -7,8 +7,16 @@
 // generator after the migration is applied will reproduce them; drop this note
 // once it does.
 //
+// MANUAL ADDITION (pending regen): `messages.read_at` was hand-added alongside
+// migration 0008 (read receipts). Same deal — regenerate after applying 0008.
+//
 // MANUAL ADDITION (pending regen): `profiles.bio` was hand-added alongside
 // migration 0003 (AX-301 onboarding). Drop this note once regenerated.
+//
+// MANUAL ADDITION: the `conversation_list` view was hand-added with tight
+// nullability. NOTE: the generator emits every view column as nullable (PG
+// can't infer NOT NULL through a view) — after regenerating, keep this
+// hand-tightened Views entry rather than the generated one.
 //
 // MANUAL ADDITION (pending regen): the `increment_listing_views` function was
 // hand-added alongside migration 0007 (AX-111 view counter RPC). Drop this
@@ -130,6 +138,7 @@ export type Database = {
           created_at: string
           id: string
           listing_id: string | null
+          read_at: string | null
           receiver_id: string
           sender_id: string
         }
@@ -138,6 +147,7 @@ export type Database = {
           created_at?: string
           id?: string
           listing_id?: string | null
+          read_at?: string | null
           receiver_id: string
           sender_id: string
         }
@@ -146,6 +156,7 @@ export type Database = {
           created_at?: string
           id?: string
           listing_id?: string | null
+          read_at?: string | null
           receiver_id?: string
           sender_id?: string
         }
@@ -295,7 +306,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      conversation_list: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          listing_id: string | null
+          partner_id: string
+          read_at: string | null
+          receiver_id: string
+          sender_id: string
+          unread_count: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       increment_listing_views: {
@@ -323,6 +347,9 @@ export type ProfileRow = DefaultSchema['Tables']['profiles']['Row']
 export type ListingRow = DefaultSchema['Tables']['listings']['Row']
 export type SavedListingRow = DefaultSchema['Tables']['saved_listings']['Row']
 export type MessageRow = DefaultSchema['Tables']['messages']['Row']
+// One inbox thread: the last message's columns plus partner_id/unread_count.
+// A strict superset of MessageRow, so mappers accept it as a last message.
+export type ConversationListRow = DefaultSchema['Views']['conversation_list']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 

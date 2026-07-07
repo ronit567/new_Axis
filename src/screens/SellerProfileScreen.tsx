@@ -124,8 +124,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             scaleTo={0.97}
             onPress={() => {
               haptics.tap();
+              // No listing context from a profile page — this opens (or
+              // continues) the general thread with this seller.
               navigation.navigate('Chat', {
-                contact: {
+                listingId: null,
+                partnerId: seller.id,
+                partner: {
+                  id: seller.id,
                   initials: seller.initials,
                   name: seller.name,
                   avatarColor: seller.avatarColor,

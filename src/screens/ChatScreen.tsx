@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,129 +7,122 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import * as Crypto from 'expo-crypto';
 import { COLORS, SIZES, GRADIENTS, FONTS, SHADOWS } from '../constants/theme';
-import { RootStackParamList } from '../types';
+import { Message, RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
+import ActivitySpinner from '../components/ActivitySpinner';
+import ErrorState from '../components/ErrorState';
 import { haptics } from '../lib/haptics';
+import { useAuth } from '../context/AuthContext';
+import { useMessages, useSendMessage, useMarkConversationRead } from '../hooks/useMessages';
+import { formatClockTime } from '../lib/timeAgo';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
-type Message = {
-  id: string;
-  text: string;
-  sent: boolean;
-  time: string;
-  dealAmount?: string;
-};
-
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hey! Is the iPad still available?',
-    sent: false,
-    time: '2:14 PM',
-  },
-  {
-    id: '2',
-    text: 'Yep! Still here. Comes with the box + charger.',
-    sent: true,
-    time: '2:16 PM',
-  },
-  {
-    id: '3',
-    text: "Can do $270 and I'll meet at UCC 👍",
-    sent: false,
-    time: '2:18 PM',
-    dealAmount: '$270',
-  },
-];
-
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const listing = route?.params?.listing ?? null;
-  const contact = route?.params?.contact ?? {
-    initials: 'AK',
-    avatarColor: COLORS.primary,
-    name: 'Aria K.',
-  };
+  const { listingId, partnerId, partner, listingTitle, listingPrice } = route.params;
+  const { user } = useAuth();
 
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
+  const messages = useMemo(() => data ?? [], [data]);
+  const sendMessage = useSendMessage();
+  const markRead = useMarkConversationRead();
+  // Newest unread id we've already requested a receipt for. Re-arms whenever a
+  // newer unread message lands (e.g. via realtime while the thread is open),
+  // so receipts keep flowing for the whole time the user is looking at the
+  // thread — not just on first open.
+  const lastMarkedUnreadId = useRef<string | null>(null);
+
   const [inputText, setInputText] = useState('');
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
-  const lastMessage = messages[messages.length - 1];
-  const dealAmount = messages.find(m => m.dealAmount)?.dealAmount;
+  useEffect(() => {
+    const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);
+    if (unread.length === 0) return;
+    const newestUnreadId = unread[unread.length - 1].id;
+    if (lastMarkedUnreadId.current === newestUnreadId) return;
+    lastMarkedUnreadId.current = newestUnreadId;
+    markRead.mutate({ listingId, partnerId });
+  }, [messages, user?.id, listingId, partnerId, markRead]);
 
-  const sendMessage = () => {
+  const handleSend = () => {
     const text = inputText.trim();
     if (!text) return;
     haptics.tap();
-    setMessages(prev => [
-      ...prev,
-      { id: Date.now().toString(), text, sent: true, time: 'Now' },
-    ]);
     setInputText('');
+    sendMessage.mutate(
+      { id: Crypto.randomUUID(), listingId, receiverId: partnerId, body: text },
+      {
+        onError: () => {
+          // Put the failed message back (unless they've already typed more)
+          // so it isn't lost with the rolled-back bubble.
+          setInputText(current => (current.length > 0 ? current : text));
+          Alert.alert('Message not sent', 'Please try again.');
+        },
+      },
+    );
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   };
 
+  // Only offered when the thread has a listing we can still show (title
+  // present means the row is visible under RLS) — ListingDetail loads by id.
+  const canViewListing = listingId !== null && listingTitle != null;
   const handleViewListing = () => {
-    if (!listing) return;
+    if (listingId === null) return;
     haptics.tap();
-    navigation.navigate('ListingDetail', { listingId: listing.id });
+    navigation.navigate('ListingDetail', { listingId });
   };
 
-  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
-    const isLast = index === messages.length - 1;
-    return (
-      <View>
-        <View
-          style={[
-            styles.bubbleWrap,
-            item.sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived,
-          ]}
-        >
-          {item.sent ? (
+  // Read receipt, iMessage-style: only under the newest of my sent messages
+  // the partner has opened. Realtime UPDATEs flip readAt in the cache, so this
+  // moves live while the thread is open.
+  const lastReadSentId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m.senderId === user?.id && m.readAt !== null) return m.id;
+    }
+    return null;
+  }, [messages, user?.id]);
+
+  const renderMessage = useCallback(
+    ({ item }: { item: Message }) => {
+      const sent = item.senderId === user?.id;
+      return (
+        <View style={[styles.bubbleWrap, sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
+          {sent ? (
             <LinearGradient
               colors={GRADIENTS.primary}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[styles.bubble, styles.bubbleSent]}
             >
-              <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.text}</Text>
+              <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.body}</Text>
             </LinearGradient>
           ) : (
             <View style={[styles.bubble, styles.bubbleReceived]}>
-              <Text style={styles.bubbleText}>{item.text}</Text>
+              <Text style={styles.bubbleText}>{item.body}</Text>
             </View>
           )}
-          <Text style={styles.timestamp}>{item.time}</Text>
+          <Text style={styles.timestamp}>
+            {formatClockTime(item.createdAt)}
+            {item.id === lastReadSentId ? ' · Read' : ''}
+          </Text>
         </View>
-        {item.dealAmount && (
-          <View style={styles.dealRow}>
-            <View style={styles.dealTag}>
-              <Text style={styles.dealTagText}>Deal — {item.dealAmount}</Text>
-            </View>
-            <Text style={styles.dealStatus}>
-              <Text style={styles.dealStatusPending}>Pending</Text>
-            </Text>
-          </View>
-        )}
-        {isLast && dealAmount && (
-          <View style={styles.meetRow}>
-            <Text style={styles.meetLabel}>Where to meet?</Text>
-          </View>
-        )}
-      </View>
-    );
-  };
+      );
+    },
+    [user?.id, lastReadSentId],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -147,24 +140,22 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
-        <View style={[styles.headerAvatar, { backgroundColor: contact.avatarColor }]}>
-          <Text style={styles.headerAvatarText}>{contact.initials}</Text>
+        <View style={[styles.headerAvatar, { backgroundColor: partner.avatarColor }]}>
+          <Text style={styles.headerAvatarText}>{partner.initials}</Text>
         </View>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerName} numberOfLines={1}>{contact.name}</Text>
-          <View style={styles.activeRow}>
-            <View style={styles.activeDot} />
-            <Text style={styles.activeText}>Active now</Text>
-          </View>
+          <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
         </View>
-        <PressableScale
-          style={styles.viewBtn}
-          onPress={handleViewListing}
-          scaleTo={0.94}
-          accessibilityLabel="View listing"
-        >
-          <Text style={styles.viewBtnText}>View</Text>
-        </PressableScale>
+        {canViewListing && (
+          <PressableScale
+            style={styles.viewBtn}
+            onPress={handleViewListing}
+            scaleTo={0.94}
+            accessibilityLabel="View listing"
+          >
+            <Text style={styles.viewBtnText}>View</Text>
+          </PressableScale>
+        )}
         <PressableScale
           style={styles.flagBtn}
           onPress={() => setReportVisible(true)}
@@ -178,16 +169,20 @@ export default function ChatScreen({ navigation, route }: Props) {
       </View>
 
       {/* Listing preview banner */}
-      <View style={styles.listingBanner}>
-        <View style={styles.listingThumb} />
-        <View style={styles.listingInfo}>
-          <Text style={styles.listingTitle}>iPad Air 64GB</Text>
-          <Text style={styles.listingPrice}>$280</Text>
+      {listingTitle != null && (
+        <View style={styles.listingBanner}>
+          <View style={styles.listingThumb} />
+          <View style={styles.listingInfo}>
+            <Text style={styles.listingTitle}>{listingTitle}</Text>
+            {listingPrice != null && <Text style={styles.listingPrice}>${listingPrice}</Text>}
+          </View>
+          {canViewListing && (
+            <PressableScale style={styles.viewBannerBtn} onPress={handleViewListing} scaleTo={0.94}>
+              <Text style={styles.viewBannerBtnText}>View</Text>
+            </PressableScale>
+          )}
         </View>
-        <PressableScale style={styles.viewBannerBtn} onPress={handleViewListing} scaleTo={0.94}>
-          <Text style={styles.viewBannerBtnText}>View</Text>
-        </PressableScale>
-      </View>
+      )}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -195,15 +190,21 @@ export default function ChatScreen({ navigation, route }: Props) {
         keyboardVerticalOffset={0}
       >
         {/* Messages */}
-        <FlatList
-          ref={listRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.messageList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-        />
+        {isPending ? (
+          <ActivitySpinner style={styles.centerFill} />
+        ) : isError ? (
+          <ErrorState message="Couldn't load messages." onRetry={() => refetch()} />
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.messageList}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          />
+        )}
 
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -217,12 +218,10 @@ export default function ChatScreen({ navigation, route }: Props) {
             placeholder="Message..."
             placeholderTextColor={COLORS.textMuted}
             multiline
-            returnKeyType="send"
-            onSubmitEditing={sendMessage}
           />
           <PressableScale
             style={[styles.sendBtn, inputText.trim() ? styles.sendBtnActive : null]}
-            onPress={sendMessage}
+            onPress={handleSend}
             disabled={!inputText.trim()}
             scaleTo={0.9}
             accessibilityLabel="Send message"
@@ -240,7 +239,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       <ReportModal
         visible={reportVisible}
         target="chat"
-        targetName={contact.name}
+        targetName={partner.name}
         onClose={() => setReportVisible(false)}
         onBlock={() => {}}
       />
@@ -290,21 +289,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.bold,
     color: COLORS.text,
-  },
-  activeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  activeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: COLORS.success,
-  },
-  activeText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
   },
   viewBtn: {
     paddingHorizontal: 16,
@@ -365,6 +349,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
+  // ActivitySpinner centers its own content; this just fills the list area.
+  centerFill: {
+    flex: 1,
+  },
   messageList: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -405,45 +393,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 4,
     marginHorizontal: 2,
-  },
-  dealRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: -2,
-    marginBottom: 10,
-    gap: 8,
-    paddingRight: 4,
-  },
-  dealTag: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
-  dealTagText: {
-    fontSize: 12,
-    color: COLORS.text,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  dealStatus: {
-    fontSize: 12,
-  },
-  dealStatusPending: {
-    color: COLORS.warning,
-    fontWeight: '700',
-  },
-  meetRow: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  meetLabel: {
-    fontSize: SIZES.sm,
-    color: COLORS.textMuted,
-    fontStyle: 'italic',
   },
   inputBar: {
     flexDirection: 'row',

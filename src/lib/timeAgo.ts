@@ -15,6 +15,19 @@ const WEEK = 7 * DAY;
 // coarse relative label and keeps this function pure (no per-month date math).
 const MONTH = 30 * DAY;
 
+// Chat-bubble timestamps: local 12-hour clock time ("2:14 PM"). Hand-rolled
+// because Hermes' Intl support varies by platform/config; this stays
+// deterministic everywhere. Falls back to '' on unparseable input.
+export function formatClockTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const hours24 = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours24 < 12 ? 'AM' : 'PM';
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${hours12}:${minutes} ${period}`;
+}
+
 export function timeAgo(iso: string, now: Date = new Date()): string {
   const then = new Date(iso).getTime();
   // Unparseable input degrades to "just now" rather than emitting "NaNd ago".

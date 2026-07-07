@@ -106,8 +106,6 @@ function NotifItem({ item, onPress }: { item: Notification; onPress: () => void 
   );
 }
 
-const CHAT_CONTACT = { initials: 'AK', name: 'Aria K.', avatarColor: COLORS.primary };
-
 export default function NotificationsScreen({ navigation }: Props) {
   const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
   const [earlierNotifs, setEarlierNotifs] = useState(EARLIER_NOTIFICATIONS);
@@ -131,8 +129,10 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   const handleNotifPress = (item: Notification) => {
+    // These notifications are still mock rows (AX-602 wires real ones), so a
+    // message-type tap goes to the real inbox rather than a fabricated chat.
     if (item.type === 'offer' || item.type === 'reply') {
-      navigation.navigate('Chat', { contact: CHAT_CONTACT });
+      navigation.navigate('Messages');
     } else if (item.type === 'price_drop' || item.type === 'saves') {
       navigation.navigate('Main');
     }

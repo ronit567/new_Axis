@@ -35,7 +35,7 @@ I read the tree, not just the context doc. Reality:
 | Hooks layer | 🟨 Written, **not imported by any screen** | `src/hooks/*` |
 | DB schema + RLS | 🟨 **Drafted, not applied** to a project | `supabase/migrations/000{1,2}_*.sql` |
 | Image upload (Storage) | ⬜ Not started | `CreateListingScreen` holds local URIs |
-| Realtime messaging | ⬜ Not started | `MessagesScreen`/`ChatScreen` fully static |
+| Realtime messaging | ✅ Live send/receive, read receipts, unread badges | `MessageRepository`, `useMessages*` hooks, `conversation_list` view (0008/0009) |
 | Notifications | ⬜ Table drafted, no generation strategy | `NotificationsScreen` static |
 | Tests / CI | ⬜ **None exist** | no test runner, no `.github/` |
 
@@ -162,7 +162,7 @@ This epic is the load-bearing wall. Screens come after.
 **Depends on:** AX-110. **Size:** M.
 **Done (AX-301):** `stats` (listings/sold) is zeroed pending AX-111's real listing counts, same deferral pattern as `rating`/`reviewCount` pending AX-702.
 
-### AX-113 — Implement `MessageRepository` for real ⬜
+### AX-113 — Implement `MessageRepository` for real ✅
 **Tasks:**
 - `getConversations(userId)` — distinct counterparties with last message + unread count (needs a `read`/`read_at` column — **schema change**, add in this ticket).
 - `getMessages(listingId, otherUserId)` — thread between the two users for a listing, ordered.
@@ -170,6 +170,7 @@ This epic is the load-bearing wall. Screens come after.
 - Note: conversation identity is `(listing, otherUser)`, not just `listing`. Current `queryKeys.messages(listingId)` and `getMessages(listingId)` are **too coarse** — revise the key + signature here.
 **AC:** two accounts can exchange messages tied to a listing; conversation list shows the latest line.
 **Depends on:** AX-110. **Size:** L. (Realtime is AX-501 — this ticket is fetch/send only.)
+**Done:** `getConversations` reads the `conversation_list` view (migration 0009, `security_invoker`) — one row per `(listing, partner)` thread with last message + unread count — then batch-hydrates partners/listings client-side (blocked partners' threads drop out via RLS). `read_at` added in 0008 with a receiver-only update policy **and a column-level grant so only `read_at` is writable**; `markConversationRead` stamps a whole thread. Query keys are `(listingId, partnerId)`. Policy tests in `supabase/tests/messages_read_receipts_test.sql`, unit tests for the repository + mappers.
 
 ---
 
@@ -291,24 +292,27 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 ## Epic 5 — Messaging (Realtime)
 
-### AX-501 — Realtime message subscription ⬜
+### AX-501 — Realtime message subscription ✅
 **Why:** `MessagesScreen`/`ChatScreen` are fully static.
 **Tasks:** Supabase Realtime on `messages` filtered to the current user; push new rows into the `messages` query cache; enable Realtime on the table in the dashboard.
 **AC:** a message from account B appears in account A's open chat without a manual refresh.
 **Depends on:** AX-113. **Size:** L.
+**Done:** `messages` added to the Realtime publication in migration 0008; `MessageRepository.subscribeToMessages` streams INSERTs **and** `read_at` UPDATEs with no server-side filter — `postgres_changes` respects RLS, so exactly the caller's rows arrive. Mounted once per signed-in session via `useMessagesRealtime` in `MainScreen`: inserts land in loaded thread caches (deduped against the optimistic bubble) and invalidate the inbox; updates flow read receipts back into open threads.
 
-### AX-502 — ChatScreen + MessagesScreen wired ⬜
+### AX-502 — ChatScreen + MessagesScreen wired ✅
 **Tasks:**
 - `MessagesScreen` ← `useConversations`; `ChatScreen` ← `useMessages` + `useSendMessage` (optimistic append).
 - Nav params → IDs (`{ listingId, otherUserId }`) not full objects; update the "message seller" entry points in ListingDetail/SellerProfile.
 - Empty/loading/error states.
 **AC:** real conversation list; sending persists and appears instantly; reopening shows history.
 **Depends on:** AX-113, AX-501. **Size:** L.
+**Done:** inbox has Buying/Selling filters, skeletons, pull-to-refresh, empty/error states; Chat sends optimistically with rollback (a failed send restores the input text). Nav params are `{ listingId, partnerId, partner }` + optional `listingTitle`/`listingPrice` for the banner — no full `Listing` object; the banner's View button loads ListingDetail by id from every entry point (ListingDetail, SellerProfile, inbox). Own listings hide the Message/offer bar.
 
-### AX-503 — Unread badges & read receipts ⬜
+### AX-503 — Unread badges & read receipts ✅
 **Tasks:** mark-read on open; unread count on the Messages tab + conversation rows (needs the `read` column from AX-113).
 **AC:** unread count is accurate and clears on read.
 **Depends on:** AX-113, AX-502. **Size:** M.
+**Done:** mark-read fires on open and re-arms for messages arriving while the thread stays open (thread cache is stamped on success, so it converges even if the socket drops). Unread dot on conversation rows; count badge on the Messages tab driven by the same `useConversations` cache the realtime hook keeps fresh; "Read" renders under the sender's newest read message, updated live by the `read_at` UPDATE stream.
 
 ---
 
