@@ -26,9 +26,13 @@
 // hand-added alongside migration 0006 (AX-401 save counts). Drop this note
 // once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `delete_own_account` function was
+// hand-added alongside migration 0010 (AX-704 account deletion RPC). Drop
+// this note once regenerated.
+//
 // MANUAL ADDITION (pending regen): the `reports` table + ReportRow alias were
-// hand-added alongside migration 0010 (AX-703 report/block). Same deal —
-// regenerate after applying 0010.
+// hand-added alongside migration 0011 (AX-703 report/block). Same deal —
+// regenerate after applying 0011.
 //
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
@@ -388,6 +392,10 @@ export type Database = {
       my_listing_save_counts: {
         Args: Record<PropertyKey, never>
         Returns: { listing_id: string; saves: number }[]
+      }
+      delete_own_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {

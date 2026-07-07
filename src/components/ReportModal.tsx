@@ -53,6 +53,12 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
   const handleClose = () => {
     setSelected(null);
     setSubmitted(false);
+    // Also clear the in-flight flags: RN's Modal keeps this component mounted
+    // while visible={false}, so without this, closing mid-request and
+    // reopening before the request settles would show a stuck "Submitting…"/
+    // "Blocking…" button until the background call finishes.
+    setSubmitting(false);
+    setBlocking(false);
     onClose();
   };
 
@@ -61,12 +67,12 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
     setBlocking(true);
     try {
       await onBlock?.();
-      setSelected(null);
-      setSubmitted(false);
       Alert.alert(
         'User blocked',
         `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
-        [{ text: 'OK' }],
+        // Close (rather than fall back to the reason-picker view) once the
+        // user has acknowledged the block.
+        [{ text: 'OK', onPress: handleClose }],
       );
     } catch {
       Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");

@@ -3,7 +3,7 @@ import {
   ProfileRepository,
   UpsertProfileInput,
 } from '../repositories/ProfileRepository'
-import { useAuth } from '../context/AuthContext'
+import { signOut, useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
 export function useProfile(userId: string) {
@@ -39,5 +39,15 @@ export function useUpsertProfile() {
       queryClient.setQueryData(queryKeys.currentProfile, profile)
       queryClient.invalidateQueries({ queryKey: ['profile'] })
     },
+  })
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => ProfileRepository.deleteAccount(),
+    // The account (and its session) no longer exists server-side once this
+    // resolves — reuse the same offline-safe signOut as the explicit sign-out
+    // button to clear the local session/tokens and the query cache.
+    onSuccess: () => signOut(),
   })
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -27,8 +31,6 @@ import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
-const DOTS = [0, 1, 2, 3];
-
 export default function ListingDetailScreen({ navigation, route }: Props) {
   const { listingId } = route.params;
   const { data: listing, isLoading, isError, refetch } = useListing(listingId);
@@ -44,6 +46,8 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
+  const galleryRef = useRef<ScrollView>(null);
 
   // `saved` is optimistic local state: flip immediately, roll back on failure.
   // The mutation takes the full listing with the pre-tap saved flag — local
@@ -63,6 +67,17 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (listing) setSaved(listing.saved);
   }, [listing]);
+
+  const handleGalleryScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+    setActiveDot(index);
+  };
+
+  const scrollToImage = (index: number) => {
+    haptics.tap();
+    setActiveDot(index);
+    galleryRef.current?.scrollTo({ x: index * windowWidth, animated: true });
+  };
 
   if (isLoading) {
     return (
@@ -157,29 +172,52 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Image Carousel Placeholder */}
-        <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
-          <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
-        </View>
+        {/* Image gallery: swipeable when the listing has photos, otherwise the
+            imageColor placeholder is all there is to show. */}
+        {listing.imageUrls.length > 0 ? (
+          <ScrollView
+            ref={galleryRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleGalleryScrollEnd}
+          >
+            {listing.imageUrls.map((uri, i) => (
+              <Image
+                key={uri + i}
+                source={{ uri }}
+                style={[
+                  styles.imagePlaceholder,
+                  { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
+                ]}
+                contentFit="cover"
+                transition={150}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
+            <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
+          </View>
+        )}
 
         {/* Carousel Dots */}
-        <View style={styles.dotsRow}>
-          {DOTS.map(i => (
-            <TouchableOpacity
-              key={i}
-              onPress={() => {
-                haptics.tap();
-                setActiveDot(i);
-              }}
-              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={`View image ${i + 1}`}
-              accessibilityState={{ selected: activeDot === i }}
-            >
-              <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {listing.imageUrls.length > 1 && (
+          <View style={styles.dotsRow}>
+            {listing.imageUrls.map((uri, i) => (
+              <TouchableOpacity
+                key={uri + i}
+                onPress={() => scrollToImage(i)}
+                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`View image ${i + 1}`}
+                accessibilityState={{ selected: activeDot === i }}
+              >
+                <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View style={styles.content}>
           {/* Price + condition */}
@@ -358,6 +396,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
+    marginTop: 16,
   },
   priceRow: {
     flexDirection: 'row',

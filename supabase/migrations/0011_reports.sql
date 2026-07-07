@@ -5,7 +5,8 @@
 -- public.blocks (instead of the UI's current local useState) is app-layer
 -- (BlockRepository), no schema change needed for it.
 --
--- Numbered 0010: 0001-0009 are taken by prior migrations already on main.
+-- Numbered 0011: 0001-0010 are taken by prior migrations already on main
+-- (0010 is AX-704's delete_own_account, merged after this branch started).
 
 create table if not exists public.reports (
   id                 uuid primary key default gen_random_uuid(),

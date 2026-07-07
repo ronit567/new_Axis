@@ -1,10 +1,10 @@
--- Axis — reports policy tests (migration 0010).
+-- Axis — reports policy tests (migration 0011).
 --
 -- Same harness as rls_policies_test.sql / messages_read_receipts_test.sql:
 -- runs inside BEGIN ... ROLLBACK, switches identity via set local role +
 -- request.jwt.claims, raises on the first failed assertion, prints ALL
 -- REPORTS TESTS PASSED on success. Kept as a separate file so it can run
--- independently after 0010 is applied.
+-- independently after 0011 is applied.
 
 begin;
 

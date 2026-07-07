@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { COLORS, SHADOWS, FONTS } from '../constants/theme';
 import { Listing } from '../types';
 import PressableScale from './PressableScale';
@@ -16,6 +17,14 @@ export default function ListingCard({ item, onPress, onSave, style }: Props) {
   return (
     <PressableScale style={[styles.card, style]} onPress={onPress} scaleTo={0.98}>
       <View style={[styles.imageArea, { backgroundColor: item.imageColor || '#EEE8F8' }]}>
+        {item.imageUrls[0] ? (
+          <Image
+            source={{ uri: item.imageUrls[0] }}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+            transition={150}
+          />
+        ) : null}
         {item.badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{item.badge}</Text>

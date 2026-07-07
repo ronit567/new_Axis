@@ -15,17 +15,19 @@ against a live database yet — review before applying.
 | `migrations/0007_increment_listing_views.sql` | `increment_listing_views()` — a `SECURITY DEFINER` RPC that atomically bumps a listing's view counter for any authenticated viewer *except the owner* (RLS scopes plain UPDATEs to the seller, which would leave views frozen for real browsers; the owner exclusion stops self-inflation). |
 | `migrations/0008_messages_read_receipts.sql` | `messages.read_at` (receiver-only update via column grant), the unread partial index, and adds `messages` to the Realtime publication. |
 | `migrations/0009_conversation_list_view.sql` | `conversation_list` view (`security_invoker`): one row per (listing, partner) thread — last message + unread count — for the caller. Backs the Messages inbox. Apply **after** 0008. |
-| `migrations/0010_reports.sql` | `reports` table (reporter, target user/listing, reason, status) + RLS: reporter can file and read back their own reports; nobody else can. Backs the ReportModal submit flow (AX-703). |
+| `migrations/0010_delete_account.sql` | `delete_own_account()` — a `SECURITY DEFINER` RPC that deletes the caller's `auth.users` row; every owned row (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`) cascades away in the same statement via the `on delete cascade` FKs already in 0001. Backs AX-704 (Settings → Danger zone → Delete account). |
+| `migrations/0011_reports.sql` | `reports` table (reporter, target user/listing, reason, status) + RLS: reporter can file and read back their own reports; nobody else can. Backs the ReportModal submit flow (AX-703). |
 | `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0003), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0003+0006. |
 | `tests/messages_read_receipts_test.sql` | Read-receipt + `conversation_list` policy tests (receiver-only `read_at` writes, column-grant immutability, unread counts). Run **after** 0008+0009. |
-| `tests/reports_test.sql` | Reports policy tests (reporter can file + read own, cross-user select/insert denied, anon denied, `reports_target_present` constraint enforced). Run **after** 0010. |
+| `tests/delete_account_test.sql` | `delete_own_account()` tests: anon has no EXECUTE grant, the caller's full cascade graph (profile/listing/saved_listing/messages-both-directions/notification/blocks) is gone, an unrelated user's rows are untouched, and calling it again post-delete is a no-op. Run **after** 0010. |
+| `tests/reports_test.sql` | Reports policy tests (reporter can file + read own, cross-user select/insert denied, anon denied, `reports_target_present` constraint enforced). Run **after** 0011. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
 - **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, `0006`,
-  `0007`, `0008`, `0009`, `0010`, then `health_check.sql`. I can drive this directly
-  once the MCP is connected.
+  `0007`, `0008`, `0009`, `0010`, `0011`, then `health_check.sql`. I can drive this
+  directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 
@@ -34,7 +36,8 @@ or psql). It runs inside a transaction and `rollback`s, so it leaves nothing
 behind; it raises on the first failed assertion and prints `ALL RLS TESTS
 PASSED` on success. The storage scenarios (6–9) need the buckets from 0003 to
 exist, so apply 0003 before running the tests. After applying 0010, run
-`tests/reports_test.sql` the same way.
+`tests/delete_account_test.sql`; after applying 0011, run `tests/reports_test.sql`
+the same way.
 
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
@@ -78,6 +81,20 @@ After the tables exist, regenerate app types:
   that flow is designed.
 - **`profiles.verified` is retained** to match the `SellerProfile` type, but the
   "Western verified" UI was removed (commit 013c3d8) — currently unused.
+- **Account deletion is a hard delete, not an anonymized tombstone** —
+  `delete_own_account()` (0010) deletes `auth.users` and lets the existing
+  cascades remove everything reachable from it, *including* a shared message
+  thread where the deleted user was the sender or receiver (the row has no
+  per-party copy, so it's one delete for both sides). This is a deliberate
+  narrower choice than "preserve the other party's copy, anonymize the
+  sender" (the pattern this file already uses for *blocking*, where the
+  thread survives and just loses the name/avatar) — doing that for deletion
+  would require dropping the `profiles.id → auth.users.id` cascade FK and
+  adding a `deleted_at` tombstone column so a profile can outlive its auth
+  user, which is a real schema/architecture change, not a follow-on of this
+  ticket. AX-704's AC is "deleting an account removes the user and their
+  listings/messages" — this matches that literally. Revisit if the product
+  wants counterparty history preserved.
 - **`reports` is a queue, not a full moderation system.** `status` moves
   `open → reviewing → resolved/dismissed`, but nothing in this migration moves
   it — there's no admin UI or role yet, so the queue is reviewed by hand via
