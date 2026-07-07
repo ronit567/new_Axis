@@ -381,6 +381,16 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 **AC:** legal pages have accurate, final copy.
 **Depends on:** none. **Size:** S.
 
+### AX-707 — Moderation backend (compliance) 🟨
+**Why:** compliance tracking flagged Guideline 1.2 (UGC apps: filter, report, block, contact). AX-703 covers filter/report/block, but two compliance-specific pieces were still missing: a reviewer-friendly *queryable* queue, and a documented review contact + response-time commitment in-app.
+**Tasks:**
+- `reports_queue` SQL view (migration `0012_reports_queue.sql`) over AX-703's `reports` table — joins in reporter/target names + emails + the reported listing's title, ordered open-first, revoked from `anon`/`authenticated` so it's Studio/`service_role`-only (no in-app moderation UI in v1). Satisfies "reports land in a queryable queue (SQL view/dashboard OK for v1)".
+- `CommunityGuidelinesScreen` Reporting section now states the 24h response commitment + `support@axis.app` (the same contact already on `TermsOfServiceScreen`) — the "contact" leg of Guideline 1.2.
+- Drive-by: fixed a `ReportModal` bug where a report submission resolving after the sheet was dismissed left a stale "Report submitted" confirmation on the next open (`openRef` guard).
+**AC:** reports are triageable via a single SQL view with the parties' names/emails; the app documents a review contact + response-time commitment; blocking hides both parties' content from each other (already verified by `rls_policies_test.sql`). Together with AX-703 this satisfies Guideline 1.2's four requirements (filter, report, block, contact).
+**Not done — needs a live project:** like AX-703, migration `0012` and `tests/reports_queue_test.sql` have **not been applied/run** against the Supabase project (no MCP/CLI in-session). Apply `0012` after `0011`, run the queue test, then flip to ✅.
+**Depends on:** AX-703. **Size:** S.
+
 ---
 
 ## Epic 8 — Quality, tooling & release
@@ -427,7 +437,7 @@ Each ticket replaces a mock import with a hook and deletes the fake loading. **D
 
 **Sprint 4 — Messaging:** AX-113 → AX-501 → AX-502 → AX-503.
 
-**Sprint 5 — Notifications + safety:** AX-601/602, AX-701, AX-703, AX-704, AX-705.
+**Sprint 5 — Notifications + safety:** AX-601/602, AX-701, AX-703, AX-707, AX-704, AX-705.
 
 **Sprint 6 — Harden & ship:** AX-903, AX-904, AX-905, then AX-603/702 as v1.1.
 
