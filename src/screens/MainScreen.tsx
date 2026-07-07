@@ -18,9 +18,10 @@ export default function MainScreen({ navigation }: Props) {
   // for the whole signed-in session, keeping the inbox fresh in the background.
   useMessagesRealtime();
   // Same cache MessagesScreen reads; the realtime hook above invalidates it on
-  // every INSERT/UPDATE, so the tab badge tracks unread across the session.
+  // every INSERT/UPDATE, so the tab badge tracks conversations with unread
+  // across the session.
   const { data: conversations } = useConversations();
-  const unreadTotal = (conversations ?? []).reduce((sum, c) => sum + c.unreadCount, 0);
+  const unreadTotal = (conversations ?? []).filter((c) => c.unreadCount > 0).length;
 
   const renderContent = () => {
     switch (activeTab) {
