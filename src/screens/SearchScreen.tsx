@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -34,10 +35,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 const FILTER_CATEGORIES = ["Textbooks", "Electronics", "Furniture", "Tickets"];
 const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
-// Height of Home's greeting row (38px avatar + 14px padding). The header
-// spacer starts at this height so the purple region and search bar begin
-// exactly where Home draws them, then collapses to pull the purple up.
-const HOME_GREETING_ROW_HEIGHT = 52;
 // The price slider's upper bound doubles as "no cap" — nothing is listed
 // above it, so treating it as a sentinel keeps the filter omitted rather
 // than passing a max that happens to include everything anyway.
@@ -57,23 +54,36 @@ export default function SearchScreen({ navigation, route }: Props) {
   const [priceMax, setPriceMax] = useState(PRICE_MAX_CAP);
   const inputRef = useRef<TextInput>(null);
 
-  // The screen itself crossfades in (App.tsx uses animation: 'fade'); the
-  // only thing that visibly travels is the purple header, which starts at
-  // Home's taller greeting-row height and collapses up to search-mode height.
-  const headerCollapse = useRef(new Animated.Value(1)).current;
+  // Hand-rolled entrance (the route mounts with animation: 'none' after Home
+  // has already collapsed its greeting row, so the header is pixel-identical
+  // across the switch). What animates HERE is only what's new on this screen:
+  // the close chevron grows in (the search bar starts at Home's full width and
+  // narrows), and the results area fades up from beneath the header.
+  const enterAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(headerCollapse, {
-      toValue: 0,
-      duration: 260,
+    Animated.timing(enterAnim, {
+      toValue: 1,
+      duration: 240,
       easing: Easing.out(Easing.cubic),
-      // Animates height, which the native driver can't do; one 260ms one-shot.
+      // Animates layout width, which the native driver can't do.
       useNativeDriver: false,
     }).start();
-  }, [headerCollapse]);
-  const spacerHeight = headerCollapse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, HOME_GREETING_ROW_HEIGHT],
-  });
+  }, [enterAnim]);
+  const closeBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 48] });
+  const closeBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 10] });
+  const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+
+  // Mirror of the entrance, then pop the screen — Home re-expands its
+  // greeting on focus, so the whole close reads as one continuous motion.
+  const handleClose = () => {
+    Keyboard.dismiss();
+    Animated.timing(enterAnim, {
+      toValue: 0,
+      duration: 150,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: false,
+    }).start(() => navigation.goBack());
+  };
 
   const {
     data,
@@ -130,19 +140,27 @@ export default function SearchScreen({ navigation, route }: Props) {
         colors={GRADIENTS.primaryRadiant}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
       >
-        <Animated.View style={{ height: spacerHeight }} />
         <View style={styles.searchRow}>
-          <PressableScale
-            style={styles.closeBtn}
-            onPress={() => navigation.goBack()}
-            scaleTo={0.92}
-            accessibilityRole="button"
-            accessibilityLabel="Close search"
+          <Animated.View
+            style={{
+              width: closeBtnWidth,
+              marginRight: closeBtnMargin,
+              opacity: enterAnim,
+              overflow: "hidden",
+            }}
           >
-            <Ionicons name="chevron-down" size={22} color={COLORS.white} />
-          </PressableScale>
+            <PressableScale
+              style={styles.closeBtn}
+              onPress={handleClose}
+              scaleTo={0.92}
+              accessibilityRole="button"
+              accessibilityLabel="Close search"
+            >
+              <Ionicons name="chevron-down" size={22} color={COLORS.white} />
+            </PressableScale>
+          </Animated.View>
           <View style={styles.searchBar}>
             <Ionicons
               name="search-outline"
@@ -184,6 +202,11 @@ export default function SearchScreen({ navigation, route }: Props) {
         </View>
       </LinearGradient>
 
+      {/* Everything below the header fades up as one block — the "results
+          morph in" half of the hand-rolled transition. */}
+      <Animated.View
+        style={{ flex: 1, opacity: enterAnim, transform: [{ translateY: contentShift }] }}
+      >
       {/* Results count */}
       <View style={styles.resultsRow}>
         <Text style={styles.resultsCount}>
@@ -232,6 +255,7 @@ export default function SearchScreen({ navigation, route }: Props) {
           onEndReached={loadMore}
         />
       )}
+      </Animated.View>
 
       {/* Filter Bottom Sheet */}
       <Modal
@@ -419,14 +443,17 @@ const styles = StyleSheet.create({
   header: {
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    paddingHorizontal: 16,
+    // Matches HomeScreen's header inset exactly — the two screens swap with
+    // animation: 'none', so any offset here shows up as a visible jump.
+    paddingHorizontal: 20,
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    // No `gap`: the close button's spacing is animated (it grows from 0), so
+    // a static gap would misalign the search bar at the start of the motion.
   },
   searchBar: {
     flex: 1,
@@ -455,6 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryDark,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 10,
   },
   closeBtn: {
     width: 48,

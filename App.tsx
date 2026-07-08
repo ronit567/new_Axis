@@ -107,14 +107,15 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          {/* Search crossfades over Home (no card slide): both screens share
-              the purple header, so the fade reads as the header morphing while
-              SearchScreen's own collapse animation pulls the purple up into
-              its shorter search-mode height. */}
+          {/* No stack animation at all: Home collapses its greeting row BEFORE
+              navigating and Search mounts with pixel-identical header geometry,
+              so the switch itself is invisible — Search then animates its own
+              close button + results in. The whole transition is hand-rolled
+              across the two screens instead of a card animation. */}
           <Stack.Screen
             name="Search"
             component={SearchScreen}
-            options={{ animation: 'fade', animationDuration: 220 }}
+            options={{ animation: 'none' }}
           />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />

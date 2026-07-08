@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Animated,
+  Easing,
   ScrollView,
   RefreshControl,
   ActivityIndicator,
@@ -34,10 +35,50 @@ type Props = {
 
 const CATEGORIES = BROWSE_CATEGORIES;
 
+// Greeting row height: 38px avatar + 14px header paddingBottom. Collapsing
+// exactly this leaves the purple at the same height SearchScreen draws it.
+const GREETING_ROW_HEIGHT = 52;
+
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+  // Hand-rolled search transition (the Search route uses animation: 'none').
+  // 1 = greeting visible. Tapping search collapses the greeting up into the
+  // purple FIRST, then switches screens — Search mounts with the exact same
+  // header geometry, so the swap itself is imperceptible. Restored on focus.
+  const greetingAnim = useRef(new Animated.Value(1)).current;
+  const openSearch = (showFilters?: boolean) => {
+    Animated.timing(greetingAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      // Height can't run on the native driver; one short one-shot.
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      // Interrupted (e.g. a second tap restarted the timing): only the run
+      // that actually completes navigates, so we can't push Search twice.
+      if (finished) navigation.navigate('Search', showFilters ? { showFilters } : undefined);
+    });
+  };
+  useEffect(() => {
+    // Coming back from Search: grow the greeting back in. Fires on every
+    // focus, but from any other screen the value is already 1 (no-op).
+    const unsubscribe = navigation.addListener('focus', () => {
+      Animated.timing(greetingAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    });
+    return unsubscribe;
+  }, [navigation, greetingAnim]);
+  const greetingHeight = greetingAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, GREETING_ROW_HEIGHT],
+  });
 
   const category = activeCategory === 'All' ? undefined : activeCategory;
   const {
@@ -108,35 +149,39 @@ export default function HomeScreen({ navigation }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}
       >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatarSmall}>
-              <Text style={styles.avatarText}>RS</Text>
-            </View>
-            <View>
-              <Text style={styles.greeting}>Hi, Ronit</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.location}>Western · London, ON</Text>
+        <Animated.View
+          style={{ height: greetingHeight, opacity: greetingAnim, overflow: 'hidden' }}
+        >
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarSmall}>
+                <Text style={styles.avatarText}>RS</Text>
+              </View>
+              <View>
+                <Text style={styles.greeting}>Hi, Ronit</Text>
+                <View style={styles.locationRow}>
+                  <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
+                  <Text style={styles.location}>Western · London, ON</Text>
+                </View>
               </View>
             </View>
+            <PressableScale
+              style={styles.bellBtn}
+              onPress={() => navigation.navigate('Notifications')}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              scaleTo={0.9}
+            >
+              <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
+              {unreadNotifications > 0 && <View style={styles.bellDot} />}
+            </PressableScale>
           </View>
-          <PressableScale
-            style={styles.bellBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            scaleTo={0.9}
-          >
-            <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-            {unreadNotifications > 0 && <View style={styles.bellDot} />}
-          </PressableScale>
-        </View>
+        </Animated.View>
 
         {/* Search Bar */}
         <View style={styles.searchRow}>
           <TouchableOpacity
             style={styles.searchBar}
-            onPress={() => navigation.navigate('Search')}
+            onPress={() => openSearch()}
             activeOpacity={0.85}
           >
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
@@ -144,7 +189,7 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
           <PressableScale
             style={styles.filterBtn}
-            onPress={() => navigation.navigate('Search', { showFilters: true })}
+            onPress={() => openSearch(true)}
             scaleTo={0.92}
             accessibilityRole="button"
             accessibilityLabel="Search filters"
