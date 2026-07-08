@@ -17,6 +17,7 @@ import PressableScale from '../components/PressableScale';
 import { useMyListings } from '../hooks/useListings';
 import { useSavedListings } from '../hooks/useSavedListings';
 import { useCurrentProfile } from '../hooks/useProfile';
+import { formatYearOfStudy } from '../lib/formatYear';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -108,7 +109,7 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
           </View>
           <Text style={styles.programText}>
-            {profile ? `${profile.program} · Year ${profile.year}` : ' '}
+            {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
           </Text>
           {/* rating/reviewCount are deferred to AX-702; the mapper returns 0
               until then, and the convention is to hide the block rather than

@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
-import { RootStackParamList, SellerProfile } from '../types';
+import { RootStackParamList, SellerProfile, YearOfStudy } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
@@ -37,7 +37,7 @@ const PROGRAMS = [
   'Science',
 ];
 
-const YEARS = [1, 2, 3, 4, 'Grad'];
+const YEARS: YearOfStudy[] = [1, 2, 3, 4, 'Grad'];
 
 const BIO_MAX = 150;
 
@@ -82,7 +82,7 @@ function EditProfileForm({
   const upsertProfile = useUpsertProfile();
   const [name, setName] = useState(profile.name);
   const [program, setProgram] = useState(profile.program || 'Ivey HBA');
-  const [year, setYear] = useState<number | string>(profile.year);
+  const [year, setYear] = useState<YearOfStudy>(profile.year);
   const [bio, setBio] = useState(profile.bio);
   const [pickupArea, setPickupArea] = useState(profile.location);
   const [showProgramPicker, setShowProgramPicker] = useState(false);

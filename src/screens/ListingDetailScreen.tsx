@@ -22,6 +22,7 @@ import ErrorState from '../components/ErrorState';
 import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
+import { formatYearOfStudy } from '../lib/formatYear';
 import { useAuth } from '../context/AuthContext';
 import { useListing } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
@@ -267,7 +268,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                   <View style={[styles.onlineDot, { backgroundColor: listing.seller.dotColor }]} />
                 </View>
               </View>
-              <Text style={styles.sellerMeta}>{listing.seller.program} · Year {listing.seller.year}</Text>
+              <Text style={styles.sellerMeta}>{listing.seller.program} · {formatYearOfStudy(listing.seller.year)}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </PressableScale>

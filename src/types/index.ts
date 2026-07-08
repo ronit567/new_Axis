@@ -1,7 +1,14 @@
+// A student's year of study. Grad students have no numeric year — SetupProfile
+// stores null for them, and the mappers surface that null as the 'Grad' sentinel
+// the year picker already uses. Kept out of plain `number` so the Grad/Year-1
+// distinction survives the DB round-trip: a Grad profile must not read back as
+// "Year 1" (previously it did, silently downgrading grads on edit).
+export type YearOfStudy = number | 'Grad';
+
 export type Seller = {
   id: string;
   name: string;
-  year: number;
+  year: YearOfStudy;
   location: string;
   program: string;
   dotColor: string;
@@ -17,7 +24,7 @@ export type SellerProfile = {
   joinedDate: string;
   rating: number;
   reviewCount: number;
-  year: number;
+  year: YearOfStudy;
   verified: boolean;
   stats: { listings: number; sold: number; replyTime: string };
   avatarColor: string;
