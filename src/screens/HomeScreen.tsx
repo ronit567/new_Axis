@@ -144,8 +144,10 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
           <PressableScale
             style={styles.filterBtn}
-            onPress={() => navigation.navigate('Search')}
+            onPress={() => navigation.navigate('Search', { showFilters: true })}
             scaleTo={0.92}
+            accessibilityRole="button"
+            accessibilityLabel="Search filters"
           >
             <Ionicons name="options-outline" size={20} color={COLORS.white} />
           </PressableScale>

@@ -37,10 +37,13 @@ const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
 // than passing a max that happens to include everything anyway.
 const PRICE_MAX_CAP = 500;
 
-export default function SearchScreen({ navigation }: Props) {
+export default function SearchScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  // Opened from the Home filter button: land with the sheet already up and no
+  // keyboard (autoFocus would pop it behind the sheet and fight the slide-up).
+  const openedForFilters = route.params?.showFilters ?? false;
   const [query, setQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(openedForFilters);
   // Screen opens with no filters applied so it shows every active listing
   // until the user narrows things down.
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -106,6 +109,15 @@ export default function SearchScreen({ navigation }: Props) {
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
         <View style={styles.searchRow}>
+          <PressableScale
+            style={styles.closeBtn}
+            onPress={() => navigation.goBack()}
+            scaleTo={0.92}
+            accessibilityRole="button"
+            accessibilityLabel="Close search"
+          >
+            <Ionicons name="chevron-down" size={22} color={COLORS.white} />
+          </PressableScale>
           <View style={styles.searchBar}>
             <Ionicons
               name="search-outline"
@@ -119,7 +131,7 @@ export default function SearchScreen({ navigation }: Props) {
               onChangeText={setQuery}
               placeholder="Search textbooks, furniture..."
               placeholderTextColor={COLORS.textMuted}
-              autoFocus
+              autoFocus={!openedForFilters}
               returnKeyType="search"
             />
             {query.length > 0 ? (
@@ -147,17 +159,11 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       </LinearGradient>
 
-      {/* Results count + cancel */}
+      {/* Results count */}
       <View style={styles.resultsRow}>
         <Text style={styles.resultsCount}>
           {isLoading ? "Searching…" : `${resultsCountLabel} results`}
         </Text>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Results Grid: loading skeleton / error / list */}
@@ -425,10 +431,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: "500",
+  closeBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   resultsRow: {
     flexDirection: "row",

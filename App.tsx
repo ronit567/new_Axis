@@ -107,7 +107,13 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
+          {/* Search presents bottom-up (like CreateListing): the bar lands
+              pinned at the top and the close chevron slides it back down. */}
+          <Stack.Screen
+            name="Search"
+            component={SearchScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
           <Stack.Screen

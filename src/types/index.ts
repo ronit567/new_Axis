@@ -142,7 +142,9 @@ export type RootStackParamList = {
   ManageListings: undefined;
   Settings: undefined;
   Main: undefined;
-  Search: undefined;
+  // showFilters opens the screen with the filter sheet already up (the Home
+  // header's filter button) instead of the keyboard-focused search state.
+  Search: { showFilters?: boolean } | undefined;
   ListingDetail: { listingId: string };
   SellerProfile: { seller: SellerProfile };
   CreateListing: undefined;
