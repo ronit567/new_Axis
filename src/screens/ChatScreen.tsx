@@ -49,7 +49,7 @@ type ChatItem = {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listingId, partnerId, partner, listingTitle, listingPrice } = route.params;
+  const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage, draftNonce } = route.params;
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
@@ -78,9 +78,20 @@ export default function ChatScreen({ navigation, route }: Props) {
   // thread — not just on first open.
   const lastMarkedUnreadId = useRef<string | null>(null);
 
-  const [inputText, setInputText] = useState('');
+  // Seed the composer from an optional draft (e.g. the listing "Make offer"
+  // shortcut) so the buyer lands on the thread with the message ready to send.
+  const [inputText, setInputText] = useState(draftMessage ?? '');
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<ChatItem>>(null);
+
+  // useState only seeds on mount. When this thread is already in the navigation
+  // stack and React Navigation just updates params (Chat → View listing → Make
+  // offer re-targets the existing screen), re-seed with the new draft so the
+  // offer template isn't silently dropped. draftNonce is in the deps so a repeat
+  // tap with the *same* draft string still re-fires this.
+  useEffect(() => {
+    if (draftMessage) setInputText(draftMessage);
+  }, [draftMessage, draftNonce]);
 
   useEffect(() => {
     const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);

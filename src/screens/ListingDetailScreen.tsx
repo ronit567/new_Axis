@@ -114,6 +114,23 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const sellerInitials = deriveInitials(listing.seller.name);
   const isOwnListing = user?.id === listing.seller.id;
 
+  // Both bottom-bar actions open the same thread; the offer shortcut just seeds
+  // the composer with a template so negotiating happens over chat.
+  const openChat = (draftMessage?: string) => {
+    haptics.impact();
+    navigation.navigate('Chat', {
+      listingId: listing.id,
+      partnerId: listing.seller.id,
+      partner: sellerToContact(listing.seller),
+      listingTitle: listing.title,
+      listingPrice: listing.price,
+      draftMessage,
+      // Fresh each tap so re-targeting an already-mounted Chat re-seeds the
+      // composer even when the draft string is identical to last time.
+      draftNonce: Date.now(),
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Top controls */}
@@ -293,10 +310,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <PressableScale
             style={styles.offerBtn}
-            onPress={() => haptics.tap()}
+            onPress={() =>
+              openChat(
+                `Hi! I'm interested in your "${listing.title}" ($${listing.price}). Would you consider an offer?`,
+              )
+            }
             scaleTo={0.97}
             accessibilityRole="button"
-            accessibilityLabel="Make offer"
+            accessibilityLabel="Make an offer by message"
           >
             <Text style={styles.offerText}>Make offer</Text>
           </PressableScale>
@@ -305,16 +326,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             scaleTo={0.97}
             accessibilityRole="button"
             accessibilityLabel="Message seller"
-            onPress={() => {
-              haptics.impact();
-              navigation.navigate('Chat', {
-                listingId: listing.id,
-                partnerId: listing.seller.id,
-                partner: sellerToContact(listing.seller),
-                listingTitle: listing.title,
-                listingPrice: listing.price,
-              });
-            }}
+            onPress={() => openChat()}
           >
             <Ionicons name="chatbubble-outline" size={17} color={COLORS.white} />
             <Text style={styles.messageText}>Message</Text>
