@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,19 @@ const FILTERS = ['All', 'Buying', 'Selling'];
 
 export default function MessagesScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
-  const { data, isPending, isError, refetch, isRefetching } = useConversations();
+  const { data, isPending, isError, refetch } = useConversations();
+
+  // Spinner only for user-initiated pulls — background refetches from realtime
+  // invalidation must not replay the pull-to-refresh animation.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const conversations = data ?? [];
   const filtered =
@@ -66,7 +78,13 @@ export default function MessagesScreen({ navigation }: Props) {
           >
             {item.lastMessage}
           </Text>
-          {item.unreadCount > 0 && <View style={styles.unreadDot} />}
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>
+                {item.unreadCount > 9 ? '9+' : item.unreadCount}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -149,8 +167,8 @@ export default function MessagesScreen({ navigation }: Props) {
           }
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={COLORS.primary}
               colors={[COLORS.primary]}
             />
@@ -280,13 +298,22 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: '500',
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
     backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
     flexShrink: 0,
+  },
+  unreadBadgeText: {
+    color: COLORS.white,
+    fontSize: 11,
+    fontWeight: '700',
+    includeFontPadding: false,
   },
   skeletonAvatar: {
     marginRight: 14,
