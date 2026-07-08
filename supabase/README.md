@@ -22,20 +22,22 @@ against a live database yet — review before applying.
 | `migrations/0015_reports_grants.sql` | Table GRANTs for `public.reports` — 0011 created the table + RLS but no grants, and this project doesn't auto-grant new tables (see 0005), so `authenticated` can actually file/read their own reports. Apply **after** 0011. |
 | `migrations/0016_notifications_realtime.sql` | Adds `notifications` to the Realtime publication so the live bell streams INSERT/UPDATE events (RLS-scoped per subscriber). Apply **after** 0013. |
 | `migrations/0017_test_notification.sql` | `create_test_notification()` — a dev-only `SECURITY DEFINER` RPC that inserts a canned actorless notification for the caller (client INSERT stays revoked), to exercise the insert → realtime → bell pipeline by hand. Apply **after** 0013. |
+| `migrations/0018_signup_email_hook.sql` | `hook_restrict_signup_email()` — a Postgres function meant for Supabase Auth's before-user-created hook, rejecting signups whose email isn't `@uwo.ca`/`@alumni.uwo.ca`, plus the Studio-editable `signup_email_exceptions` whitelist table it consults (seeded with the Apple App Review demo account). The hook itself still needs to be enabled in the Dashboard — see "Design decisions baked in" below. |
 | `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0014), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0006+0014. |
 | `tests/messages_read_receipts_test.sql` | Read-receipt + `conversation_list` policy tests (receiver-only `read_at` writes, column-grant immutability, unread counts). Run **after** 0008+0009. |
 | `tests/delete_account_test.sql` | `delete_own_account()` tests: anon has no EXECUTE grant, the caller's full cascade graph (profile/listing/saved_listing/messages-both-directions/notification/blocks) is gone, an unrelated user's rows are untouched, and calling it again post-delete is a no-op. Run **after** 0010. |
 | `tests/reports_test.sql` | Reports policy tests (reporter can file + read own, cross-user select/insert denied, anon denied, `reports_target_present` constraint enforced). Run **after** 0011. |
 | `tests/reports_queue_test.sql` | `reports_queue` tests: anon + authenticated are both denied (revoked), and the view owner sees the report with reporter/target names + emails + listing title joined in. Run **after** 0012. |
 | `tests/notifications_test.sql` | Notification trigger + RLS tests: message/save triggers generate rows (with dedup), client INSERT is revoked, and `create_test_notification()` inserts an actorless row for the caller only. Run **after** 0013 (and 0017 for the RPC scenario). |
+| `tests/signup_email_hook_test.sql` | `hook_restrict_signup_email()` tests: Western/alumni domains + the whitelist allow, non-Western/spoofed-suffix/missing emails reject with a 403, case is normalized, and only `supabase_auth_admin` (never `anon`/`authenticated`) can reach the function or the exceptions table. Run **after** 0018. |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
 - **Via the local stack** (preferred for dev): `npx supabase db reset` applies
-  every migration `0001`–`0017` in filename order, then loads seed data — see
+  every migration `0001`–`0018` in filename order, then loads seed data — see
   `LOCAL_DEV.md`.
-- **Via the Supabase MCP server**: run migrations `0001`–`0017` in order, then
+- **Via the Supabase MCP server**: run migrations `0001`–`0018` in order, then
   `health_check.sql`. I can drive this directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
@@ -45,8 +47,8 @@ runs inside a transaction and `rollback`s, so it leaves nothing behind; it raise
 on the first failed assertion and prints `ALL RLS TESTS PASSED` on success. The
 storage scenarios (6–9) need the buckets from 0014 to exist. After applying 0010,
 run `tests/delete_account_test.sql`; after 0011, `tests/reports_test.sql`; after
-0012, `tests/reports_queue_test.sql`; and after 0013, `tests/notifications_test.sql`
-— the same way.
+0012, `tests/reports_queue_test.sql`; after 0013, `tests/notifications_test.sql`;
+and after 0018, `tests/signup_email_hook_test.sql` — the same way.
 
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
@@ -110,6 +112,19 @@ After the tables exist, regenerate app types:
   the Supabase dashboard (`service_role` bypasses RLS entirely) by the team at
   `support@axis.app` (the contact already published on `TermsOfServiceScreen`).
   Revisit once there's real moderator tooling.
+- **`hook_restrict_signup_email()` (0018) isn't live until it's wired up by
+  hand** — Dashboard → Authentication → Hooks → "Before User Created" →
+  Postgres function → `public.hook_restrict_signup_email`. There's no
+  migration-level way to register an Auth hook, so until that toggle is set
+  the function exists in the schema but is never called and signup is
+  unaffected. The seeded `applereview@axis.app` row in
+  `signup_email_exceptions` is a placeholder — replace it with the real
+  reviewer address via a plain insert/delete on that table in Studio before
+  the App Review submission. Client-side validation (`isWesternEmail`,
+  `src/lib/email.ts`) stays as the first-line UX (instant feedback on
+  `CreateAccountScreen`); the hook is the server-side enforcement backstop for
+  anyone who bypasses the client. A hook rejection surfaces to the app as a
+  thrown `AuthApiError` from `signUp()`.
 
 ## Not included on purpose
 
