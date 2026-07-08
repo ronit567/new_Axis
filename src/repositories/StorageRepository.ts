@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 
 const LISTING_IMAGES_BUCKET = 'listing-images'
+const AVATARS_BUCKET = 'avatars'
 
 // Must stay in sync with the bucket's allowed_mime_types (0014_storage_buckets.sql).
 const EXTENSION_CONTENT_TYPES: Record<string, string> = {
@@ -93,5 +94,46 @@ export const StorageRepository = {
       .from(LISTING_IMAGES_BUCKET)
       .remove(paths)
       .catch(() => undefined)
+  },
+
+  // Path convention (0014_storage_buckets.sql): {user_id}/{filename}. The
+  // filename is timestamped rather than fixed ("avatar.jpg") on purpose: the
+  // public URL changes on every replacement, so expo-image's cache can never
+  // serve a stale photo for the old URL. Older files under the prefix are
+  // removed best-effort after the new upload succeeds.
+  async uploadAvatar(userId: string, photo: LocalPhoto): Promise<string> {
+    const contentType = contentTypeFor(photo)
+    const path = `${userId}/${Date.now()}.${extensionFor(contentType)}`
+
+    const response = await fetch(photo.uri)
+    const arraybuffer = await response.arrayBuffer()
+
+    const { error } = await supabase.storage
+      .from(AVATARS_BUCKET)
+      .upload(path, arraybuffer, { contentType })
+    if (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new Error(`Couldn't upload your photo: ${reason}`)
+    }
+
+    // Sweep older avatars so the bucket holds one file per user. Best-effort,
+    // same reasoning as deleteListingImages: an orphaned old avatar is a
+    // lesser problem than failing the whole change after the upload worked.
+    const newName = path.split('/').pop()
+    await supabase.storage
+      .from(AVATARS_BUCKET)
+      .list(userId)
+      .then(({ data }) => {
+        const stale = (data ?? [])
+          .filter(file => file.name !== newName)
+          .map(file => `${userId}/${file.name}`)
+        return stale.length > 0
+          ? supabase.storage.from(AVATARS_BUCKET).remove(stale)
+          : undefined
+      })
+      .catch(() => undefined)
+
+    const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path)
+    return data.publicUrl
   },
 }

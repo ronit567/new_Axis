@@ -14,6 +14,7 @@ import { ComponentProps } from 'react';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
+import Avatar from '../components/Avatar';
 import { useMyListings } from '../hooks/useListings';
 import { useSavedListings } from '../hooks/useSavedListings';
 import { useCurrentProfile } from '../hooks/useProfile';
@@ -102,9 +103,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {/* ── Profile info ── */}
         <View style={styles.profileSection}>
-          <View style={[styles.avatar, profile && { backgroundColor: profile.avatarColor }]}>
-            <Text style={styles.avatarText}>{profile?.initials ?? ''}</Text>
-          </View>
+          <Avatar
+            url={profile?.avatarUrl}
+            initials={profile?.initials ?? ''}
+            color={profile?.avatarColor ?? '#C4B2E0'}
+            size={80}
+            style={styles.avatar}
+            textStyle={styles.avatarText}
+          />
           <View style={styles.nameRow}>
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
           </View>
@@ -234,12 +240,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#C4B2E0',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 12,
   },
   avatarText: {

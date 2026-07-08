@@ -52,7 +52,13 @@ describe('toSeller', () => {
       location: 'Elgin Hall',
       program: 'BMOS',
       dotColor: '#9E9EAE',
+      avatarUrl: null,
     });
+  });
+
+  it('passes an uploaded avatar_url through', () => {
+    const url = 'https://cdn.example/avatars/s1/1.jpg';
+    expect(toSeller({ ...sellerRow, avatar_url: url }).avatarUrl).toBe(url);
   });
 
   it('surfaces a null year as the Grad sentinel, and defaults location/program', () => {
@@ -138,6 +144,7 @@ describe('toSellerProfile', () => {
       rating: 0,
       reviewCount: 0,
       avatarColor: '#5C2D91',
+      avatarUrl: null,
       stats,
     });
     expect(profile.joinedDate).toBe('Sep 2024');
@@ -210,6 +217,7 @@ describe('toContact', () => {
       name: 'Aria K.',
       initials: 'AK',
       avatarColor: '#5C2D91',
+      avatarUrl: null,
     });
   });
 
@@ -230,6 +238,7 @@ describe('sellerToContact', () => {
     location: 'Elgin Hall',
     program: 'Economics',
     dotColor: '#9E9EAE',
+    avatarUrl: null,
   };
 
   it('derives initials from the seller name', () => {
@@ -238,6 +247,7 @@ describe('sellerToContact', () => {
       name: 'Aria K.',
       initials: 'AK',
       avatarColor: expect.stringMatching(/^#[0-9A-F]{6}$/i),
+      avatarUrl: null,
     });
   });
 

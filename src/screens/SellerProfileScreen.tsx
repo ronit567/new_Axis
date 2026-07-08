@@ -20,6 +20,7 @@ import { useBlockUser } from '../hooks/useBlocks';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
+import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
@@ -68,9 +69,14 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* Avatar */}
         <View style={styles.avatarSection}>
-          <View style={[styles.avatar, { backgroundColor: seller.avatarColor }]}>
-            <Text style={styles.avatarText}>{seller.initials}</Text>
-          </View>
+          <Avatar
+            url={seller.avatarUrl}
+            initials={seller.initials}
+            color={seller.avatarColor}
+            size={80}
+            style={styles.avatar}
+            textStyle={styles.avatarText}
+          />
           <View style={styles.nameRow}>
             <Text style={styles.sellerName}>{seller.name}</Text>
           </View>
@@ -137,6 +143,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                   initials: seller.initials,
                   name: seller.name,
                   avatarColor: seller.avatarColor,
+                  avatarUrl: seller.avatarUrl,
                 },
               });
             }}
@@ -228,11 +235,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 14,
   },
   avatarText: {
