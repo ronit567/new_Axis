@@ -16,19 +16,20 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
 import { RootStackParamList, Listing, ListingCondition } from "../types";
 import { useSearchListings } from "../hooks/useListings";
 import { useToggleSaved } from "../hooks/useSavedListings";
+import { useUnreadNotificationCount } from "../hooks/useNotifications";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
 import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
+import GreetingRow, { GREETING_ROW_HEIGHT } from "../components/GreetingRow";
 import { haptics } from "../lib/haptics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -46,7 +47,10 @@ export default function SearchScreen({ navigation, route }: Props) {
   // keyboard (autoFocus would pop it behind the sheet and fight the slide-up).
   const openedForFilters = route.params?.showFilters ?? false;
   const [query, setQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(openedForFilters);
+  // Filter sheet is hand-animated (see filterAnim below), so `mounted` keeps
+  // the Modal alive through the closing slide-out before it unmounts.
+  const [filterMounted, setFilterMounted] = useState(openedForFilters);
+  const [sheetHeight, setSheetHeight] = useState(0);
   // Screen opens with no filters applied so it shows every active listing
   // until the user narrows things down.
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -56,21 +60,27 @@ export default function SearchScreen({ navigation, route }: Props) {
 
   // Hand-rolled entrance (the route mounts with animation: 'none' after Home
   // has already collapsed its greeting row, so the header is pixel-identical
-  // across the switch). What animates HERE is only what's new on this screen:
-  // the close chevron grows in (the search bar starts at Home's full width and
-  // narrows), and the results area fades up from beneath the header.
+  // across the switch). Search mounts looking exactly like Home — greeting
+  // expanded, full-width bar, no side buttons — then a single enterAnim runs
+  // everything at once: the greeting collapses up, the back and filter buttons
+  // grow in from zero width (so the bar narrows to make room for both), and
+  // the results fade up from beneath the header.
   const enterAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(enterAnim, {
       toValue: 1,
-      duration: 240,
+      duration: 300,
       easing: Easing.out(Easing.cubic),
-      // Animates layout width, which the native driver can't do.
+      // Animates layout height/width, which the native driver can't do.
       useNativeDriver: false,
     }).start();
   }, [enterAnim]);
-  const closeBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 48] });
-  const closeBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 10] });
+  // Greeting collapses up (full height → 0) and fades as the entrance runs.
+  const greetingHeight = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [GREETING_ROW_HEIGHT, 0] });
+  const greetingOpacity = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  // Both side buttons share the same grow-in (48px wide, 10px gap to the bar).
+  const btnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 48] });
+  const btnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 10] });
   const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
   // Mirror of the entrance, then pop the screen — Home re-expands its
@@ -84,6 +94,42 @@ export default function SearchScreen({ navigation, route }: Props) {
       useNativeDriver: false,
     }).start(() => navigation.goBack());
   };
+
+  // Filter sheet: fade the dim overlay in and slide the sheet up from its own
+  // height. The old `Modal animationType="slide"` dragged the dark blur up
+  // with the sheet, which looked heavy — this animates only what should move.
+  const filterAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!filterMounted) return;
+    Animated.timing(filterAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [filterMounted, filterAnim]);
+
+  const openFilters = () => {
+    haptics.tap();
+    setFilterMounted(true);
+  };
+
+  const closeFilters = () => {
+    Animated.timing(filterAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setFilterMounted(false);
+    });
+  };
+
+  const sheetTranslate = filterAnim.interpolate({
+    inputRange: [0, 1],
+    // Fall back to a full-ish offset until the sheet reports its height.
+    outputRange: [sheetHeight || 600, 0],
+  });
 
   const {
     data,
@@ -99,6 +145,7 @@ export default function SearchScreen({ navigation, route }: Props) {
     condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
   const toggleSavedMutation = useToggleSaved();
+  const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
 
   const results = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -142,11 +189,23 @@ export default function SearchScreen({ navigation, route }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 8 }]}
       >
+        {/* Same greeting as Home, collapsing up as the entrance runs — this is
+            the "swipe up" half of the transition, now concurrent with the
+            buttons growing in below. */}
+        <Animated.View
+          style={{ height: greetingHeight, opacity: greetingOpacity, overflow: "hidden" }}
+          pointerEvents="none"
+        >
+          <GreetingRow
+            unreadCount={unreadNotifications}
+            onBellPress={() => navigation.navigate("Notifications")}
+          />
+        </Animated.View>
         <View style={styles.searchRow}>
           <Animated.View
             style={{
-              width: closeBtnWidth,
-              marginRight: closeBtnMargin,
+              width: btnWidth,
+              marginRight: btnMargin,
               opacity: enterAnim,
               overflow: "hidden",
             }}
@@ -158,7 +217,7 @@ export default function SearchScreen({ navigation, route }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Close search"
             >
-              <Ionicons name="chevron-down" size={22} color={COLORS.white} />
+              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
             </PressableScale>
           </Animated.View>
           <View style={styles.searchBar}>
@@ -187,18 +246,24 @@ export default function SearchScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             ) : null}
           </View>
-          <PressableScale
-            style={styles.filterBtn}
-            onPress={() => {
-              haptics.tap();
-              setShowFilters(true);
+          <Animated.View
+            style={{
+              width: btnWidth,
+              marginLeft: btnMargin,
+              opacity: enterAnim,
+              overflow: "hidden",
             }}
-            scaleTo={0.92}
-            accessibilityRole="button"
-            accessibilityLabel="Filters"
           >
-            <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </PressableScale>
+            <PressableScale
+              style={styles.filterBtn}
+              onPress={openFilters}
+              scaleTo={0.92}
+              accessibilityRole="button"
+              accessibilityLabel="Filters"
+            >
+              <Ionicons name="options-outline" size={20} color={COLORS.white} />
+            </PressableScale>
+          </Animated.View>
         </View>
       </LinearGradient>
 
@@ -259,23 +324,25 @@ export default function SearchScreen({ navigation, route }: Props) {
 
       {/* Filter Bottom Sheet */}
       <Modal
-        visible={showFilters}
+        visible={filterMounted}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowFilters(false)}
+        animationType="none"
+        onRequestClose={closeFilters}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.overlayBg}
-            activeOpacity={1}
-            onPress={() => setShowFilters(false)}
-          >
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          </TouchableOpacity>
-          <View
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: filterAnim }]}>
+            <TouchableOpacity
+              style={styles.overlayBg}
+              activeOpacity={1}
+              onPress={closeFilters}
+            />
+          </Animated.View>
+          <Animated.View
+            onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
             style={[
               styles.filterSheet,
               { paddingBottom: Math.max(insets.bottom, 20) },
+              { transform: [{ translateY: sheetTranslate }] },
             ]}
           >
             <View style={styles.grabber} />
@@ -419,7 +486,7 @@ export default function SearchScreen({ navigation, route }: Props) {
               style={styles.showResultsBtn}
               onPress={() => {
                 haptics.impact();
-                setShowFilters(false);
+                closeFilters();
               }}
               scaleTo={0.97}
               accessibilityRole="button"
@@ -428,7 +495,7 @@ export default function SearchScreen({ navigation, route }: Props) {
                 Show {resultsCountLabel} results
               </Text>
             </PressableScale>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -444,14 +511,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     // Matches HomeScreen's header inset exactly — the two screens swap with
-    // animation: 'none', so any offset here shows up as a visible jump.
-    paddingHorizontal: 20,
+    // animation: 'none', so any offset here shows up as a visible jump. The
+    // horizontal inset lives on the rows (greeting/search), not here, so the
+    // greeting's own padding isn't doubled up.
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 20,
     // No `gap`: the close button's spacing is animated (it grows from 0), so
     // a static gap would misalign the search bar at the start of the motion.
   },
@@ -460,8 +529,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     height: 48,
     gap: 8,
     shadowColor: "#000",
@@ -478,16 +547,15 @@ const styles = StyleSheet.create({
   filterBtn: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 24,
     backgroundColor: COLORS.primaryDark,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 10,
   },
   closeBtn: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 24,
     backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",

@@ -107,11 +107,11 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          {/* No stack animation at all: Home collapses its greeting row BEFORE
-              navigating and Search mounts with pixel-identical header geometry,
-              so the switch itself is invisible — Search then animates its own
-              close button + results in. The whole transition is hand-rolled
-              across the two screens instead of a card animation. */}
+          {/* No stack animation at all: Search mounts with header geometry
+              pixel-identical to Home (greeting expanded, full-width bar, no
+              side buttons), so the switch itself is invisible. Search then
+              runs the whole entrance on one timeline — greeting collapses up
+              while the back/filter buttons grow in and the results fade up. */}
           <Stack.Screen
             name="Search"
             component={SearchScreen}

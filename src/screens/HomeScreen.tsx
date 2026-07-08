@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   Animated,
-  Easing,
   ScrollView,
   RefreshControl,
   ActivityIndicator,
@@ -23,6 +22,7 @@ import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import FadeInItem from '../components/FadeInItem';
+import GreetingRow from '../components/GreetingRow';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
@@ -35,50 +35,19 @@ type Props = {
 
 const CATEGORIES = BROWSE_CATEGORIES;
 
-// Greeting row height: 38px avatar + 14px header paddingBottom. Collapsing
-// exactly this leaves the purple at the same height SearchScreen draws it.
-const GREETING_ROW_HEIGHT = 52;
-
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
   // Hand-rolled search transition (the Search route uses animation: 'none').
-  // 1 = greeting visible. Tapping search collapses the greeting up into the
-  // purple FIRST, then switches screens — Search mounts with the exact same
-  // header geometry, so the swap itself is imperceptible. Restored on focus.
-  const greetingAnim = useRef(new Animated.Value(1)).current;
+  // Home navigates immediately and Search mounts with the exact same header
+  // geometry — greeting expanded, full-width bar, no side buttons — then
+  // collapses the greeting and grows the buttons in on its own timeline. So
+  // the whole entrance (swipe-up + buttons appearing) runs at once on Search.
   const openSearch = (showFilters?: boolean) => {
-    Animated.timing(greetingAnim, {
-      toValue: 0,
-      duration: 180,
-      easing: Easing.in(Easing.cubic),
-      // Height can't run on the native driver; one short one-shot.
-      useNativeDriver: false,
-    }).start(({ finished }) => {
-      // Interrupted (e.g. a second tap restarted the timing): only the run
-      // that actually completes navigates, so we can't push Search twice.
-      if (finished) navigation.navigate('Search', showFilters ? { showFilters } : undefined);
-    });
+    navigation.navigate('Search', showFilters ? { showFilters } : undefined);
   };
-  useEffect(() => {
-    // Coming back from Search: grow the greeting back in. Fires on every
-    // focus, but from any other screen the value is already 1 (no-op).
-    const unsubscribe = navigation.addListener('focus', () => {
-      Animated.timing(greetingAnim, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    });
-    return unsubscribe;
-  }, [navigation, greetingAnim]);
-  const greetingHeight = greetingAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, GREETING_ROW_HEIGHT],
-  });
 
   const category = activeCategory === 'All' ? undefined : activeCategory;
   const {
@@ -149,35 +118,12 @@ export default function HomeScreen({ navigation }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}
       >
-        <Animated.View
-          style={{ height: greetingHeight, opacity: greetingAnim, overflow: 'hidden' }}
-        >
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.avatarSmall}>
-                <Text style={styles.avatarText}>RS</Text>
-              </View>
-              <View>
-                <Text style={styles.greeting}>Hi, Ronit</Text>
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.location}>Western · London, ON</Text>
-                </View>
-              </View>
-            </View>
-            <PressableScale
-              style={styles.bellBtn}
-              onPress={() => navigation.navigate('Notifications')}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              scaleTo={0.9}
-            >
-              <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-              {unreadNotifications > 0 && <View style={styles.bellDot} />}
-            </PressableScale>
-          </View>
-        </Animated.View>
+        <GreetingRow
+          unreadCount={unreadNotifications}
+          onBellPress={() => navigation.navigate('Notifications')}
+        />
 
-        {/* Search Bar */}
+        {/* Search Bar — filters live inside Search, not here. */}
         <View style={styles.searchRow}>
           <TouchableOpacity
             style={styles.searchBar}
@@ -187,15 +133,6 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
             <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
           </TouchableOpacity>
-          <PressableScale
-            style={styles.filterBtn}
-            onPress={() => openSearch(true)}
-            scaleTo={0.92}
-            accessibilityRole="button"
-            accessibilityLabel="Search filters"
-          >
-            <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </PressableScale>
         </View>
       </LinearGradient>
 
@@ -291,66 +228,6 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatarSmall: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  greeting: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.white,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  location: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  bellBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.error,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,8 +239,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     height: 48,
     gap: 8,
     ...SHADOWS.card,
@@ -372,14 +249,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: COLORS.textMuted,
     fontSize: 14,
-  },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.primaryDark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   categoryScroll: {
     flexGrow: 0,
