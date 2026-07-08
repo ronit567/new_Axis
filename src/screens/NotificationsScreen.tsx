@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useCreateTestNotification,
 } from '../hooks/useNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -81,9 +82,22 @@ function NotifItem({ item, onPress }: { item: Notification; onPress: () => void 
 }
 
 export default function NotificationsScreen({ navigation }: Props) {
-  const { data = [], isLoading, isError, refetch, isRefetching } = useNotifications();
+  const { data = [], isLoading, isError, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
+  const createTest = useCreateTestNotification();
+
+  // Spinner only for user-initiated pulls — background refetches from realtime
+  // invalidation must not replay the pull-to-refresh animation.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const todayNotifs = data.filter(n => isToday(n.createdAt));
   const earlierNotifs = data.filter(n => !isToday(n.createdAt));
@@ -172,8 +186,8 @@ export default function NotificationsScreen({ navigation }: Props) {
           contentContainerStyle={styles.body}
           refreshControl={
             <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={COLORS.primary}
               colors={[COLORS.primary]}
             />
@@ -201,6 +215,25 @@ export default function NotificationsScreen({ navigation }: Props) {
             </>
           )}
         </ScrollView>
+      )}
+
+      {__DEV__ && (
+        <PressableScale
+          style={styles.devTestBtn}
+          onPress={() => {
+            haptics.tap();
+            createTest.mutate();
+          }}
+          disabled={createTest.isPending}
+          scaleTo={0.96}
+          accessibilityRole="button"
+          accessibilityLabel="Send test notification"
+        >
+          <Ionicons name="flask-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.devTestText}>
+            {createTest.isPending ? 'Sending…' : 'Send test notification'}
+          </Text>
+        </PressableScale>
       )}
     </SafeAreaView>
   );
@@ -300,5 +333,25 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.primary,
     flexShrink: 0,
+  },
+  devTestBtn: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    ...SHADOWS.card,
+  },
+  devTestText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });

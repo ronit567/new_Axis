@@ -38,6 +38,9 @@
 // hand-added alongside migration 0012 (AX-601/602 notification generation).
 // Drop this note once regenerated.
 //
+// MANUAL ADDITION (pending regen): the `create_test_notification` function was
+// hand-added alongside migration 0016 (dev test-notification RPC). Same deal.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -411,6 +414,10 @@ export type Database = {
         Returns: { listing_id: string; saves: number }[]
       }
       delete_own_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_test_notification: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

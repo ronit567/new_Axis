@@ -23,12 +23,14 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
 const mockFrom = jest.fn();
 const mockChannel = jest.fn();
 const mockRemoveChannel = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
     channel: (...args: unknown[]) => mockChannel(...args),
     removeChannel: (...args: unknown[]) => mockRemoveChannel(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -276,6 +278,22 @@ describe('NotificationRepository.markAllRead', () => {
     });
 
     await expect(NotificationRepository.markAllRead('me')).rejects.toThrow('boom');
+  });
+});
+
+describe('NotificationRepository.createTest', () => {
+  it('invokes the create_test_notification RPC', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await NotificationRepository.createTest();
+
+    expect(mockRpc).toHaveBeenCalledWith('create_test_notification');
+  });
+
+  it('propagates an error from the RPC', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('boom') });
+
+    await expect(NotificationRepository.createTest()).rejects.toThrow('boom');
   });
 });
 

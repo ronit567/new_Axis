@@ -143,3 +143,21 @@ export function useMarkAllNotificationsRead() {
     },
   })
 }
+
+// Dev-only: drives the test panel on NotificationsScreen. Invalidates on
+// success as a fallback so the new row shows even if realtime is disconnected.
+export function useCreateTestNotification() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => NotificationRepository.createTest(),
+    onSuccess: () => {
+      if (!user) return
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications(user.id) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.unreadNotificationCount(user.id),
+      })
+    },
+  })
+}

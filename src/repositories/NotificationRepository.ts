@@ -95,6 +95,13 @@ export const NotificationRepository = {
     if (error) throw error
   },
 
+  // Dev/test helper (0016): asks the DB to insert a canned notification for
+  // the current user, exercising the full pipeline (insert → realtime → bell).
+  async createTest(): Promise<void> {
+    const { error } = await supabase.rpc('create_test_notification')
+    if (error) throw error
+  },
+
   // Realtime: stream INSERTs (new notifications from the 0012 triggers) and
   // UPDATEs (read flips, e.g. from another device). Handlers get the raw row —
   // consumers only invalidate caches, and the domain mapping needs the

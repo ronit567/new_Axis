@@ -180,6 +180,33 @@ end;
 $$;
 reset role;
 
+-- ── Scenario 9: create_test_notification() (0016) inserts an actorless row
+--    for the caller only; anon cannot execute it.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
+select public.create_test_notification();
+reset role;
+
+select pg_temp.assert(
+  (select count(*) from public.notifications
+    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      and type = 'message'
+      and actor_id is null) = 1,
+  'create_test_notification must insert exactly one actorless message row for the caller');
+
+set local role anon;
+select set_config('request.jwt.claims', '', true);
+do $$
+begin
+  perform public.create_test_notification();
+  raise exception 'NOTIFICATIONS TEST FAILED: anon could execute create_test_notification';
+exception
+  when insufficient_privilege then null; -- expected: EXECUTE revoked from anon/public
+end;
+$$;
+reset role;
+
 select 'ALL NOTIFICATIONS TESTS PASSED' as result;
 
 rollback;
