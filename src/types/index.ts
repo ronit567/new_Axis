@@ -152,6 +152,8 @@ export type RootStackParamList = {
   // also enables the "View" round-trip (ListingDetail loads by id).
   // `draftMessage` pre-fills the composer — e.g. the listing detail "Make offer"
   // shortcut drops in an offer template so buyers negotiate over chat.
+  // `draftNonce` changes on every navigation so re-targeting an already-mounted
+  // Chat with the *same* draft string still re-seeds the composer.
   Chat: {
     listingId: string | null;
     partnerId: string;
@@ -159,6 +161,7 @@ export type RootStackParamList = {
     listingTitle?: string;
     listingPrice?: number;
     draftMessage?: string;
+    draftNonce?: number;
   };
   Notifications: undefined;
   PrivacyPolicy: undefined;

@@ -125,6 +125,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       listingTitle: listing.title,
       listingPrice: listing.price,
       draftMessage,
+      // Fresh each tap so re-targeting an already-mounted Chat re-seeds the
+      // composer even when the draft string is identical to last time.
+      draftNonce: Date.now(),
     });
   };
 

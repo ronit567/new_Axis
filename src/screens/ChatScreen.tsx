@@ -49,7 +49,7 @@ type ChatItem = {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage } = route.params;
+  const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage, draftNonce } = route.params;
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
@@ -87,10 +87,11 @@ export default function ChatScreen({ navigation, route }: Props) {
   // useState only seeds on mount. When this thread is already in the navigation
   // stack and React Navigation just updates params (Chat → View listing → Make
   // offer re-targets the existing screen), re-seed with the new draft so the
-  // offer template isn't silently dropped.
+  // offer template isn't silently dropped. draftNonce is in the deps so a repeat
+  // tap with the *same* draft string still re-fires this.
   useEffect(() => {
     if (draftMessage) setInputText(draftMessage);
-  }, [draftMessage]); 
+  }, [draftMessage, draftNonce]);
 
   useEffect(() => {
     const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);
