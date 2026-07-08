@@ -178,7 +178,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           icon="notifications-outline"
           title="You're all caught up! No new notifications right now."
           ctaLabel="Go to feed"
-          onCta={() => navigation.navigate('Main')}
+          onCta={() => navigation.goBack()}
         />
       ) : (
         <ScrollView
