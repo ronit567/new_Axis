@@ -91,10 +91,15 @@ export const ListingRepository = {
   async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
     const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
 
+    // Exclude the caller's own listings — the home feed is for browsing what
+    // *other* people are selling; a seller manages their own listings from
+    // Profile/ManageListings. Filtered server-side (not in the reduce below) so
+    // it happens before range()/rawCount and pagination stays correct.
     let query = supabase
       .from('listings')
       .select('*')
       .eq('status', 'active')
+      .neq('seller_id', userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -208,11 +213,18 @@ export const ListingRepository = {
     // *this* signed-in user saved their own listing — never the real count
     // across everyone. my_listing_save_counts() (0006) is a SECURITY DEFINER
     // RPC scoped to the caller's own listings that aggregates across users.
+    //
+    // The save count is secondary metadata (shown only on ManageListings). If
+    // the RPC errors — e.g. 0006 isn't applied in this environment — fall back
+    // to 0 rather than failing the whole own-listings fetch: otherwise the
+    // owner's Profile and ManageListings would show ZERO listings because of a
+    // non-critical count lookup, even though the listings themselves loaded
+    // fine (this is the getBySeller-only failure that made Profile read empty
+    // while the public storefront via getActiveBySeller still rendered them).
     const { data: saveCounts, error: savesError } = await supabase.rpc('my_listing_save_counts')
-    if (savesError) throw savesError
 
     const savesByListing = new Map(
-      (saveCounts ?? []).map(({ listing_id, saves }) => [listing_id, saves]),
+      savesError ? [] : (saveCounts ?? []).map(({ listing_id, saves }) => [listing_id, saves]),
     )
 
     return rows.map((row) => toMyListing(row, savesByListing.get(row.id) ?? 0))

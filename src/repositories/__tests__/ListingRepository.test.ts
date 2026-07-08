@@ -12,6 +12,7 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
   const builder: any = {
     select: jest.fn(() => builder),
     eq: jest.fn(() => builder),
+    neq: jest.fn(() => builder),
     order: jest.fn(() => builder),
     range: jest.fn(() => builder),
     in: jest.fn(() => builder),
@@ -122,6 +123,17 @@ describe('ListingRepository.getAll', () => {
     expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(listingsBuilder.range).toHaveBeenCalledWith(0, LISTINGS_PAGE_SIZE - 1);
     expect(listingsBuilder.eq).not.toHaveBeenCalledWith('category', expect.anything());
+  });
+
+  it("excludes the caller's own listings so they don't appear in their own feed", async () => {
+    const { listingsBuilder } = mockQueries({
+      listings: { data: [makeListingRow()], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    await ListingRepository.getAll('user-1');
+
+    expect(listingsBuilder.neq).toHaveBeenCalledWith('seller_id', 'user-1');
   });
 
   it('filters by category when provided and offsets by page', async () => {
@@ -380,15 +392,24 @@ describe('ListingRepository.getBySeller', () => {
     await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('network down');
   });
 
-  it('throws when the save-counts RPC errors', async () => {
-    const listingsBuilder = makeQueryBuilder({ data: [makeListingRow({ id: 'l1' })], error: null });
+  it('still returns the listings (with 0 saves) when the save-counts RPC errors', async () => {
+    // Save counts are secondary metadata; a failing/absent RPC must not zero
+    // out the owner's own-listings view (the Profile-shows-empty bug). The
+    // listings still load, just with saves defaulted to 0.
+    const listingsBuilder = makeQueryBuilder({
+      data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })],
+      error: null,
+    });
     mockFrom.mockImplementation((table: string) => {
       if (table === 'listings') return listingsBuilder;
       throw new Error(`Unexpected table: ${table}`);
     });
     mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
 
-    await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('rpc failed');
+    const result = await ListingRepository.getBySeller(seller.id);
+
+    expect(result.map((l) => l.id)).toEqual(['l1', 'l2']);
+    expect(result.every((l) => l.saves === 0)).toBe(true);
   });
 });
 
