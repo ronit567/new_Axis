@@ -4,10 +4,11 @@ import {
   toConversation,
   toListing,
   toMessage,
+  toNotification,
   toSeller,
   toSellerProfile,
 } from '../mappers';
-import type { ListingRow, MessageRow, ProfileRow } from '../../types/database';
+import type { ListingRow, MessageRow, NotificationRow, ProfileRow } from '../../types/database';
 import type { Seller } from '../../types';
 
 const sellerRow: ProfileRow = {
@@ -301,5 +302,75 @@ describe('toConversation', () => {
     expect(typeof conversation.lastMessageAt).toBe('string');
     expect(conversation.lastMessageAt.length).toBeGreaterThan(0);
     expect(conversation.lastMessageAt).toMatch(/ago|just now/);
+  });
+});
+
+// --- Notifications (AX-601/602) ----------------------------------------------
+
+const notificationRow: NotificationRow = {
+  id: 'n1',
+  user_id: 'me',
+  type: 'message',
+  actor_id: 's1',
+  listing_id: 'l1',
+  read: false,
+  read_at: null,
+  created_at: '2026-07-01T10:00:00.000Z',
+};
+
+describe('toNotification', () => {
+  it('composes message copy with the listing title when both an actor and a listing are present', () => {
+    const notification = toNotification({ row: notificationRow, actor: sellerRow, listing: listingRow });
+    expect(notification.message).toBe(
+      'Aria K. sent you a message about "Organic Chem 2 textbook"',
+    );
+  });
+
+  it('composes message copy without a listing title when the notification has no listing', () => {
+    const notification = toNotification({
+      row: { ...notificationRow, listing_id: null },
+      actor: sellerRow,
+      listing: null,
+    });
+    expect(notification.message).toBe('Aria K. sent you a message');
+  });
+
+  it('composes listing_saved copy with the listing title', () => {
+    const notification = toNotification({
+      row: { ...notificationRow, type: 'listing_saved' },
+      actor: sellerRow,
+      listing: listingRow,
+    });
+    expect(notification.message).toBe(
+      'Aria K. saved your listing "Organic Chem 2 textbook"',
+    );
+    expect(notification.type).toBe('listing_saved');
+  });
+
+  it("falls back to 'Someone' and a null actor when the actor profile is missing", () => {
+    const notification = toNotification({ row: notificationRow, actor: null, listing: listingRow });
+    expect(notification.actor).toBeNull();
+    expect(notification.message).toBe(
+      'Someone sent you a message about "Organic Chem 2 textbook"',
+    );
+  });
+
+  it('passes read/createdAt/actorId/listingId through unchanged', () => {
+    const notification = toNotification({
+      row: { ...notificationRow, read: true },
+      actor: sellerRow,
+      listing: listingRow,
+    });
+    expect(notification.read).toBe(true);
+    expect(notification.createdAt).toBe('2026-07-01T10:00:00.000Z');
+    expect(notification.actorId).toBe('s1');
+    expect(notification.listingId).toBe('l1');
+  });
+
+  it('formats timeAgo as a relative label', () => {
+    const notification = toNotification({ row: notificationRow, actor: sellerRow, listing: listingRow });
+    expect(typeof notification.timeAgo).toBe('string');
+    expect(notification.timeAgo.length).toBeGreaterThan(0);
+    expect(notification.timeAgo).toMatch(/ago|just now/);
   });
 });

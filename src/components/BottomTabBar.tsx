@@ -29,7 +29,7 @@ const TABS: Tab[] = [
 type Props = {
   activeTab: TabName;
   onTabPress: (tab: TabName) => void;
-  // Total unread messages; > 0 renders a count bubble on the Messages tab.
+  // Count of conversations with unread; > 0 renders a count bubble on the Messages tab.
   messagesBadge?: number;
 };
 

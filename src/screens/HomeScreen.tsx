@@ -24,6 +24,7 @@ import PressableScale from '../components/PressableScale';
 import FadeInItem from '../components/FadeInItem';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
+import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -51,6 +52,7 @@ export default function HomeScreen({ navigation }: Props) {
     isFetchingNextPage,
   } = useListings(category);
   const toggleSavedMutation = useToggleSaved();
+  const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
 
   const listings = data?.pages.flatMap(page => page.items) ?? [];
 
@@ -126,7 +128,7 @@ export default function HomeScreen({ navigation }: Props) {
             scaleTo={0.9}
           >
             <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-            <View style={styles.bellDot} />
+            {unreadNotifications > 0 && <View style={styles.bellDot} />}
           </PressableScale>
         </View>
 

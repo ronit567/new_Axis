@@ -11,10 +11,12 @@ import type {
   Listing,
   Message,
   MyListing,
+  Notification,
+  NotificationType,
   Seller,
   SellerProfile,
 } from '../types';
-import type { ListingRow, MessageRow, ProfileRow } from '../types/database';
+import type { ListingRow, MessageRow, NotificationRow, ProfileRow } from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
 // --- Deterministic placeholder palettes -------------------------------------
@@ -219,5 +221,42 @@ export function toConversation(parts: ConversationParts): Conversation {
     // "Selling" = the thread is about my listing. Without a visible listing row
     // we can't tell, so default to Buying (the common buyer-initiated case).
     type: listing && listing.seller_id === currentUserId ? 'Selling' : 'Buying',
+  };
+}
+
+// --- Notifications (AX-601/602) ---------------------------------------------
+
+type NotificationParts = {
+  row: NotificationRow;
+  // null => actor RLS-hidden (blocked); the repository drops these rows before
+  // they reach this mapper.
+  actor: ProfileRow | null;
+  listing: ListingRow | null;
+};
+
+export function toNotification(parts: NotificationParts): Notification {
+  const { row, actor, listing } = parts;
+  const actorName = actor?.name ?? 'Someone';
+  const title = listing?.title ?? null;
+  const message =
+    row.type === 'message'
+      ? title
+        ? `${actorName} sent you a message about "${title}"`
+        : `${actorName} sent you a message`
+      : title
+        ? `${actorName} saved your listing "${title}"`
+        : `${actorName} saved your listing`;
+  return {
+    id: row.id,
+    type: row.type as NotificationType,
+    actor: actor ? toContact(actor) : null,
+    actorId: row.actor_id,
+    listingId: row.listing_id,
+    listingTitle: title,
+    listingPrice: listing?.price ?? null,
+    message,
+    timeAgo: timeAgo(row.created_at),
+    createdAt: row.created_at,
+    read: row.read,
   };
 }

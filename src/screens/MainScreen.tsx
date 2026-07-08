@@ -9,6 +9,7 @@ import MessagesScreen from './MessagesScreen';
 import ProfileScreen from './ProfileScreen';
 import { RootStackParamList } from '../types';
 import { useConversations, useMessagesRealtime } from '../hooks/useMessages';
+import { useNotificationsRealtime } from '../hooks/useNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -17,10 +18,14 @@ export default function MainScreen({ navigation }: Props) {
   // Lives here (not in a chat screen) so incoming messages land in the cache
   // for the whole signed-in session, keeping the inbox fresh in the background.
   useMessagesRealtime();
+  // Same placement rationale: keeps the Home bell dot and the notifications
+  // list live for the whole signed-in session.
+  useNotificationsRealtime();
   // Same cache MessagesScreen reads; the realtime hook above invalidates it on
-  // every INSERT/UPDATE, so the tab badge tracks unread across the session.
+  // every INSERT/UPDATE, so the tab badge tracks conversations with unread
+  // across the session.
   const { data: conversations } = useConversations();
-  const unreadTotal = (conversations ?? []).reduce((sum, c) => sum + c.unreadCount, 0);
+  const unreadTotal = (conversations ?? []).filter((c) => c.unreadCount > 0).length;
 
   const renderContent = () => {
     switch (activeTab) {

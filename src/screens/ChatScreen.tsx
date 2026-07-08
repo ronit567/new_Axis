@@ -8,6 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -30,6 +32,21 @@ import { formatClockTime } from '../lib/timeAgo';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
+// Messages closer together than this are one visual burst: tight spacing, a
+// single clock time under the last bubble. At or past it, extra headroom.
+const GROUP_GAP_MS = 2 * 60 * 1000;
+// iMessage-style swipe: dragging left shifts every bubble by up to this many
+// px, exposing each message's own clock time in the right gutter.
+const TIME_REVEAL = 68;
+
+type ChatItem = {
+  message: Message;
+  // >= GROUP_GAP_MS since the previous message — starts a new burst.
+  gapBefore: boolean;
+  // Last message of its burst — carries the burst's inline timestamp.
+  showTime: boolean;
+};
+
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { listingId, partnerId, partner, listingTitle, listingPrice } = route.params;
@@ -37,6 +54,20 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
   const messages = useMemo(() => data ?? [], [data]);
+  const items = useMemo<ChatItem[]>(
+    () =>
+      messages.map((m, i) => {
+        const at = new Date(m.createdAt).getTime();
+        const prev = messages[i - 1];
+        const next = messages[i + 1];
+        return {
+          message: m,
+          gapBefore: prev != null && at - new Date(prev.createdAt).getTime() >= GROUP_GAP_MS,
+          showTime: next == null || new Date(next.createdAt).getTime() - at >= GROUP_GAP_MS,
+        };
+      }),
+    [messages],
+  );
   const sendMessage = useSendMessage();
   const markRead = useMarkConversationRead();
   const createReport = useCreateReport();
@@ -49,7 +80,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const [inputText, setInputText] = useState('');
   const [reportVisible, setReportVisible] = useState(false);
-  const listRef = useRef<FlatList<Message>>(null);
+  const listRef = useRef<FlatList<ChatItem>>(null);
 
   useEffect(() => {
     const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);
@@ -99,33 +130,79 @@ export default function ChatScreen({ navigation, route }: Props) {
     return null;
   }, [messages, user?.id]);
 
+  // Swipe-to-reveal, iMessage-style: one shared offset drives every row's
+  // translateX and the gutter times' opacity. The responder only claims
+  // decisively horizontal leftward drags, so vertical scrolling stays native.
+  const revealX = useRef(new Animated.Value(0)).current;
+  const gutterOpacity = revealX.interpolate({
+    inputRange: [-TIME_REVEAL, 0],
+    outputRange: [1, 0],
+  });
+  const panResponder = useMemo(() => {
+    const springBack = () =>
+      Animated.spring(revealX, { toValue: 0, bounciness: 4, useNativeDriver: true }).start();
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, g) =>
+        g.dx < -12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderMove: (_evt, g) =>
+        revealX.setValue(Math.max(-TIME_REVEAL, Math.min(0, g.dx))),
+      onPanResponderRelease: springBack,
+      onPanResponderTerminate: springBack,
+    });
+  }, [revealX]);
+
   const renderMessage = useCallback(
-    ({ item }: { item: Message }) => {
-      const sent = item.senderId === user?.id;
+    ({ item }: { item: ChatItem }) => {
+      const { message, gapBefore, showTime } = item;
+      const sent = message.senderId === user?.id;
+      const showRead = message.id === lastReadSentId;
       return (
-        <View style={[styles.bubbleWrap, sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived]}>
-          {sent ? (
-            <LinearGradient
-              colors={GRADIENTS.primary}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.bubble, styles.bubbleSent]}
-            >
-              <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{item.body}</Text>
-            </LinearGradient>
-          ) : (
-            <View style={[styles.bubble, styles.bubbleReceived]}>
-              <Text style={styles.bubbleText}>{item.body}</Text>
-            </View>
-          )}
-          <Text style={styles.timestamp}>
-            {formatClockTime(item.createdAt)}
-            {item.id === lastReadSentId ? ' · Read' : ''}
-          </Text>
+        <View style={[styles.bubbleWrap, gapBefore ? styles.groupGap : null]}>
+          {/* Only sent bubbles slide with the swipe (iMessage behavior);
+              received bubbles stay anchored to the left edge. */}
+          <Animated.View
+            style={[
+              sent ? styles.bubbleWrapSent : styles.bubbleWrapReceived,
+              sent ? { transform: [{ translateX: revealX }] } : null,
+            ]}
+          >
+            {sent ? (
+              <LinearGradient
+                colors={GRADIENTS.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.bubble, styles.bubbleSent]}
+              >
+                <Text style={[styles.bubbleText, styles.bubbleTextSent]}>{message.body}</Text>
+              </LinearGradient>
+            ) : (
+              <View style={[styles.bubble, styles.bubbleReceived]}>
+                <Text style={styles.bubbleText}>{message.body}</Text>
+              </View>
+            )}
+            {(showTime || showRead) && (
+              <Text style={styles.timestamp}>
+                {showTime ? formatClockTime(message.createdAt) : ''}
+                {showTime && showRead ? ' · ' : ''}
+                {showRead ? 'Read' : ''}
+              </Text>
+            )}
+          </Animated.View>
+          {/* Slides in from past the right edge on its own, so it works for
+              the anchored received rows too. */}
+          <Animated.View
+            style={[
+              styles.gutterTimeWrap,
+              { opacity: gutterOpacity, transform: [{ translateX: revealX }] },
+            ]}
+            pointerEvents="none"
+          >
+            <Text style={styles.gutterTimeText}>{formatClockTime(message.createdAt)}</Text>
+          </Animated.View>
         </View>
       );
     },
-    [user?.id, lastReadSentId],
+    [user?.id, lastReadSentId, revealX, gutterOpacity],
   );
 
   return (
@@ -199,15 +276,21 @@ export default function ChatScreen({ navigation, route }: Props) {
         ) : isError ? (
           <ErrorState message="Couldn't load messages." onRetry={() => refetch()} />
         ) : (
-          <FlatList
-            ref={listRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            contentContainerStyle={styles.messageList}
-            showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-          />
+          <View style={styles.centerFill} {...panResponder.panHandlers}>
+            <FlatList
+              ref={listRef}
+              data={items}
+              renderItem={renderMessage}
+              keyExtractor={item => item.message.id}
+              contentContainerStyle={styles.messageList}
+              showsVerticalScrollIndicator={false}
+              // The gutter times sit past each row's right edge; Android's
+              // default clipping would cut them off mid-swipe.
+              removeClippedSubviews={false}
+              style={styles.centerFill}
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            />
+          </View>
         )}
 
         {/* Input bar */}
@@ -371,7 +454,28 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   bubbleWrap: {
-    marginBottom: 8,
+    marginBottom: 3,
+  },
+  // Extra headroom when a burst ends (>= GROUP_GAP_MS since the previous
+  // message) — the visual paragraph break between conversations.
+  groupGap: {
+    marginTop: 14,
+  },
+  // Hidden past the row's right edge; the swipe slides it left by TIME_REVEAL
+  // (along with the sent bubbles) so it lands flush with the content edge.
+  gutterTimeWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: -TIME_REVEAL,
+    width: TIME_REVEAL,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gutterTimeText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   bubbleWrapSent: {
     alignItems: 'flex-end',

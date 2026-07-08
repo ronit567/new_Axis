@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,73 +17,47 @@ import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, Notification, NotificationType } from '../types';
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+  useCreateTestNotification,
+} from '../hooks/useNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
-const TODAY_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n1',
-    type: 'offer',
-    icon: 'cash-outline',
-    iconBg: COLORS.primary,
-    iconColor: COLORS.white,
-    message: 'Aria K. sent you an offer — $260 on iPad Air',
-    time: '3h ago',
-    unread: true,
-  },
-  {
-    id: 'n2',
-    type: 'reply',
-    icon: 'chatbubble-outline',
-    iconBg: COLORS.primarySoft,
-    iconColor: COLORS.primary,
-    message: 'Maya P. replied about your Organic Chem textbook',
-    time: '1h ago',
-    unread: true,
-  },
-];
-
-const EARLIER_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n3',
-    type: 'price_drop',
-    icon: 'trending-down-outline',
-    iconBg: COLORS.successSoft,
-    iconColor: COLORS.westernGreen,
-    message: 'Price dropped to $25 on "Desk chair" you saved!',
-    time: '1d ago',
-    unread: false,
-  },
-  {
-    id: 'n5',
-    type: 'saves',
-    icon: 'heart-outline',
-    iconBg: '#FEE8E8',
-    iconColor: COLORS.like,
-    message: '3 people saved your Organic Chem listing',
-    time: '6d ago',
-    unread: false,
-  },
-];
-
-type Notification = {
-  id: string;
-  type: string;
-  icon: string;
+function iconForType(type: NotificationType): {
+  icon: IoniconsName;
   iconBg: string;
   iconColor: string;
-  message: string;
-  time: string;
-  unread: boolean;
-};
+} {
+  switch (type) {
+    case 'message':
+      return { icon: 'chatbubble-outline', iconBg: COLORS.primarySoft, iconColor: COLORS.primary };
+    case 'listing_saved':
+      return { icon: 'heart-outline', iconBg: '#FEE8E8', iconColor: COLORS.like };
+  }
+}
+
+function isToday(iso: string): boolean {
+  const date = new Date(iso);
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
 
 function NotifItem({ item, onPress }: { item: Notification; onPress: () => void }) {
+  const { icon, iconBg, iconColor } = iconForType(item.type);
+  const unread = !item.read;
   return (
     <PressableScale
-      style={[styles.item, item.unread ? styles.itemUnread : null]}
+      style={[styles.item, unread ? styles.itemUnread : null]}
       onPress={() => {
         haptics.tap();
         onPress();
@@ -90,51 +65,55 @@ function NotifItem({ item, onPress }: { item: Notification; onPress: () => void 
       scaleTo={0.97}
       accessibilityRole="button"
       accessibilityLabel={item.message}
-      accessibilityState={{ selected: item.unread }}
+      accessibilityState={{ selected: unread }}
     >
-      <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
-        <Ionicons name={item.icon as IoniconsName} size={20} color={item.iconColor} />
+      <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={20} color={iconColor} />
       </View>
       <View style={styles.itemContent}>
-        <Text style={[styles.itemText, item.unread ? styles.itemTextUnread : null]}>
+        <Text style={[styles.itemText, unread ? styles.itemTextUnread : null]}>
           {item.message}
         </Text>
-        <Text style={styles.itemTime}>{item.time}</Text>
+        <Text style={styles.itemTime}>{item.timeAgo}</Text>
       </View>
-      {item.unread && <View style={styles.unreadDot} />}
+      {unread && <View style={styles.unreadDot} />}
     </PressableScale>
   );
 }
 
 export default function NotificationsScreen({ navigation }: Props) {
-  const [todayNotifs, setTodayNotifs] = useState(TODAY_NOTIFICATIONS);
-  const [earlierNotifs, setEarlierNotifs] = useState(EARLIER_NOTIFICATIONS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const { data = [], isLoading, isError, refetch } = useNotifications();
+  const markRead = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
+  const createTest = useCreateTestNotification();
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  // Spinner only for user-initiated pulls — background refetches from realtime
+  // invalidation must not replay the pull-to-refresh animation.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
-  const handleRetry = () => {
-    setHasError(false);
-    setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 1200);
-  };
-
-  const markAllRead = () => {
-    setTodayNotifs(prev => prev.map(n => ({ ...n, unread: false })));
-    setEarlierNotifs(prev => prev.map(n => ({ ...n, unread: false })));
-  };
+  const todayNotifs = data.filter(n => isToday(n.createdAt));
+  const earlierNotifs = data.filter(n => !isToday(n.createdAt));
 
   const handleNotifPress = (item: Notification) => {
-    // These notifications are still mock rows (AX-602 wires real ones), so a
-    // message-type tap goes to the real inbox rather than a fabricated chat.
-    if (item.type === 'offer' || item.type === 'reply') {
-      navigation.navigate('Messages');
-    } else if (item.type === 'price_drop' || item.type === 'saves') {
-      navigation.navigate('Main');
+    markRead.mutate(item.id);
+    if (item.type === 'message' && item.actor && item.actorId) {
+      navigation.navigate('Chat', {
+        listingId: item.listingId,
+        partnerId: item.actorId,
+        partner: item.actor,
+        listingTitle: item.listingTitle ?? undefined,
+        listingPrice: item.listingPrice ?? undefined,
+      });
+    } else if (item.type === 'listing_saved' && item.listingId) {
+      navigation.navigate('ListingDetail', { listingId: item.listingId });
     }
   };
 
@@ -158,7 +137,7 @@ export default function NotificationsScreen({ navigation }: Props) {
         <PressableScale
           onPress={() => {
             haptics.tap();
-            markAllRead();
+            markAll.mutate();
           }}
           scaleTo={0.94}
         >
@@ -189,12 +168,12 @@ export default function NotificationsScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
-      ) : hasError ? (
+      ) : isError ? (
         <ErrorState
           message="Something went wrong. Please try again."
-          onRetry={handleRetry}
+          onRetry={() => refetch()}
         />
-      ) : todayNotifs.length === 0 && earlierNotifs.length === 0 ? (
+      ) : data.length === 0 ? (
         <EmptyState
           icon="notifications-outline"
           title="You're all caught up! No new notifications right now."
@@ -202,19 +181,59 @@ export default function NotificationsScreen({ navigation }: Props) {
           onCta={() => navigation.navigate('Main')}
         />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.body}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+              colors={[COLORS.primary]}
+            />
+          }
+        >
           {/* Today */}
-          <Text style={styles.sectionLabel}>TODAY</Text>
-          {todayNotifs.map(item => (
-            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-          ))}
+          {todayNotifs.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>TODAY</Text>
+              {todayNotifs.map(item => (
+                <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+              ))}
+            </>
+          )}
 
           {/* Earlier */}
-          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>EARLIER</Text>
-          {earlierNotifs.map(item => (
-            <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
-          ))}
+          {earlierNotifs.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: todayNotifs.length > 0 ? 20 : 0 }]}>
+                EARLIER
+              </Text>
+              {earlierNotifs.map(item => (
+                <NotifItem key={item.id} item={item} onPress={() => handleNotifPress(item)} />
+              ))}
+            </>
+          )}
         </ScrollView>
+      )}
+
+      {__DEV__ && (
+        <PressableScale
+          style={styles.devTestBtn}
+          onPress={() => {
+            haptics.tap();
+            createTest.mutate();
+          }}
+          disabled={createTest.isPending}
+          scaleTo={0.96}
+          accessibilityRole="button"
+          accessibilityLabel="Send test notification"
+        >
+          <Ionicons name="flask-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.devTestText}>
+            {createTest.isPending ? 'Sending…' : 'Send test notification'}
+          </Text>
+        </PressableScale>
       )}
     </SafeAreaView>
   );
@@ -314,5 +333,25 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.primary,
     flexShrink: 0,
+  },
+  devTestBtn: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    ...SHADOWS.card,
+  },
+  devTestText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });

@@ -39,6 +39,13 @@
 // migration 0012 (AX-707 compliance triage queue). Drop this note once
 // regenerated.
 //
+// MANUAL ADDITION (pending regen): `notifications.actor_id`/`read_at` were
+// hand-added alongside migration 0013 (AX-601/602 notification generation).
+// Drop this note once regenerated.
+//
+// MANUAL ADDITION (pending regen): the `create_test_notification` function was
+// hand-added alongside migration 0017 (dev test-notification RPC). Same deal.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -199,30 +206,43 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_id: string | null
           created_at: string
           id: string
           listing_id: string | null
           read: boolean
+          read_at: string | null
           type: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
           id?: string
           listing_id?: string | null
           read?: boolean
+          read_at?: string | null
           type: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
           id?: string
           listing_id?: string | null
           read?: boolean
+          read_at?: string | null
           type?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_listing_id_fkey"
             columns: ["listing_id"]
@@ -420,6 +440,10 @@ export type Database = {
         Returns: { listing_id: string; saves: number }[]
       }
       delete_own_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_test_notification: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

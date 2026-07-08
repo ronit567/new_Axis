@@ -77,6 +77,26 @@ export type Contact = {
   name: string;
 };
 
+export type NotificationType = 'message' | 'listing_saved';
+
+export type Notification = {
+  id: string;
+  type: NotificationType;
+  // The user who triggered it (message sender / listing saver). Both current
+  // triggers always set an actor; null is reserved for future system notifs.
+  actor: Contact | null;
+  actorId: string | null;
+  listingId: string | null;
+  listingTitle: string | null;
+  listingPrice: number | null;
+  // Display copy composed by the mapper, e.g. 'Aria saved your listing "…"'.
+  message: string;
+  timeAgo: string;
+  // Raw ISO timestamp, for Today/Earlier bucketing on the screen.
+  createdAt: string;
+  read: boolean;
+};
+
 export type Message = {
   id: string;
   listingId: string | null;

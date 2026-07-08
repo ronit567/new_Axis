@@ -110,9 +110,16 @@ reset role;
 set local role anon;
 select set_config('request.jwt.claims', '', true);
 
-select pg_temp.assert(
-  (select count(*) from public.reports) = 0,
-  'anon must not see any reports');
+-- anon has no grant at all on public.reports (0011/0014 only grant
+-- authenticated): expect a hard denial, not an RLS-empty result.
+do $$
+begin
+  perform count(*) from public.reports;
+  raise exception 'REPORTS TEST FAILED: anon was able to select from reports';
+exception
+  when insufficient_privilege then null; -- expected: no grant for anon
+end;
+$$;
 
 do $$
 begin
