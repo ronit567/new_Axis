@@ -84,6 +84,14 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
+  // useState only seeds on mount. When this thread is already in the navigation
+  // stack and React Navigation just updates params (Chat → View listing → Make
+  // offer re-targets the existing screen), re-seed with the new draft so the
+  // offer template isn't silently dropped.
+  useEffect(() => {
+    if (draftMessage) setInputText(draftMessage);
+  }, [draftMessage]); 
+
   useEffect(() => {
     const unread = messages.filter(m => m.receiverId === user?.id && m.readAt === null);
     if (unread.length === 0) return;
