@@ -150,12 +150,15 @@ export type RootStackParamList = {
   // IDs drive the data; `partner` is display info so the header renders before
   // any fetch. listingTitle/listingPrice feed the banner, and a present title
   // also enables the "View" round-trip (ListingDetail loads by id).
+  // `draftMessage` pre-fills the composer — e.g. the listing detail "Make offer"
+  // shortcut drops in an offer template so buyers negotiate over chat.
   Chat: {
     listingId: string | null;
     partnerId: string;
     partner: Contact;
     listingTitle?: string;
     listingPrice?: number;
+    draftMessage?: string;
   };
   Notifications: undefined;
   PrivacyPolicy: undefined;

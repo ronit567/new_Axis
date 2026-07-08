@@ -49,7 +49,7 @@ type ChatItem = {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listingId, partnerId, partner, listingTitle, listingPrice } = route.params;
+  const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage } = route.params;
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
@@ -78,7 +78,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   // thread — not just on first open.
   const lastMarkedUnreadId = useRef<string | null>(null);
 
-  const [inputText, setInputText] = useState('');
+  // Seed the composer from an optional draft (e.g. the listing "Make offer"
+  // shortcut) so the buyer lands on the thread with the message ready to send.
+  const [inputText, setInputText] = useState(draftMessage ?? '');
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<ChatItem>>(null);
 
