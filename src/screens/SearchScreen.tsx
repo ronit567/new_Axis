@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
 import { RootStackParamList, Listing, ListingCondition } from "../types";
@@ -61,10 +62,10 @@ export default function SearchScreen({ navigation, route }: Props) {
   // Hand-rolled entrance (the route mounts with animation: 'none' after Home
   // has already collapsed its greeting row, so the header is pixel-identical
   // across the switch). Search mounts looking exactly like Home — greeting
-  // expanded, full-width bar, no side buttons — then a single enterAnim runs
-  // everything at once: the greeting collapses up, the back and filter buttons
-  // grow in from zero width (so the bar narrows to make room for both), and
-  // the results fade up from beneath the header.
+  // expanded, full-width bar, no back arrow, no filter button — then a single
+  // enterAnim runs everything at once: the greeting collapses up, the bare back
+  // arrow grows in on the left and the Filters button grows in on the right (so
+  // the bar narrows to make room for both), and the results fade up below.
   const enterAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(enterAnim, {
@@ -78,9 +79,12 @@ export default function SearchScreen({ navigation, route }: Props) {
   // Greeting collapses up (full height → 0) and fades as the entrance runs.
   const greetingHeight = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [GREETING_ROW_HEIGHT, 0] });
   const greetingOpacity = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  // Both side buttons share the same grow-in (48px wide, 10px gap to the bar).
-  const btnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 48] });
-  const btnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 10] });
+  // Back arrow (left) and Filters icon (right) mirror each other: same 34px
+  // glyph box and 6px gap to the bar, so they sit symmetrically on the purple.
+  const backBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 34] });
+  const backBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
+  const filterBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 34] });
+  const filterBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
   const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
   // Mirror of the entrance, then pop the screen — Home re-expands its
@@ -154,6 +158,22 @@ export default function SearchScreen({ navigation, route }: Props) {
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
 
+  // Applied filters rendered as removable chips in the header row — each knows
+  // how to clear just itself. Order: categories, then price, then condition.
+  const activeFilters: { key: string; label: string; onRemove: () => void }[] = [
+    ...selectedCategories.map((cat) => ({
+      key: `cat:${cat}`,
+      label: cat,
+      onRemove: () => toggleCategory(cat),
+    })),
+    ...(priceMax < PRICE_MAX_CAP
+      ? [{ key: "price", label: `≤ $${priceMax}`, onRemove: () => setPriceMax(PRICE_MAX_CAP) }]
+      : []),
+    ...(condition !== "Any"
+      ? [{ key: "condition", label: condition, onRemove: () => setCondition("Any") }]
+      : []),
+  ];
+
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
@@ -177,6 +197,16 @@ export default function SearchScreen({ navigation, route }: Props) {
       <ActivityIndicator color={COLORS.primary} />
     </View>
   ) : null;
+
+  // Lives inside the scroll content (list header / above the skeletons) so it
+  // scrolls away and leaves only the purple header pinned.
+  const resultsHeader = (
+    <View style={styles.resultsRow}>
+      <Text style={styles.resultsCount}>
+        {isLoading ? "Searching…" : `${resultsCountLabel} results`}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.safe}>
@@ -202,22 +232,20 @@ export default function SearchScreen({ navigation, route }: Props) {
           />
         </Animated.View>
         <View style={styles.searchRow}>
+          {/* Bare back arrow — the purple header is its container, no chip.
+              Still grows in from zero width so the bar narrows into place. */}
           <Animated.View
-            style={{
-              width: btnWidth,
-              marginRight: btnMargin,
-              opacity: enterAnim,
-              overflow: "hidden",
-            }}
+            style={{ width: backBtnWidth, marginRight: backBtnMargin, overflow: "hidden" }}
           >
             <PressableScale
-              style={styles.closeBtn}
+              style={styles.backBtn}
               onPress={handleClose}
-              scaleTo={0.92}
+              scaleTo={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Close search"
             >
-              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+              <Ionicons name="arrow-back" size={24} color={COLORS.white} />
             </PressableScale>
           </Animated.View>
           <View style={styles.searchBar}>
@@ -246,25 +274,85 @@ export default function SearchScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             ) : null}
           </View>
+          {/* Bare Filters icon, top-right — no container, matches the back
+              arrow. Grows in with the entrance. */}
           <Animated.View
-            style={{
-              width: btnWidth,
-              marginLeft: btnMargin,
-              opacity: enterAnim,
-              overflow: "hidden",
-            }}
+            style={{ width: filterBtnWidth, marginLeft: filterBtnMargin, overflow: "hidden" }}
           >
             <PressableScale
               style={styles.filterBtn}
               onPress={openFilters}
-              scaleTo={0.92}
+              scaleTo={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Filters"
             >
-              <Ionicons name="options-outline" size={20} color={COLORS.white} />
+              <Ionicons name="options-outline" size={22} color={COLORS.white} />
             </PressableScale>
           </Animated.View>
         </View>
+
+        {/* Applied filters extend below the bar as one swipeable row of
+            removable pills, so the header stays a single line no matter how
+            many are applied. An alpha mask fades the chips themselves out at
+            each edge (works over the diagonal gradient, unlike a solid-color
+            overlay), so overflow reads as "more to scroll" instead of a hard
+            clip. Absent until something is applied. */}
+        {activeFilters.length > 0 ? (
+          <MaskedView
+            style={styles.appliedWrap}
+            maskElement={
+              // Pixel-sized mask segments (not gradient fractions) so the
+              // visible window lines up with the 20px header inset on any
+              // screen width: fully hidden inside the inset, a short feather,
+              // then fully visible between the back arrow and filter icon.
+              <View style={styles.appliedMask}>
+                <View style={{ width: 20 }} />
+                <LinearGradient
+                  colors={["transparent", "#fff"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ width: 14 }}
+                />
+                <View style={{ flex: 1, backgroundColor: "#fff" }} />
+                <LinearGradient
+                  colors={["#fff", "transparent"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ width: 14 }}
+                />
+                <View style={{ width: 20 }} />
+              </View>
+            }
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={styles.appliedScroll}
+              contentContainerStyle={styles.appliedRow}
+            >
+              {activeFilters.map((f) => (
+                <PressableScale
+                  key={f.key}
+                  style={styles.appliedChip}
+                  onPress={() => {
+                    haptics.tap();
+                    f.onRemove();
+                  }}
+                  scaleTo={0.94}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${f.label} filter`}
+                >
+                  <Text style={styles.appliedChipText}>{f.label}</Text>
+                  <View style={styles.appliedChipRemove}>
+                    <Ionicons name="close" size={12} color={COLORS.primary} />
+                  </View>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </MaskedView>
+        ) : null}
       </LinearGradient>
 
       {/* Everything below the header fades up as one block — the "results
@@ -272,16 +360,12 @@ export default function SearchScreen({ navigation, route }: Props) {
       <Animated.View
         style={{ flex: 1, opacity: enterAnim, transform: [{ translateY: contentShift }] }}
       >
-      {/* Results count */}
-      <View style={styles.resultsRow}>
-        <Text style={styles.resultsCount}>
-          {isLoading ? "Searching…" : `${resultsCountLabel} results`}
-        </Text>
-      </View>
-
-      {/* Results Grid: loading skeleton / error / list */}
+      {/* Results Grid: loading skeleton / error / list. The results count is
+          part of the scroll content (see resultsHeader), not a pinned row, so
+          only the purple header stays put when scrolling. */}
       {isLoading ? (
         <View style={styles.listContent}>
+          {resultsHeader}
           {[0, 1, 2].map((rowIndex) => (
             <View key={rowIndex} style={styles.row}>
               <ListingCardSkeleton />
@@ -307,6 +391,7 @@ export default function SearchScreen({ navigation, route }: Props) {
             { paddingBottom: insets.bottom + 24 },
           ]}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={resultsHeader}
           ListEmptyComponent={
             <EmptyState
               icon="search-outline"
@@ -521,7 +606,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    // No `gap`: the close button's spacing is animated (it grows from 0), so
+    // No `gap`: the back arrow's spacing is animated (it grows from 0), so
     // a static gap would misalign the search bar at the start of the motion.
   },
   searchBar: {
@@ -544,27 +629,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
   },
-  filterBtn: {
-    width: 48,
+  backBtn: {
+    // No container — bare arrow on the purple. Sized to align with the 48px
+    // bar; the animated wrapper clips it to width as it grows in.
+    width: 34,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primaryDark,
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
   },
-  closeBtn: {
-    width: 48,
+  filterBtn: {
+    // No container — bare icon on the purple, mirroring the back arrow (same
+    // box, aligned to the right edge so the two sit symmetrically).
+    width: 34,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  appliedWrap: {
+    marginTop: 12,
+  },
+  appliedMask: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  appliedScroll: {
+    // flexGrow: 0 keeps the horizontal scroller from expanding to fill the
+    // header; it hugs its single row of chips.
+    flexGrow: 0,
+  },
+  appliedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    // Inset (20) + feather (14): chips at rest sit fully inside the visible
+    // window, and the first/last chip clear the fade at either scroll end.
+    paddingHorizontal: 34,
+  },
+  appliedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 30,
+    // Less right padding — the X sits in its own tinted disc there.
+    paddingLeft: 13,
+    paddingRight: 6,
+    borderRadius: 15,
+    backgroundColor: COLORS.white,
+  },
+  appliedChipText: {
+    fontSize: 12.5,
+    fontFamily: FONTS.semibold,
+    color: COLORS.primary,
+  },
+  appliedChipRemove: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: COLORS.primaryTint,
   },
   resultsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    // No paddingHorizontal: this now lives inside the list content container,
+    // which already insets by 20.
     marginTop: 16,
     marginBottom: 12,
   },
