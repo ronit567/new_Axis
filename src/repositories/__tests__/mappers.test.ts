@@ -54,9 +54,10 @@ describe('toSeller', () => {
     });
   });
 
-  it('defaults null year, location, and program', () => {
+  it('surfaces a null year as the Grad sentinel, and defaults location/program', () => {
     const seller = toSeller({ ...sellerRow, year: null, location: null, program: null });
-    expect(seller.year).toBe(1);
+    // null year means a grad student — never coerce it to Year 1.
+    expect(seller.year).toBe('Grad');
     expect(seller.location).toBe('');
     expect(seller.program).toBe('');
   });
@@ -129,6 +130,7 @@ describe('toSellerProfile', () => {
       name: 'Aria K.',
       initials: 'AK',
       program: 'BMOS',
+      location: 'Elgin Hall',
       bio: 'Loves campus food.',
       year: 2,
       verified: true,
@@ -142,6 +144,16 @@ describe('toSellerProfile', () => {
 
   it('defaults bio to an empty string when null', () => {
     expect(toSellerProfile({ ...sellerRow, bio: null }, stats).bio).toBe('');
+  });
+
+  it('defaults location to an empty string when null', () => {
+    expect(toSellerProfile({ ...sellerRow, location: null }, stats).location).toBe('');
+  });
+
+  it('surfaces a null year as the Grad sentinel (no silent downgrade to Year 1)', () => {
+    expect(toSellerProfile({ ...sellerRow, year: null }, stats).year).toBe('Grad');
+    // A real numeric year passes through untouched.
+    expect(toSellerProfile({ ...sellerRow, year: 3 }, stats).year).toBe(3);
   });
 
   it('derives initials from name when the column is null', () => {
