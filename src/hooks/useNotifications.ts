@@ -34,7 +34,7 @@ export function useUnreadNotificationCount() {
 }
 
 // Live notification stream (AX-601). Mount once inside the signed-in shell
-// (MainScreen), like useMessagesRealtime. INSERTs (0012 triggers firing) and
+// (MainScreen), like useMessagesRealtime. INSERTs (0013 triggers firing) and
 // UPDATEs (read flips from another device) both invalidate the list and the
 // bell count — the refetch redoes the actor/listing joins, so no cache
 // patching from the raw row.

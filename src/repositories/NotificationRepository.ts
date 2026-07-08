@@ -35,7 +35,13 @@ export const NotificationRepository = {
     ]
 
     const [actorsResult, listingsResult] = await Promise.all([
-      supabase.from('profiles').select('*').in('id', actorIds),
+      // Both branches guard against an empty id set: `.in('id', [])` is a
+      // malformed PostgREST filter, not an empty result. actorIds is empty when
+      // every notification is actorless (e.g. the dev test-notification rows),
+      // which otherwise 400s the whole list fetch.
+      actorIds.length > 0
+        ? supabase.from('profiles').select('*').in('id', actorIds)
+        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
       listingIds.length > 0
         ? supabase.from('listings').select('*').in('id', listingIds)
         : Promise.resolve({ data: [] as ListingRow[], error: null }),
@@ -95,14 +101,14 @@ export const NotificationRepository = {
     if (error) throw error
   },
 
-  // Dev/test helper (0016): asks the DB to insert a canned notification for
+  // Dev/test helper (0017): asks the DB to insert a canned notification for
   // the current user, exercising the full pipeline (insert → realtime → bell).
   async createTest(): Promise<void> {
     const { error } = await supabase.rpc('create_test_notification')
     if (error) throw error
   },
 
-  // Realtime: stream INSERTs (new notifications from the 0012 triggers) and
+  // Realtime: stream INSERTs (new notifications from the 0013 triggers) and
   // UPDATEs (read flips, e.g. from another device). Handlers get the raw row —
   // consumers only invalidate caches, and the domain mapping needs the
   // actor/listing joins that list() does anyway. Filtered to this user's rows

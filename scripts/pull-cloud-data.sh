@@ -20,7 +20,7 @@
 #
 # What it does:
 #   1. Dumps data-only from cloud (auth + public + storage schemas).
-#   2. Strips the storage.buckets INSERT — migration 0013 already creates the
+#   2. Strips the storage.buckets INSERT — migration 0014 already creates the
 #      exact same buckets locally, so re-inserting them would be a duplicate-key
 #      error.
 #   3. Runs `supabase db reset` to rebuild a clean local DB (all migrations).
@@ -57,7 +57,7 @@ fi
 echo "==> Dumping data-only from cloud (auth + public + storage)..."
 npx supabase db dump --db-url "$CLOUD_DB_URL" --data-only -f "$DUMP_FILE"
 
-echo "==> Stripping redundant storage.buckets INSERT (migration 0013 owns those buckets)..."
+echo "==> Stripping redundant storage.buckets INSERT (migration 0014 owns those buckets)..."
 # Remove the single multi-row INSERT INTO "storage"."buckets" (... VALUES) statement,
 # from its INSERT line through the line ending in ';'. Leaves everything else intact.
 awk '

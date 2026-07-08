@@ -1,4 +1,4 @@
--- Axis — 0014: missing table grants for reports.
+-- Axis — 0015: missing table grants for reports.
 --
 -- 0011 created public.reports with RLS policies but no GRANTs. This project
 -- does not auto-grant on new public tables (see 0005), so `authenticated`

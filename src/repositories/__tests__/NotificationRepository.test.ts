@@ -193,6 +193,25 @@ describe('NotificationRepository.list', () => {
     expect(result[0].listingTitle).toBeNull();
   });
 
+  it('skips the profiles fetch when no row has an actor_id (dev test notifications)', async () => {
+    // A test-notification row is actorless (and listingless). `.in('id', [])`
+    // is a malformed PostgREST filter, so the empty actorIds set must skip the
+    // fetch entirely rather than 400 the whole list.
+    const row = makeNotificationRow({ id: 'n1', actor_id: null, listing_id: null });
+    mockTables({
+      notifications: makeQueryBuilder<NotificationRow[]>({ data: [row], error: null }),
+    });
+
+    const result = await NotificationRepository.list('me');
+
+    expect(mockFrom).toHaveBeenCalledWith('notifications');
+    expect(mockFrom).not.toHaveBeenCalledWith('profiles');
+    expect(mockFrom).not.toHaveBeenCalledWith('listings');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('n1');
+    expect(result[0].actor).toBeNull();
+  });
+
   it('propagates an error from the notifications query', async () => {
     mockTables({
       notifications: makeQueryBuilder<NotificationRow[]>({ data: null, error: new Error('boom') }),

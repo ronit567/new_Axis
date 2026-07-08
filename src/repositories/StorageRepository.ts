@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 
 const LISTING_IMAGES_BUCKET = 'listing-images'
 
-// Must stay in sync with the bucket's allowed_mime_types (0003_storage_buckets.sql).
+// Must stay in sync with the bucket's allowed_mime_types (0014_storage_buckets.sql).
 const EXTENSION_CONTENT_TYPES: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -41,7 +41,7 @@ export type UploadedListingImages = {
 }
 
 export const StorageRepository = {
-  // Path convention (0003_storage_buckets.sql): {seller_id}/{listing_id}/{filename}.
+  // Path convention (0014_storage_buckets.sql): {seller_id}/{listing_id}/{filename}.
   // listingId is caller-generated (before the listings row exists) so the
   // upload can happen first and the insert only ever references URLs that are
   // already live — a failed insert never leaves a broken listing pointing at

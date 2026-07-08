@@ -33,7 +33,8 @@ const AVATAR_COLORS = ['#5C2D91', '#7B4BB0', '#8E5DC4', '#6B3AA0', '#4C2478'] as
 const DEFAULT_DOT_COLOR = '#9E9EAE';
 
 // Fallbacks for NOT-NULL-in-the-UI fields that are nullable in the DB.
-const DEFAULT_YEAR = 1;
+// (`year` has no fallback: null is meaningful — it's a grad student — so the
+// mappers surface it as the 'Grad' sentinel rather than fabricating a year.)
 const DEFAULT_CATEGORY = 'Other';
 const DEFAULT_CONDITION = 'N/A'; // matches the mock's tickets (no condition).
 
@@ -82,7 +83,8 @@ export function toSeller(row: ProfileRow): Seller {
   return {
     id: row.id,
     name: row.name,
-    year: row.year ?? DEFAULT_YEAR,
+    // null year => grad student; surface the 'Grad' sentinel, don't coerce to 1.
+    year: row.year ?? 'Grad',
     location: row.location ?? '',
     program: row.program ?? '',
     dotColor: DEFAULT_DOT_COLOR,
@@ -144,13 +146,15 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     name: row.name,
     initials: row.initials ?? deriveInitials(row.name),
     program: row.program ?? '',
+    location: row.location ?? '',
     bio: row.bio ?? '',
     joinedDate: formatJoinedDate(row.created_at),
     // rating / reviewCount are 0 until the reviews table exists (AX-702).
     // The SellerProfile UI hides the rating block when there are no reviews.
     rating: 0,
     reviewCount: 0,
-    year: row.year ?? DEFAULT_YEAR,
+    // null year => grad student; surface the 'Grad' sentinel, don't coerce to 1.
+    year: row.year ?? 'Grad',
     verified: row.verified,
     stats,
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),

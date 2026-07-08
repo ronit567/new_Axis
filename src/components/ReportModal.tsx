@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -36,21 +36,41 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
   const [submitting, setSubmitting] = useState(false);
   const [blocking, setBlocking] = useState(false);
 
+  // RN's Modal keeps this component mounted while visible={false}, so an
+  // onSubmit/onBlock promise that resolves after the sheet is dismissed would
+  // otherwise write stale state (flip `submitted` to true and show the "Report
+  // submitted" confirmation the next time it opens). A plain "is open" boolean
+  // isn't enough: it re-arms to true on reopen, so a promise from a *previous*
+  // open would still write into the freshly reopened sheet. Instead we tag each
+  // open/close with a monotonic session id; a handler captures the session it
+  // started in and only applies its result if the sheet is still in that
+  // session. Bumped both here (parent-driven visibility changes) and
+  // synchronously in handleClose (so a promise resolving in the gap before the
+  // effect runs is still invalidated).
+  const sessionRef = useRef(0);
+  useEffect(() => {
+    sessionRef.current += 1;
+  }, [visible]);
+
   const handleSubmit = async () => {
     if (!selected || submitting) return;
     haptics.impact();
+    const session = sessionRef.current;
     setSubmitting(true);
     try {
       await onSubmit(selected);
-      setSubmitted(true);
+      if (sessionRef.current === session) setSubmitted(true);
     } catch {
-      Alert.alert('Something went wrong', "We couldn't submit your report. Please try again.");
+      if (sessionRef.current === session) {
+        Alert.alert('Something went wrong', "We couldn't submit your report. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleClose = () => {
+    sessionRef.current += 1;
     setSelected(null);
     setSubmitted(false);
     // Also clear the in-flight flags: RN's Modal keeps this component mounted
@@ -64,18 +84,23 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
 
   const handleBlock = async () => {
     if (blocking) return;
+    const session = sessionRef.current;
     setBlocking(true);
     try {
       await onBlock?.();
-      Alert.alert(
-        'User blocked',
-        `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
-        // Close (rather than fall back to the reason-picker view) once the
-        // user has acknowledged the block.
-        [{ text: 'OK', onPress: handleClose }],
-      );
+      if (sessionRef.current === session) {
+        Alert.alert(
+          'User blocked',
+          `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
+          // Close (rather than fall back to the reason-picker view) once the
+          // user has acknowledged the block.
+          [{ text: 'OK', onPress: handleClose }],
+        );
+      }
     } catch {
-      Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");
+      if (sessionRef.current === session) {
+        Alert.alert('Something went wrong', "We couldn't block this user. Please try again.");
+      }
     } finally {
       setBlocking(false);
     }

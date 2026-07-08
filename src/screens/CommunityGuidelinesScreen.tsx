@@ -80,6 +80,10 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           our team can review it. You can also block users you no longer want to hear
           from. Reports are confidential and help keep Axis safe for everyone.
         </Text>
+        <Text style={styles.paragraph}>
+          Our team reviews every report and responds within 24 hours. For anything
+          urgent, or if you'd rather reach us directly, email support@axis.app.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

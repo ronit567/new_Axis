@@ -2,7 +2,7 @@
 
 This runs the entire Supabase backend (Postgres, Auth, Storage, Realtime,
 Studio, a fake mail server) on your machine in Docker. You develop against it
-instead of the shared cloud project — no risk to real data, all 14 migrations
+instead of the shared cloud project — no risk to real data, all 17 migrations
 applied, instant resets.
 
 ## Prerequisites

@@ -1,6 +1,6 @@
--- Axis — 0016: dev/test helper to generate a notification on demand (AX-601).
+-- Axis — 0017: dev/test helper to generate a notification on demand (AX-601).
 --
--- 0012 revoked client INSERT on public.notifications (rows are trigger-only),
+-- 0013 revoked client INSERT on public.notifications (rows are trigger-only),
 -- which also makes the feature hard to exercise by hand. This RPC is the
 -- sanctioned back door: SECURITY DEFINER, inserts a canned actorless 'message'
 -- notification for the CALLER ONLY, so the worst an abuser can do is spam

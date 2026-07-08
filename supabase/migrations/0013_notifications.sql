@@ -1,4 +1,4 @@
--- Axis — 0012: notification generation + wiring (AX-601/602).
+-- Axis — 0013: notification generation + wiring (AX-601/602).
 --
 -- Builds on the notifications table drafted in 0001 (id, user_id, type,
 -- listing_id, read, created_at). Adds the columns the feature needs, two

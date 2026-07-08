@@ -1,9 +1,9 @@
--- Axis — notification generation + RLS tests (migration 0012).
+-- Axis — notification generation + RLS tests (migration 0013).
 --
 -- Same harness as messages_read_receipts_test.sql: runs inside BEGIN ...
 -- ROLLBACK, switches identity via set local role + request.jwt.claims, raises
 -- on the first failed assertion, prints ALL NOTIFICATIONS TESTS PASSED on
--- success. Kept as a separate file so it can run independently after 0012 is
+-- success. Kept as a separate file so it can run independently after 0013 is
 -- applied.
 --
 -- Two users: A (message sender / listing saver) and B (message receiver /
@@ -165,7 +165,7 @@ end $$;
 reset role;
 
 -- ── Scenario 8: RLS insert denied — notifications are system-generated only;
---    0012 revoked the client INSERT grant entirely.
+--    0013 revoked the client INSERT grant entirely.
 set local role authenticated;
 select set_config('request.jwt.claims',
        '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
@@ -173,14 +173,14 @@ do $$
 begin
   insert into public.notifications (user_id, type) values
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'message');
-  raise exception 'NOTIFICATIONS TEST FAILED: client insert into notifications succeeded (0012 should have revoked it)';
+  raise exception 'NOTIFICATIONS TEST FAILED: client insert into notifications succeeded (0013 should have revoked it)';
 exception
-  when insufficient_privilege then null; -- expected: 0012 revokes INSERT from authenticated
+  when insufficient_privilege then null; -- expected: 0013 revokes INSERT from authenticated
 end;
 $$;
 reset role;
 
--- ── Scenario 9: create_test_notification() (0016) inserts an actorless row
+-- ── Scenario 9: create_test_notification() (0017) inserts an actorless row
 --    for the caller only; anon cannot execute it.
 set local role authenticated;
 select set_config('request.jwt.claims',

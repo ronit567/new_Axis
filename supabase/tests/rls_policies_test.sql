@@ -280,7 +280,7 @@ end;
 $$;
 reset role;
 
--- ══ Storage policies (0003_storage_buckets.sql) ═════════════════════════════
+-- ══ Storage policies (0014_storage_buckets.sql) ═════════════════════════════
 -- The buckets ('listing-images', 'avatars') must already exist from 0003.
 -- Objects inserted here are rolled back with the surrounding transaction.
 -- Security boundary: (storage.foldername(name))[1] = auth.uid()::text on

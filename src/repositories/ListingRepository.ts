@@ -376,4 +376,36 @@ export const ListingRepository = {
     const { error } = await supabase.rpc('increment_listing_views', { listing_id: id })
     if (error) throw error
   },
+  // AX-304: seller marks their own listing sold. RLS (listings_update_own) already
+  // scopes UPDATE to the owner; the seller_id filter is explicit defense-in-depth
+  // and keeps the call testable. soldFor is derived from price by toMyListing —
+  // there is no separate sale-price column, so status is the only field to change.
+  async markSold(listingId: string, sellerId: string): Promise<void> {
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: 'sold' })
+      .eq('id', listingId)
+      .eq('seller_id', sellerId)
+    if (error) throw error
+  },
+  // AX-304: relist a sold item back to active.
+  async relist(listingId: string, sellerId: string): Promise<void> {
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: 'active' })
+      .eq('id', listingId)
+      .eq('seller_id', sellerId)
+    if (error) throw error
+  },
+  // AX-304: hard delete (roadmap "delete with confirm"). saved_listings/messages
+  // cascade, notifications null out via the FKs in 0001. Orphaned storage images
+  // are left as-is (storage GC is a separate pass).
+  async deleteListing(listingId: string, sellerId: string): Promise<void> {
+    const { error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', listingId)
+      .eq('seller_id', sellerId)
+    if (error) throw error
+  },
 }

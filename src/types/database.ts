@@ -34,12 +34,17 @@
 // hand-added alongside migration 0011 (AX-703 report/block). Same deal —
 // regenerate after applying 0011.
 //
+// MANUAL ADDITION (pending regen): the `reports_queue` view (Studio/service_role
+// only — no repository queries it, so no row alias) was hand-added alongside
+// migration 0012 (AX-707 compliance triage queue). Drop this note once
+// regenerated.
+//
 // MANUAL ADDITION (pending regen): `notifications.actor_id`/`read_at` were
-// hand-added alongside migration 0012 (AX-601/602 notification generation).
+// hand-added alongside migration 0013 (AX-601/602 notification generation).
 // Drop this note once regenerated.
 //
 // MANUAL ADDITION (pending regen): the `create_test_notification` function was
-// hand-added alongside migration 0016 (dev test-notification RPC). Same deal.
+// hand-added alongside migration 0017 (dev test-notification RPC). Same deal.
 //
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
@@ -400,6 +405,27 @@ export type Database = {
           receiver_id: string
           sender_id: string
           unread_count: number
+        }
+        Relationships: []
+      }
+      // service_role only (see 0012's revoke) — no repository queries it; kept
+      // here for schema fidelity with what a real gen-types run would emit.
+      reports_queue: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reporter_email: string | null
+          reporter_id: string
+          reporter_name: string | null
+          status: string
+          target_listing_id: string | null
+          target_listing_seller_id: string | null
+          target_listing_title: string | null
+          target_type: string
+          target_user_email: string | null
+          target_user_id: string | null
+          target_user_name: string | null
         }
         Relationships: []
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,12 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
-import { useMyListings } from '../hooks/useListings';
+import {
+  useMyListings,
+  useMarkListingSold,
+  useRelistListing,
+  useDeleteListing,
+} from '../hooks/useListings';
 import { RootStackParamList, MyListing } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
@@ -23,35 +28,35 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
 const TABS = ['Active', 'Sold'];
 
 export default function ManageListingsScreen({ navigation }: Props) {
-  const { data, isLoading } = useMyListings();
-  // Mirrored into local state so markSold/delete can update the list
-  // optimistically — those actions don't persist to the backend yet (separate
-  // ticket), so this stays a client-only view on top of the fetched data.
-  const [listings, setListings] = useState<MyListing[]>([]);
+  const { data: listings = [], isLoading } = useMyListings();
+  const markSold = useMarkListingSold();
+  const relist = useRelistListing();
+  const deleteListing = useDeleteListing();
   const [activeTab, setActiveTab] = useState('Active');
-
-  useEffect(() => {
-    if (data) setListings(data);
-  }, [data]);
 
   const filtered = listings.filter(l =>
     activeTab === 'Active' ? l.status === 'active' : l.status === 'sold',
   );
 
-  const markSold = (id: string) => {
-    haptics.impact();
-    setListings(prev =>
-      prev.map(l => (l.id === id ? { ...l, status: 'sold' as const, soldFor: l.price } : l)),
-    );
-  };
+  const surface = (title: string) => (e: unknown) =>
+    Alert.alert(title, e instanceof Error ? e.message : 'Please try again.');
 
-  const deleteListing = (id: string) => {
+  const handleMarkSold = (item: MyListing) => {
+    haptics.impact();
+    markSold.mutate(item.id, { onError: surface("Couldn't mark as sold") });
+  };
+  const handleRelist = (item: MyListing) => {
+    haptics.impact();
+    relist.mutate(item.id, { onError: surface("Couldn't relist") });
+  };
+  const handleDelete = (item: MyListing) => {
+    haptics.tap();
     Alert.alert('Delete listing?', 'This can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => setListings(prev => prev.filter(l => l.id !== id)),
+        onPress: () => deleteListing.mutate(item.id, { onError: surface("Couldn't delete") }),
       },
     ]);
   };
@@ -98,23 +103,11 @@ export default function ManageListingsScreen({ navigation }: Props) {
         <View style={styles.actions}>
           {!isSold ? (
             <>
+              {/* Edit (prefilled CreateListing) is a follow-up ticket */}
               <PressableScale
                 style={styles.actionBtn}
                 scaleTo={0.96}
-                onPress={() => {
-                  haptics.tap();
-                  navigation.navigate('CreateListing');
-                }}
-                accessibilityLabel={`Edit ${item.title}`}
-                accessibilityRole="button"
-              >
-                <Ionicons name="create-outline" size={16} color={COLORS.text} />
-                <Text style={styles.actionText}>Edit</Text>
-              </PressableScale>
-              <PressableScale
-                style={styles.actionBtn}
-                scaleTo={0.96}
-                onPress={() => markSold(item.id)}
+                onPress={() => handleMarkSold(item)}
                 accessibilityLabel={`Mark ${item.title} as sold`}
                 accessibilityRole="button"
               >
@@ -126,10 +119,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
             <PressableScale
               style={styles.actionBtn}
               scaleTo={0.96}
-              onPress={() => {
-                haptics.tap();
-                navigation.navigate('CreateListing');
-              }}
+              onPress={() => handleRelist(item)}
               accessibilityLabel={`Relist ${item.title}`}
               accessibilityRole="button"
             >
@@ -140,10 +130,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
           <PressableScale
             style={[styles.actionBtn, styles.deleteBtn]}
             scaleTo={0.92}
-            onPress={() => {
-              haptics.tap();
-              deleteListing(item.id);
-            }}
+            onPress={() => handleDelete(item)}
             accessibilityLabel={`Delete ${item.title}`}
             accessibilityRole="button"
           >

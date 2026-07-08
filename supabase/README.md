@@ -10,34 +10,43 @@ against a live database yet — review before applying.
 |---|---|
 | `migrations/0001_initial_schema.sql` | Tables (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`), indexes, and `enable row level security` on each. |
 | `migrations/0002_rls_policies.sql` | RLS policies + the `is_blocked()` helper. Apply **after** 0001. |
-| `migrations/0003_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets (with size/mime-type limits) and their `storage.objects` policies (authenticated upload to own prefix, public URL read via the bucket's `public` flag, owner-only delete). |
 | `migrations/0006_saved_listing_counts.sql` | `my_listing_save_counts()` — a `SECURITY DEFINER` RPC, scoped to the caller's own listings, that aggregates `saved_listings` across users (a direct table query is RLS-scoped to the caller's own save row, so it can't produce a real count). |
 | `migrations/0007_increment_listing_views.sql` | `increment_listing_views()` — a `SECURITY DEFINER` RPC that atomically bumps a listing's view counter for any authenticated viewer *except the owner* (RLS scopes plain UPDATEs to the seller, which would leave views frozen for real browsers; the owner exclusion stops self-inflation). |
 | `migrations/0008_messages_read_receipts.sql` | `messages.read_at` (receiver-only update via column grant), the unread partial index, and adds `messages` to the Realtime publication. |
 | `migrations/0009_conversation_list_view.sql` | `conversation_list` view (`security_invoker`): one row per (listing, partner) thread — last message + unread count — for the caller. Backs the Messages inbox. Apply **after** 0008. |
 | `migrations/0010_delete_account.sql` | `delete_own_account()` — a `SECURITY DEFINER` RPC that deletes the caller's `auth.users` row; every owned row (`profiles`, `listings`, `saved_listings`, `messages`, `notifications`, `blocks`) cascades away in the same statement via the `on delete cascade` FKs already in 0001. Backs AX-704 (Settings → Danger zone → Delete account). |
 | `migrations/0011_reports.sql` | `reports` table (reporter, target user/listing, reason, status) + RLS: reporter can file and read back their own reports; nobody else can. Backs the ReportModal submit flow (AX-703). |
-| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0003), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0003+0006. |
+| `migrations/0012_reports_queue.sql` | `reports_queue` view — a plain (non-`security_invoker`) triage view over `reports` that joins in reporter/target names + emails + the listing title, ordered open-first. Revoked from `anon`/`authenticated`, so it's reachable only via Studio / a `service_role` connection. Backs AX-707 (compliance review queue). Apply **after** 0011. |
+| `migrations/0013_notifications.sql` | Notification generation: adds `notifications.actor_id`/`read_at`, two `SECURITY DEFINER` triggers that write rows on new message / listing save (with dedup), and locks the placeholder client-INSERT policy so rows are trigger-only. Backs AX-601/602. Apply **after** 0001+0002. |
+| `migrations/0014_storage_buckets.sql` | `listing-images` + `avatars` Storage buckets (with size/mime-type limits) and their `storage.objects` policies (authenticated upload to own prefix, public URL read via the bucket's `public` flag, owner-only delete). |
+| `migrations/0015_reports_grants.sql` | Table GRANTs for `public.reports` — 0011 created the table + RLS but no grants, and this project doesn't auto-grant new tables (see 0005), so `authenticated` can actually file/read their own reports. Apply **after** 0011. |
+| `migrations/0016_notifications_realtime.sql` | Adds `notifications` to the Realtime publication so the live bell streams INSERT/UPDATE events (RLS-scoped per subscriber). Apply **after** 0013. |
+| `migrations/0017_test_notification.sql` | `create_test_notification()` — a dev-only `SECURITY DEFINER` RPC that inserts a canned actorless notification for the caller (client INSERT stays revoked), to exercise the insert → realtime → bell pipeline by hand. Apply **after** 0013. |
+| `tests/rls_policies_test.sql` | Owner-vs-non-owner-vs-anon-vs-blocked policy tests for the table RLS (0001+0002), the storage.objects policies (0014), **and** `my_listing_save_counts()` scoping (0006). Run **after** 0001+0002+0006+0014. |
 | `tests/messages_read_receipts_test.sql` | Read-receipt + `conversation_list` policy tests (receiver-only `read_at` writes, column-grant immutability, unread counts). Run **after** 0008+0009. |
 | `tests/delete_account_test.sql` | `delete_own_account()` tests: anon has no EXECUTE grant, the caller's full cascade graph (profile/listing/saved_listing/messages-both-directions/notification/blocks) is gone, an unrelated user's rows are untouched, and calling it again post-delete is a no-op. Run **after** 0010. |
 | `tests/reports_test.sql` | Reports policy tests (reporter can file + read own, cross-user select/insert denied, anon denied, `reports_target_present` constraint enforced). Run **after** 0011. |
+| `tests/reports_queue_test.sql` | `reports_queue` tests: anon + authenticated are both denied (revoked), and the view owner sees the report with reporter/target names + emails + listing title joined in. Run **after** 0012. |
+| `tests/notifications_test.sql` | Notification trigger + RLS tests: message/save triggers generate rows (with dedup), client INSERT is revoked, and `create_test_notification()` inserts an actorless row for the caller only. Run **after** 0013 (and 0017 for the RPC scenario). |
 | `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
-- **Via the Supabase MCP server** (preferred): run `0001`, `0002`, `0003`, `0006`,
-  `0007`, `0008`, `0009`, `0010`, `0011`, then `health_check.sql`. I can drive this
-  directly once the MCP is connected.
+- **Via the local stack** (preferred for dev): `npx supabase db reset` applies
+  every migration `0001`–`0017` in filename order, then loads seed data — see
+  `LOCAL_DEV.md`.
+- **Via the Supabase MCP server**: run migrations `0001`–`0017` in order, then
+  `health_check.sql`. I can drive this directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 
-After applying (0001+0002+0003), run `tests/rls_policies_test.sql` (SQL editor
-or psql). It runs inside a transaction and `rollback`s, so it leaves nothing
-behind; it raises on the first failed assertion and prints `ALL RLS TESTS
-PASSED` on success. The storage scenarios (6–9) need the buckets from 0003 to
-exist, so apply 0003 before running the tests. After applying 0010, run
-`tests/delete_account_test.sql`; after applying 0011, run `tests/reports_test.sql`
-the same way.
+Once the schema is up, run `tests/rls_policies_test.sql` (SQL editor or psql). It
+runs inside a transaction and `rollback`s, so it leaves nothing behind; it raises
+on the first failed assertion and prints `ALL RLS TESTS PASSED` on success. The
+storage scenarios (6–9) need the buckets from 0014 to exist. After applying 0010,
+run `tests/delete_account_test.sql`; after 0011, `tests/reports_test.sql`; after
+0012, `tests/reports_queue_test.sql`; and after 0013, `tests/notifications_test.sql`
+— the same way.
 
 After the tables exist, regenerate app types:
 `npx supabase gen types typescript --project-id <ref> > src/types/supabase.ts`
