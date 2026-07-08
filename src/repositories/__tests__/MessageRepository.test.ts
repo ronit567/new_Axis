@@ -440,7 +440,9 @@ describe('MessageRepository.subscribeToMessages', () => {
 
     MessageRepository.subscribeToMessages('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
 
-    expect(mockChannel).toHaveBeenCalledWith('messages-me');
+    // Topic carries a per-session suffix so a remount never reuses a
+    // still-joined channel (which would throw on the second `.on()`).
+    expect(mockChannel).toHaveBeenCalledWith(expect.stringMatching(/^messages-me-\d+$/));
     expect(channelObj.on).toHaveBeenCalledTimes(2);
 
     const [insertConfig] = channelObj.on.mock.calls[0];
@@ -525,5 +527,16 @@ describe('MessageRepository.subscribeToMessages', () => {
     unsubscribe();
 
     expect(mockRemoveChannel).toHaveBeenCalledWith(channelObj);
+  });
+
+  it('uses a distinct channel topic on each subscribe so a re-subscribe never reuses a still-joined channel', () => {
+    mockChannel.mockImplementation(() => makeChannelObj());
+
+    MessageRepository.subscribeToMessages('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
+    MessageRepository.subscribeToMessages('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
+
+    const firstTopic = mockChannel.mock.calls[0][0];
+    const secondTopic = mockChannel.mock.calls[1][0];
+    expect(firstTopic).not.toEqual(secondTopic);
   });
 });

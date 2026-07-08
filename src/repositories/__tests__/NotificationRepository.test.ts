@@ -331,7 +331,9 @@ describe('NotificationRepository.subscribe', () => {
 
     NotificationRepository.subscribe('me', { onInsert: jest.fn(), onUpdate: jest.fn() });
 
-    expect(mockChannel).toHaveBeenCalledWith('notifications-me');
+    // Topic carries a per-session suffix so a remount never reuses a
+    // still-joined channel (which would throw on the second `.on()`).
+    expect(mockChannel).toHaveBeenCalledWith(expect.stringMatching(/^notifications-me-\d+$/));
     expect(channelObj.on).toHaveBeenCalledTimes(2);
     expect(channelObj.subscribe).toHaveBeenCalledTimes(1);
 

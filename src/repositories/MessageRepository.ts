@@ -37,6 +37,16 @@ function assertUuid(value: string, label: string): void {
   }
 }
 
+// Monotonic per-session suffix for realtime channel topics. supabase.channel()
+// reuses an existing channel whenever one with the same topic is still
+// registered, and removeChannel() only tears the old one out of the client's
+// channel list after an async unsubscribe round-trip resolves. So a remount
+// that re-subscribes before that teardown lands would reuse the still-joined
+// channel and call `.on('postgres_changes', …)` on it — which throws
+// "cannot add postgres_changes callbacks … after subscribe()". A unique topic
+// per subscription guarantees a fresh channel every time and sidesteps the race.
+let channelSeq = 0
+
 export const MessageRepository = {
   // getConversations reads the conversation_list view (migration 0009): one
   // row per (listing, partner) thread — the thread's last message columns plus
@@ -166,7 +176,7 @@ export const MessageRepository = {
   // unsubscribe fn.
   subscribeToMessages(userId: string, handlers: MessageEventHandlers): () => void {
     const channel = supabase
-      .channel(`messages-${userId}`)
+      .channel(`messages-${userId}-${channelSeq++}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },

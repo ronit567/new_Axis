@@ -8,6 +8,15 @@ export type NotificationEventHandlers = {
   onUpdate: (row: NotificationRow) => void
 }
 
+// Monotonic per-session suffix for realtime channel topics — see the identical
+// rationale in MessageRepository: supabase.channel() reuses a still-registered
+// channel of the same topic, and removeChannel() only detaches it after an
+// async round-trip, so re-subscribing on a remount before that lands would call
+// `.on('postgres_changes', …)` on the already-joined channel and throw
+// "cannot add postgres_changes callbacks … after subscribe()". A unique topic
+// per subscription forces a fresh channel every time.
+let channelSeq = 0
+
 export const NotificationRepository = {
   // Newest-first, capped at `limit`. Batch-joins actor profiles and listings
   // (same manual-join shape as MessageRepository.getConversations) rather than
@@ -116,7 +125,7 @@ export const NotificationRepository = {
   // other users' events). Returns the unsubscribe fn.
   subscribe(userId: string, handlers: NotificationEventHandlers): () => void {
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(`notifications-${userId}-${channelSeq++}`)
       .on(
         'postgres_changes',
         {
