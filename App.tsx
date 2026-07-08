@@ -107,12 +107,14 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          {/* Search presents bottom-up (like CreateListing): the bar lands
-              pinned at the top and the close chevron slides it back down. */}
+          {/* Search crossfades over Home (no card slide): both screens share
+              the purple header, so the fade reads as the header morphing while
+              SearchScreen's own collapse animation pulls the purple up into
+              its shorter search-mode height. */}
           <Stack.Screen
             name="Search"
             component={SearchScreen}
-            options={{ animation: 'slide_from_bottom' }}
+            options={{ animation: 'fade', animationDuration: 220 }}
           />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />

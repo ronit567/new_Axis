@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -32,6 +34,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 const FILTER_CATEGORIES = ["Textbooks", "Electronics", "Furniture", "Tickets"];
 const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
+// Height of Home's greeting row (38px avatar + 14px padding). The header
+// spacer starts at this height so the purple region and search bar begin
+// exactly where Home draws them, then collapses to pull the purple up.
+const HOME_GREETING_ROW_HEIGHT = 52;
 // The price slider's upper bound doubles as "no cap" — nothing is listed
 // above it, so treating it as a sentinel keeps the filter omitted rather
 // than passing a max that happens to include everything anyway.
@@ -50,6 +56,24 @@ export default function SearchScreen({ navigation, route }: Props) {
   const [condition, setCondition] = useState("Any");
   const [priceMax, setPriceMax] = useState(PRICE_MAX_CAP);
   const inputRef = useRef<TextInput>(null);
+
+  // The screen itself crossfades in (App.tsx uses animation: 'fade'); the
+  // only thing that visibly travels is the purple header, which starts at
+  // Home's taller greeting-row height and collapses up to search-mode height.
+  const headerCollapse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.timing(headerCollapse, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      // Animates height, which the native driver can't do; one 260ms one-shot.
+      useNativeDriver: false,
+    }).start();
+  }, [headerCollapse]);
+  const spacerHeight = headerCollapse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, HOME_GREETING_ROW_HEIGHT],
+  });
 
   const {
     data,
@@ -108,6 +132,7 @@ export default function SearchScreen({ navigation, route }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: insets.top + 12 }]}
       >
+        <Animated.View style={{ height: spacerHeight }} />
         <View style={styles.searchRow}>
           <PressableScale
             style={styles.closeBtn}
