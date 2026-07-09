@@ -9,6 +9,7 @@ import { RootStackParamList, SellerProfile } from '../types';
 import PressableScale from '../components/PressableScale';
 import EmptyState from '../components/EmptyState';
 import ActivitySpinner from '../components/ActivitySpinner';
+import Avatar from '../components/Avatar';
 import { useFollowing, useToggleFollow } from '../hooks/useFollows';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { haptics } from '../lib/haptics';
@@ -29,9 +30,13 @@ export default function FollowingScreen({ navigation }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`View ${item.name}'s profile`}
     >
-      <View style={[styles.avatar, { backgroundColor: item.avatarColor }]}>
-        <Text style={styles.avatarText}>{item.initials}</Text>
-      </View>
+      <Avatar
+        url={item.avatarUrl}
+        initials={item.initials}
+        color={item.avatarColor}
+        size={44}
+        textStyle={styles.avatarText}
+      />
       <View style={styles.rowInfo}>
         <View style={styles.nameRow}>
           <Text style={styles.name} numberOfLines={1}>
@@ -148,13 +153,6 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     padding: 12,
     ...SHADOWS.card,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,

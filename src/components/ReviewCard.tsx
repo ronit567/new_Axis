@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../constants/theme';
 import { Review } from '../types';
+import Avatar from './Avatar';
 
 type Props = {
   review: Review;
@@ -15,9 +16,13 @@ export default function ReviewCard({ review }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={[styles.avatar, { backgroundColor: review.reviewer.avatarColor }]}>
-          <Text style={styles.avatarText}>{review.reviewer.initials}</Text>
-        </View>
+        <Avatar
+          url={review.reviewer.avatarUrl}
+          initials={review.reviewer.initials}
+          color={review.reviewer.avatarColor}
+          size={32}
+          textStyle={styles.avatarText}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.name} numberOfLines={1}>
             {review.reviewer.name}
@@ -52,13 +57,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginBottom: 8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,
