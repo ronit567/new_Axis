@@ -137,6 +137,7 @@ export function toMyListing(row: ListingRow, saves: number): MyListing {
     saves,
     postedAgo: timeAgo(row.created_at),
     imageColor: pickImageColor(row.id),
+    imageUrls: row.image_urls,
     // No separate "sale price" column — a sold listing keeps its list price.
     soldFor: row.status === 'sold' ? row.price : undefined,
   };

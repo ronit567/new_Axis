@@ -12,13 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
 import ReviewCard from '../components/ReviewCard';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ReviewSummary from '../components/ReviewSummary';
 import EmptyState from '../components/EmptyState';
+import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { useFollowing } from '../hooks/useFollows';
@@ -33,22 +34,18 @@ type Props = {
 };
 
 const { width } = Dimensions.get('window');
-const H_PAD = 24;
+const H_PAD = 20;
 const CARD_GAP = 8;
 const THUMB_WIDTH = (width - H_PAD * 2 - CARD_GAP * 2) / 3;
 const THUMB_HEIGHT = Math.round(THUMB_WIDTH * 0.95);
 
-function HatchedThumb({ isSold }: { isSold: boolean }) {
+function ListingThumb({ item }: { item: MyListing }) {
+  const isSold = item.status === 'sold';
   return (
-    <View
-      style={[
-        styles.thumb,
-        { backgroundColor: isSold ? '#C0BCBC' : '#C4B2E0' },
-      ]}
-    >
-      {Array.from({ length: 30 }).map((_, i) => (
-        <View key={i} style={[styles.hatchLine, { top: i * 9 - 20 }]} />
-      ))}
+    <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
+      {item.imageUrls[0] ? (
+        <RemoteImage uri={item.imageUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : null}
       {isSold && (
         <View style={styles.soldOverlay}>
           <Text style={styles.soldOverlayText}>SOLD</Text>
@@ -239,7 +236,7 @@ export default function ProfileScreen({ navigation }: Props) {
                     onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                     activeOpacity={0.85}
                   >
-                    <HatchedThumb isSold={item.status === 'sold'} />
+                    <ListingThumb item={item} />
                     <Text
                       style={[
                         styles.priceText,
@@ -292,7 +289,7 @@ export default function ProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#EDEAF6',
+    backgroundColor: COLORS.white,
   },
   scroll: {
     paddingBottom: 20,
@@ -311,7 +308,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -324,9 +321,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarText: {
-    fontSize: SIZES.xl,
+    color: COLORS.white,
+    fontSize: 28,
     fontWeight: '700',
-    color: COLORS.primary,
   },
   nameText: {
     fontSize: 22,
@@ -382,7 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: COLORS.surfaceAlt,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
@@ -470,14 +467,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
     marginBottom: 6,
-  },
-  hatchLine: {
-    position: 'absolute',
-    width: 220,
-    height: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-    transform: [{ rotate: '-45deg' }],
-    left: -60,
   },
   soldOverlay: {
     ...StyleSheet.absoluteFillObject,

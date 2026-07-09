@@ -26,18 +26,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
-function SectionLabel({ title, highlight }: { title: string; highlight?: boolean }) {
-  if (highlight) {
-    return (
-      <View style={styles.sectionLabelWrap}>
-        <View style={styles.sectionLabelPill}>
-          <Text style={[styles.sectionLabelText, styles.sectionLabelHighlighted]}>
-            {title}
-          </Text>
-        </View>
-      </View>
-    );
-  }
+function SectionLabel({ title }: { title: string }) {
   return (
     <View style={styles.sectionLabelWrap}>
       <Text style={styles.sectionLabelText}>{title}</Text>
@@ -56,15 +45,8 @@ function RowItem({
   value?: string;
   onPress?: () => void;
 }) {
-  return (
-    <PressableScale
-      style={styles.row}
-      onPress={() => {
-        haptics.tap();
-        onPress?.();
-      }}
-      scaleTo={0.98}
-    >
+  const content = (
+    <>
       <View style={styles.rowLeft}>
         <View style={styles.rowIconBox}>
           <Ionicons name={icon} size={16} color={COLORS.primary} />
@@ -73,8 +55,25 @@ function RowItem({
       </View>
       <View style={styles.rowRight}>
         {value != null && <Text style={styles.rowValue}>{value}</Text>}
-        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        {onPress && <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />}
       </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.row}>{content}</View>;
+  }
+
+  return (
+    <PressableScale
+      style={styles.row}
+      onPress={() => {
+        haptics.tap();
+        onPress();
+      }}
+      scaleTo={0.98}
+    >
+      {content}
     </PressableScale>
   );
 }
@@ -191,7 +190,7 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* ── PREFERENCES ── */}
-        <SectionLabel title="PREFERENCES" highlight />
+        <SectionLabel title="PREFERENCES" />
         <View style={styles.card}>
           <ToggleRow
             icon="notifications-outline"
@@ -385,22 +384,11 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     letterSpacing: 0.8,
   },
-  sectionLabelPill: {
-    backgroundColor: COLORS.primaryTint,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
-  },
-  sectionLabelHighlighted: {
-    color: COLORS.primary,
-    letterSpacing: 0.8,
-  },
 
   /* card */
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: SIZES.borderRadius,
     paddingHorizontal: 16,
     marginBottom: 20,
     ...SHADOWS.card,
@@ -450,7 +438,7 @@ const styles = StyleSheet.create({
   logoutCard: {
     flexDirection: 'row',
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: SIZES.borderRadius,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -499,7 +487,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: SIZES.borderRadiusLg,
     padding: 20,
   },
   modalTitle: {
@@ -534,7 +522,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     height: SIZES.buttonHeight,
     backgroundColor: COLORS.error,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: SIZES.borderRadiusLg,
     padding: 20,
   },
   title: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   submitButton: {
     height: SIZES.buttonHeight,
     backgroundColor: COLORS.primary,
-    borderRadius: SIZES.borderRadiusSm,
+    borderRadius: SIZES.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

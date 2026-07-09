@@ -68,6 +68,9 @@ export type MyListing = {
   saves: number;
   postedAgo: string;
   imageColor: string;
+  // Public storage URLs in upload order; imageUrls[0] is the card thumbnail.
+  // Empty when the listing has no photos — screens fall back to imageColor.
+  imageUrls: string[];
   soldFor?: number;
 };
 

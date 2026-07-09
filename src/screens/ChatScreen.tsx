@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   viewBannerBtn: {
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 7,
+    borderRadius: SIZES.borderRadiusSm,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
