@@ -256,8 +256,8 @@ function EditListingForm({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Photos</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>Photos</Text>
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
@@ -268,8 +268,8 @@ function EditListingForm({
             />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Listing details</Text>
+          <View style={[styles.section, styles.sectionDivider]}>
+            <Text style={styles.sectionHeading}>Listing details</Text>
 
             <Text style={styles.fieldLabel}>Title</Text>
             <View style={styles.field}>
@@ -300,8 +300,8 @@ function EditListingForm({
             />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Description &amp; price</Text>
+          <View style={[styles.section, styles.sectionDivider]}>
+            <Text style={styles.sectionHeading}>Description &amp; price</Text>
 
             <Text style={styles.fieldLabel}>Description</Text>
             <View style={styles.field}>
@@ -340,7 +340,7 @@ function EditListingForm({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#EDEAF6',
+    backgroundColor: COLORS.white,
   },
   loadingContainer: {
     flex: 1,
@@ -353,7 +353,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
@@ -413,14 +412,15 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
   },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusLg,
-    padding: 16,
-    marginBottom: 16,
-    ...SHADOWS.card,
+  section: {
+    marginBottom: 24,
   },
-  cardTitle: {
+  sectionDivider: {
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  sectionHeading: {
     fontSize: SIZES.lg,
     fontFamily: FONTS.bold,
     color: COLORS.text,

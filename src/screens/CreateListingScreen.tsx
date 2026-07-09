@@ -86,9 +86,9 @@ export default function CreateListingScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Photos</Text>
-            <Text style={styles.cardHint}>
+          <View style={styles.section}>
+            <Text style={styles.sectionHeading}>Photos</Text>
+            <Text style={styles.sectionHint}>
               Add up to {MAX_PHOTOS} — the first photo is your cover.
             </Text>
             <PhotoPicker
@@ -99,8 +99,8 @@ export default function CreateListingScreen({ navigation }: Props) {
             />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Listing details</Text>
+          <View style={[styles.section, styles.sectionDivider]}>
+            <Text style={styles.sectionHeading}>Listing details</Text>
 
             <Text style={styles.fieldLabel}>Title</Text>
             <View style={styles.field}>
@@ -116,8 +116,8 @@ export default function CreateListingScreen({ navigation }: Props) {
             <CategoryDropdown value={form.category} onChange={form.setCategory} />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Price &amp; pickup</Text>
+          <View style={[styles.section, styles.sectionDivider]}>
+            <Text style={styles.sectionHeading}>Price &amp; pickup</Text>
 
             <Text style={styles.fieldLabel}>Price</Text>
             <View style={styles.field}>
@@ -163,7 +163,7 @@ export default function CreateListingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#EDEAF6',
+    backgroundColor: COLORS.white,
   },
   header: {
     flexDirection: 'row',
@@ -171,7 +171,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
@@ -197,20 +196,21 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 140,
   },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusLg,
-    padding: 16,
-    marginBottom: 16,
-    ...SHADOWS.card,
+  section: {
+    marginBottom: 24,
   },
-  cardTitle: {
+  sectionDivider: {
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  sectionHeading: {
     fontSize: SIZES.lg,
     fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
   },
-  cardHint: {
+  sectionHint: {
     fontSize: SIZES.sm,
     color: COLORS.textMuted,
     marginBottom: 12,
