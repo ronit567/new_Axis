@@ -16,6 +16,7 @@ import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
 import ReviewCard from '../components/ReviewCard';
 import WriteReviewModal from '../components/WriteReviewModal';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
@@ -31,11 +32,14 @@ import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
 
+const TABS = ['Listings', 'Reviews'];
+
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { seller } = route.params;
   const { user } = useAuth();
   const [reportVisible, setReportVisible] = useState(false);
   const [reviewVisible, setReviewVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   const { data: sellerListings = [], isLoading: listingsLoading } = useSellerListings(seller.id);
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
@@ -216,67 +220,73 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Active Listings */}
-        <View style={styles.listingsSection}>
-          <Text style={styles.sectionTitle}>Active listings</Text>
-          {listingsLoading ? (
-            <ActivityIndicator color={COLORS.primary} style={styles.listingsLoading} />
-          ) : sellerListings.length > 0 ? (
-            <View style={styles.listingsGrid}>
-              {sellerListings.map((item) => (
-                <ListingCard
-                  key={item.id}
-                  item={item}
-                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                  onSave={() => toggleSavedMutation.mutate(item)}
-                  style={styles.gridCard}
-                />
-              ))}
-            </View>
-          ) : (
-            <EmptyState
-              icon="storefront-outline"
-              title={`${seller.name} doesn't have any active listings right now.`}
-              ctaLabel="Go back"
-              onCta={() => navigation.goBack()}
-            />
-          )}
+        {/* Tabs */}
+        <View style={styles.tabsWrap}>
+          <SegmentedTabs tabs={TABS} activeIndex={activeTab} onChange={setActiveTab} />
         </View>
 
-        {/* Reviews */}
-        <View style={styles.reviewsSection}>
-          <View style={styles.reviewsHeader}>
-            <Text style={styles.sectionTitle}>
-              Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
-            </Text>
-            {!isOwnProfile && (
-              <PressableScale
-                onPress={() => {
-                  haptics.tap();
-                  setReviewVisible(true);
-                }}
-                scaleTo={0.95}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Text style={styles.writeReviewText}>
-                  {myReview ? 'Edit your review' : 'Write a review'}
-                </Text>
-              </PressableScale>
+        {activeTab === 0 ? (
+          /* Active Listings */
+          <View style={styles.listingsSection}>
+            {listingsLoading ? (
+              <ActivityIndicator color={COLORS.primary} style={styles.listingsLoading} />
+            ) : sellerListings.length > 0 ? (
+              <View style={styles.listingsGrid}>
+                {sellerListings.map((item) => (
+                  <ListingCard
+                    key={item.id}
+                    item={item}
+                    onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                    onSave={() => toggleSavedMutation.mutate(item)}
+                    style={styles.gridCard}
+                  />
+                ))}
+              </View>
+            ) : (
+              <EmptyState
+                icon="storefront-outline"
+                title={`${seller.name} doesn't have any active listings right now.`}
+                ctaLabel="Go back"
+                onCta={() => navigation.goBack()}
+              />
             )}
           </View>
-          {reviews.length > 0 ? (
-            <View style={styles.reviewsList}>
-              {reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
+        ) : (
+          /* Reviews */
+          <View style={styles.reviewsSection}>
+            <View style={styles.reviewsHeader}>
+              <Text style={styles.sectionTitle}>
+                Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
+              </Text>
+              {!isOwnProfile && (
+                <PressableScale
+                  onPress={() => {
+                    haptics.tap();
+                    setReviewVisible(true);
+                  }}
+                  scaleTo={0.95}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Text style={styles.writeReviewText}>
+                    {myReview ? 'Edit your review' : 'Write a review'}
+                  </Text>
+                </PressableScale>
+              )}
             </View>
-          ) : (
-            <Text style={styles.noReviewsText}>
-              No reviews yet.
-              {isOwnProfile ? '' : ` Chatted with ${seller.name}? Leave the first one.`}
-            </Text>
-          )}
-        </View>
+            {reviews.length > 0 ? (
+              <View style={styles.reviewsList}>
+                {reviews.map((review) => (
+                  <ReviewCard key={review.id} review={review} />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noReviewsText}>
+                No reviews yet.
+                {isOwnProfile ? '' : ` Chatted with ${seller.name}? Leave the first one.`}
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
       <WriteReviewModal
         visible={reviewVisible}
@@ -445,6 +455,10 @@ const styles = StyleSheet.create({
   followBtnTextActive: {
     color: COLORS.primary,
   },
+  tabsWrap: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
   listingsSection: {
     paddingHorizontal: 20,
   },
@@ -467,7 +481,6 @@ const styles = StyleSheet.create({
   },
   reviewsSection: {
     paddingHorizontal: 20,
-    marginTop: 28,
   },
   reviewsHeader: {
     flexDirection: 'row',

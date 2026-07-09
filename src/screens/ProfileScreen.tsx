@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,14 @@ import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
 import ReviewCard from '../components/ReviewCard';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { useFollowing } from '../hooks/useFollows';
 import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
+
+const TABS = ['Listings', 'Reviews'];
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -67,7 +70,7 @@ export default function ProfileScreen({ navigation }: Props) {
     myReviews.length > 0
       ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
       : 0;
-  const listingsPreview = myListings.slice(0, 3);
+  const [activeTab, setActiveTab] = useState(0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -157,52 +160,63 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── My Listings ── */}
-        <View style={styles.listingsBlock}>
-          <View style={styles.listingsTopRow}>
-            <Text style={styles.listingsTitle}>My listings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
-              <Text style={styles.manageText}>Manage</Text>
-            </TouchableOpacity>
-          </View>
-          {listingsPreview.length > 0 ? (
-            <View style={styles.listingsRow}>
-              {listingsPreview.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.listingItem}
-                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                  activeOpacity={0.85}
-                >
-                  <HatchedThumb isSold={item.status === 'sold'} />
-                  <Text
-                    style={[
-                      styles.priceText,
-                      item.status === 'sold' ? styles.priceTextSold : null,
-                    ]}
-                  >
-                    ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
-                  </Text>
-                  <Text style={styles.statusText}>
-                    {item.status === 'sold' ? 'Sold' : 'Active'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.noListingsText}>No listings yet.</Text>
-          )}
+        {/* ── Tabs ── */}
+        <View style={styles.tabsWrap}>
+          <SegmentedTabs tabs={TABS} activeIndex={activeTab} onChange={setActiveTab} />
         </View>
 
-        {/* ── Reviews about me ── */}
-        {myReviews.length > 0 && (
+        {activeTab === 0 ? (
+          /* ── My Listings ── */
+          <View style={styles.listingsBlock}>
+            <View style={styles.listingsTopRow}>
+              <Text style={styles.listingsTitle}>My listings</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
+                <Text style={styles.manageText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+            {myListings.length > 0 ? (
+              <View style={styles.listingsRow}>
+                {myListings.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.listingItem}
+                    onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                    activeOpacity={0.85}
+                  >
+                    <HatchedThumb isSold={item.status === 'sold'} />
+                    <Text
+                      style={[
+                        styles.priceText,
+                        item.status === 'sold' ? styles.priceTextSold : null,
+                      ]}
+                    >
+                      ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
+                    </Text>
+                    <Text style={styles.statusText}>
+                      {item.status === 'sold' ? 'Sold' : 'Active'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noListingsText}>No listings yet.</Text>
+            )}
+          </View>
+        ) : (
+          /* ── Reviews about me ── */
           <View style={styles.reviewsBlock}>
             <Text style={styles.listingsTitle}>Reviews ({myReviews.length})</Text>
-            <View style={styles.reviewsList}>
-              {myReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
-            </View>
+            {myReviews.length > 0 ? (
+              <View style={styles.reviewsList}>
+                {myReviews.map((review) => (
+                  <ReviewCard key={review.id} review={review} />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noListingsText}>
+                No reviews yet — they&apos;ll show up after your first sale.
+              </Text>
+            )}
           </View>
         )}
       </ScrollView>
@@ -335,6 +349,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  /* tabs */
+  tabsWrap: {
+    marginHorizontal: H_PAD,
+    marginBottom: 16,
+  },
+
   /* listings */
   listingsBlock: {
     marginHorizontal: H_PAD,
@@ -358,6 +378,7 @@ const styles = StyleSheet.create({
   },
   listingsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: CARD_GAP,
   },
   listingItem: {
