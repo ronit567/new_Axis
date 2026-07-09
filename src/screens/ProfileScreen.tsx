@@ -198,9 +198,11 @@ export default function ProfileScreen({ navigation }: Props) {
             style={styles.followingLink}
             onPress={() => navigation.navigate('Following')}
             accessibilityRole="button"
-            accessibilityLabel={`${followingList.length} following`}
+            accessibilityLabel={`${followingList.length} saved ${followingList.length === 1 ? 'profile' : 'profiles'}`}
           >
-            <Text style={styles.followingLinkText}>{followingList.length} Following</Text>
+            <Text style={styles.followingLinkText}>
+              {followingList.length} Saved {followingList.length === 1 ? 'profile' : 'profiles'}
+            </Text>
           </TouchableOpacity>
           <PressableScale
             style={styles.editPill}

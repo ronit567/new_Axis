@@ -56,7 +56,7 @@ export default function FollowingScreen({ navigation }: Props) {
         accessibilityRole="button"
         accessibilityLabel={`Unfollow ${item.name}`}
       >
-        <Text style={styles.unfollowText}>Following</Text>
+        <Text style={styles.unfollowText}>Saved</Text>
       </PressableScale>
     </PressableScale>
   );
@@ -76,7 +76,7 @@ export default function FollowingScreen({ navigation }: Props) {
         >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
-        <Text style={styles.headerTitle}>Following</Text>
+        <Text style={styles.headerTitle}>Saved profiles</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -85,7 +85,7 @@ export default function FollowingScreen({ navigation }: Props) {
       ) : (following ?? []).length === 0 ? (
         <EmptyState
           icon="people-outline"
-          title="You're not following anyone yet. Follow sellers to find them again quickly."
+          title="No saved profiles yet. Bookmark sellers to find them again quickly."
           ctaLabel="Browse listings"
           onCta={() => navigation.goBack()}
         />

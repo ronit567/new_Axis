@@ -157,6 +157,25 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           >
             <Ionicons name="share-outline" size={20} color={COLORS.text} />
           </PressableScale>
+          {!isOwnProfile && (
+            <PressableScale
+              style={styles.iconBtn}
+              onPress={() => {
+                haptics.tap();
+                toggleFollow.mutate({ sellerId: seller.id, next: !following });
+              }}
+              hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+              scaleTo={0.9}
+              accessibilityRole="button"
+              accessibilityLabel={following ? 'Saved — tap to remove' : 'Save profile'}
+            >
+              <Ionicons
+                name={following ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={following ? COLORS.primary : COLORS.text}
+              />
+            </PressableScale>
+          )}
           <PressableScale
             style={styles.iconBtn}
             onPress={() => {
@@ -216,26 +235,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
-
-        {/* Action buttons — partner-only; no following yourself. Messaging
-            is no longer offered here: chats start from a listing page or an
-            existing conversation, not the profile itself. */}
-        {!isOwnProfile && (
-          <View style={styles.actionRow}>
-            <PressableScale
-              style={[styles.followBtn, following ? styles.followBtnActive : null]}
-              scaleTo={0.97}
-              onPress={() => {
-                haptics.tap();
-                toggleFollow.mutate({ sellerId: seller.id, next: !following });
-              }}
-            >
-              <Text style={[styles.followBtnText, following ? styles.followBtnTextActive : null]}>
-                {following ? 'Following' : 'Follow'}
-              </Text>
-            </PressableScale>
-          </View>
-        )}
 
         {/* Tabs */}
         <View style={styles.tabsWrap}>
@@ -438,33 +437,6 @@ const styles = StyleSheet.create({
   badgeChipText: {
     fontSize: SIZES.xs,
     fontWeight: '600',
-    color: COLORS.primary,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 24,
-    marginBottom: 28,
-  },
-  followBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: SIZES.borderRadius,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-  },
-  followBtnActive: {
-    backgroundColor: COLORS.primarySoft,
-  },
-  followBtnText: {
-    color: COLORS.primary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  followBtnTextActive: {
     color: COLORS.primary,
   },
   tabsWrap: {
