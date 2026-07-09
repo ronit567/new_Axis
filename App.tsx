@@ -109,7 +109,16 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
+          {/* No stack animation at all: Search mounts with header geometry
+              pixel-identical to Home (greeting expanded, full-width bar, no
+              side buttons), so the switch itself is invisible. Search then
+              runs the whole entrance on one timeline — greeting collapses up
+              while the back/filter buttons grow in and the results fade up. */}
+          <Stack.Screen
+            name="Search"
+            component={SearchScreen}
+            options={{ animation: 'none' }}
+          />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
           <Stack.Screen

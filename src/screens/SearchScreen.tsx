@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,23 +9,29 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Keyboard,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { StatusBar } from "expo-status-bar";
 import { COLORS, GRADIENTS, SHADOWS, FONTS, SIZES } from "../constants/theme";
 import { RootStackParamList, Listing, ListingCondition } from "../types";
 import { useSearchListings } from "../hooks/useListings";
 import { useToggleSaved } from "../hooks/useSavedListings";
+import { useUnreadNotificationCount } from "../hooks/useNotifications";
+import { useCurrentProfile } from "../hooks/useProfile";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
 import ErrorState from "../components/ErrorState";
 import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
+import GreetingRow, { GREETING_ROW_HEIGHT } from "../components/GreetingRow";
 import { haptics } from "../lib/haptics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
@@ -37,16 +43,98 @@ const CONDITIONS = ["Like new", "Good", "Fair", "Any"];
 // than passing a max that happens to include everything anyway.
 const PRICE_MAX_CAP = 500;
 
-export default function SearchScreen({ navigation }: Props) {
+export default function SearchScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  // Opened from the Home filter button: land with the sheet already up and no
+  // keyboard (autoFocus would pop it behind the sheet and fight the slide-up).
+  const openedForFilters = route.params?.showFilters ?? false;
   const [query, setQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  // Filter sheet is hand-animated (see filterAnim below), so `mounted` keeps
+  // the Modal alive through the closing slide-out before it unmounts.
+  const [filterMounted, setFilterMounted] = useState(openedForFilters);
+  const [sheetHeight, setSheetHeight] = useState(0);
   // Screen opens with no filters applied so it shows every active listing
   // until the user narrows things down.
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [condition, setCondition] = useState("Any");
   const [priceMax, setPriceMax] = useState(PRICE_MAX_CAP);
   const inputRef = useRef<TextInput>(null);
+
+  // Hand-rolled entrance (the route mounts with animation: 'none' after Home
+  // has already collapsed its greeting row, so the header is pixel-identical
+  // across the switch). Search mounts looking exactly like Home — greeting
+  // expanded, full-width bar, no back arrow, no filter button — then a single
+  // enterAnim runs everything at once: the greeting collapses up, the bare back
+  // arrow grows in on the left and the Filters button grows in on the right (so
+  // the bar narrows to make room for both), and the results fade up below.
+  const enterAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(enterAnim, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      // Animates layout height/width, which the native driver can't do.
+      useNativeDriver: false,
+    }).start();
+  }, [enterAnim]);
+  // Greeting collapses up (full height → 0) and fades as the entrance runs.
+  const greetingHeight = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [GREETING_ROW_HEIGHT, 0] });
+  const greetingOpacity = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  // Back arrow (left) and Filters icon (right) mirror each other: same 34px
+  // glyph box and 6px gap to the bar, so they sit symmetrically on the purple.
+  const backBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 34] });
+  const backBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
+  const filterBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 34] });
+  const filterBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
+  const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+
+  // Mirror of the entrance, then pop the screen — Home re-expands its
+  // greeting on focus, so the whole close reads as one continuous motion.
+  const handleClose = () => {
+    Keyboard.dismiss();
+    Animated.timing(enterAnim, {
+      toValue: 0,
+      duration: 150,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: false,
+    }).start(() => navigation.goBack());
+  };
+
+  // Filter sheet: fade the dim overlay in and slide the sheet up from its own
+  // height. The old `Modal animationType="slide"` dragged the dark blur up
+  // with the sheet, which looked heavy — this animates only what should move.
+  const filterAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!filterMounted) return;
+    Animated.timing(filterAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [filterMounted, filterAnim]);
+
+  const openFilters = () => {
+    haptics.tap();
+    setFilterMounted(true);
+  };
+
+  const closeFilters = () => {
+    Animated.timing(filterAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setFilterMounted(false);
+    });
+  };
+
+  const sheetTranslate = filterAnim.interpolate({
+    inputRange: [0, 1],
+    // Fall back to a full-ish offset until the sheet reports its height.
+    outputRange: [sheetHeight || 600, 0],
+  });
 
   const {
     data,
@@ -62,6 +150,11 @@ export default function SearchScreen({ navigation }: Props) {
     condition: condition === "Any" ? undefined : (condition as ListingCondition),
   });
   const toggleSavedMutation = useToggleSaved();
+  const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
+  // Same profile the Home greeting uses — GreetingRow must render identically
+  // on both so the (animation: 'none') Home↔Search swap stays pixel-perfect.
+  const { data: profile } = useCurrentProfile();
+  const firstName = profile?.name.trim().split(/\s+/)[0] ?? "";
 
   const results = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -69,6 +162,22 @@ export default function SearchScreen({ navigation }: Props) {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
+
+  // Applied filters rendered as removable chips in the header row — each knows
+  // how to clear just itself. Order: categories, then price, then condition.
+  const activeFilters: { key: string; label: string; onRemove: () => void }[] = [
+    ...selectedCategories.map((cat) => ({
+      key: `cat:${cat}`,
+      label: cat,
+      onRemove: () => toggleCategory(cat),
+    })),
+    ...(priceMax < PRICE_MAX_CAP
+      ? [{ key: "price", label: `≤ $${priceMax}`, onRemove: () => setPriceMax(PRICE_MAX_CAP) }]
+      : []),
+    ...(condition !== "Any"
+      ? [{ key: "condition", label: condition, onRemove: () => setCondition("Any") }]
+      : []),
+  ];
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -94,6 +203,16 @@ export default function SearchScreen({ navigation }: Props) {
     </View>
   ) : null;
 
+  // Lives inside the scroll content (list header / above the skeletons) so it
+  // scrolls away and leaves only the purple header pinned.
+  const resultsHeader = (
+    <View style={styles.resultsRow}>
+      <Text style={styles.resultsCount}>
+        {isLoading ? "Searching…" : `${resultsCountLabel} results`}
+      </Text>
+    </View>
+  );
+
   return (
     <View style={styles.safe}>
       <StatusBar style="light" />
@@ -103,9 +222,40 @@ export default function SearchScreen({ navigation }: Props) {
         colors={GRADIENTS.primaryRadiant}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
       >
+        {/* Same greeting as Home, collapsing up as the entrance runs — this is
+            the "swipe up" half of the transition, now concurrent with the
+            buttons growing in below. */}
+        <Animated.View
+          style={{ height: greetingHeight, opacity: greetingOpacity, overflow: "hidden" }}
+          pointerEvents="none"
+        >
+          <GreetingRow
+            avatarUrl={profile?.avatarUrl}
+            initials={profile?.initials ?? ""}
+            firstName={firstName}
+            unreadCount={unreadNotifications}
+            onBellPress={() => navigation.navigate("Notifications")}
+          />
+        </Animated.View>
         <View style={styles.searchRow}>
+          {/* Bare back arrow — the purple header is its container, no chip.
+              Still grows in from zero width so the bar narrows into place. */}
+          <Animated.View
+            style={{ width: backBtnWidth, marginRight: backBtnMargin, overflow: "hidden" }}
+          >
+            <PressableScale
+              style={styles.backBtn}
+              onPress={handleClose}
+              scaleTo={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close search"
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+            </PressableScale>
+          </Animated.View>
           <View style={styles.searchBar}>
             <Ionicons
               name="search-outline"
@@ -119,7 +269,7 @@ export default function SearchScreen({ navigation }: Props) {
               onChangeText={setQuery}
               placeholder="Search textbooks, furniture..."
               placeholderTextColor={COLORS.textMuted}
-              autoFocus
+              autoFocus={!openedForFilters}
               returnKeyType="search"
             />
             {query.length > 0 ? (
@@ -132,37 +282,98 @@ export default function SearchScreen({ navigation }: Props) {
               </TouchableOpacity>
             ) : null}
           </View>
-          <PressableScale
-            style={styles.filterBtn}
-            onPress={() => {
-              haptics.tap();
-              setShowFilters(true);
-            }}
-            scaleTo={0.92}
-            accessibilityRole="button"
-            accessibilityLabel="Filters"
+          {/* Bare Filters icon, top-right — no container, matches the back
+              arrow. Grows in with the entrance. */}
+          <Animated.View
+            style={{ width: filterBtnWidth, marginLeft: filterBtnMargin, overflow: "hidden" }}
           >
-            <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </PressableScale>
+            <PressableScale
+              style={styles.filterBtn}
+              onPress={openFilters}
+              scaleTo={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Filters"
+            >
+              <Ionicons name="options-outline" size={22} color={COLORS.white} />
+            </PressableScale>
+          </Animated.View>
         </View>
+
+        {/* Applied filters extend below the bar as one swipeable row of
+            removable pills, so the header stays a single line no matter how
+            many are applied. An alpha mask fades the chips themselves out at
+            each edge (works over the diagonal gradient, unlike a solid-color
+            overlay), so overflow reads as "more to scroll" instead of a hard
+            clip. Absent until something is applied. */}
+        {activeFilters.length > 0 ? (
+          <MaskedView
+            style={styles.appliedWrap}
+            maskElement={
+              // Pixel-sized mask segments (not gradient fractions) so the
+              // visible window lines up with the 20px header inset on any
+              // screen width: fully hidden inside the inset, a short feather,
+              // then fully visible between the back arrow and filter icon.
+              <View style={styles.appliedMask}>
+                <View style={{ width: 20 }} />
+                <LinearGradient
+                  colors={["transparent", "#fff"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ width: 14 }}
+                />
+                <View style={{ flex: 1, backgroundColor: "#fff" }} />
+                <LinearGradient
+                  colors={["#fff", "transparent"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ width: 14 }}
+                />
+                <View style={{ width: 20 }} />
+              </View>
+            }
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={styles.appliedScroll}
+              contentContainerStyle={styles.appliedRow}
+            >
+              {activeFilters.map((f) => (
+                <PressableScale
+                  key={f.key}
+                  style={styles.appliedChip}
+                  onPress={() => {
+                    haptics.tap();
+                    f.onRemove();
+                  }}
+                  scaleTo={0.94}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${f.label} filter`}
+                >
+                  <Text style={styles.appliedChipText}>{f.label}</Text>
+                  <View style={styles.appliedChipRemove}>
+                    <Ionicons name="close" size={12} color={COLORS.primary} />
+                  </View>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </MaskedView>
+        ) : null}
       </LinearGradient>
 
-      {/* Results count + cancel */}
-      <View style={styles.resultsRow}>
-        <Text style={styles.resultsCount}>
-          {isLoading ? "Searching…" : `${resultsCountLabel} results`}
-        </Text>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Results Grid: loading skeleton / error / list */}
+      {/* Everything below the header fades up as one block — the "results
+          morph in" half of the hand-rolled transition. */}
+      <Animated.View
+        style={{ flex: 1, opacity: enterAnim, transform: [{ translateY: contentShift }] }}
+      >
+      {/* Results Grid: loading skeleton / error / list. The results count is
+          part of the scroll content (see resultsHeader), not a pinned row, so
+          only the purple header stays put when scrolling. */}
       {isLoading ? (
         <View style={styles.listContent}>
+          {resultsHeader}
           {[0, 1, 2].map((rowIndex) => (
             <View key={rowIndex} style={styles.row}>
               <ListingCardSkeleton />
@@ -188,6 +399,7 @@ export default function SearchScreen({ navigation }: Props) {
             { paddingBottom: insets.bottom + 24 },
           ]}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={resultsHeader}
           ListEmptyComponent={
             <EmptyState
               icon="search-outline"
@@ -201,26 +413,29 @@ export default function SearchScreen({ navigation }: Props) {
           onEndReached={loadMore}
         />
       )}
+      </Animated.View>
 
       {/* Filter Bottom Sheet */}
       <Modal
-        visible={showFilters}
+        visible={filterMounted}
         transparent
-        animationType="slide"
-        onRequestClose={() => setShowFilters(false)}
+        animationType="none"
+        onRequestClose={closeFilters}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.overlayBg}
-            activeOpacity={1}
-            onPress={() => setShowFilters(false)}
-          >
-            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          </TouchableOpacity>
-          <View
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: filterAnim }]}>
+            <TouchableOpacity
+              style={styles.overlayBg}
+              activeOpacity={1}
+              onPress={closeFilters}
+            />
+          </Animated.View>
+          <Animated.View
+            onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
             style={[
               styles.filterSheet,
               { paddingBottom: Math.max(insets.bottom, 20) },
+              { transform: [{ translateY: sheetTranslate }] },
             ]}
           >
             <View style={styles.grabber} />
@@ -364,7 +579,7 @@ export default function SearchScreen({ navigation }: Props) {
               style={styles.showResultsBtn}
               onPress={() => {
                 haptics.impact();
-                setShowFilters(false);
+                closeFilters();
               }}
               scaleTo={0.97}
               accessibilityRole="button"
@@ -373,7 +588,7 @@ export default function SearchScreen({ navigation }: Props) {
                 Show {resultsCountLabel} results
               </Text>
             </PressableScale>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -388,22 +603,27 @@ const styles = StyleSheet.create({
   header: {
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    paddingHorizontal: 16,
+    // Matches HomeScreen's header inset exactly — the two screens swap with
+    // animation: 'none', so any offset here shows up as a visible jump. The
+    // horizontal inset lives on the rows (greeting/search), not here, so the
+    // greeting's own padding isn't doubled up.
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    paddingHorizontal: 20,
+    // No `gap`: the back arrow's spacing is animated (it grows from 0), so
+    // a static gap would misalign the search bar at the start of the motion.
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     height: 48,
     gap: 8,
     shadowColor: "#000",
@@ -417,24 +637,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text,
   },
-  filterBtn: {
-    width: 48,
+  backBtn: {
+    // No container — bare arrow on the purple. Sized to align with the 48px
+    // bar; the animated wrapper clips it to width as it grows in.
+    width: 34,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.primaryDark,
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
   },
-  cancelText: {
-    fontSize: 14,
+  filterBtn: {
+    // No container — bare icon on the purple, mirroring the back arrow (same
+    // box, aligned to the right edge so the two sit symmetrically).
+    width: 34,
+    height: 48,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  appliedWrap: {
+    marginTop: 12,
+  },
+  appliedMask: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  appliedScroll: {
+    // flexGrow: 0 keeps the horizontal scroller from expanding to fill the
+    // header; it hugs its single row of chips.
+    flexGrow: 0,
+  },
+  appliedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    // Inset (20) + feather (14): chips at rest sit fully inside the visible
+    // window, and the first/last chip clear the fade at either scroll end.
+    paddingHorizontal: 34,
+  },
+  appliedChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 30,
+    // Less right padding — the X sits in its own tinted disc there.
+    paddingLeft: 13,
+    paddingRight: 6,
+    borderRadius: 15,
+    backgroundColor: COLORS.white,
+  },
+  appliedChipText: {
+    fontSize: 12.5,
+    fontFamily: FONTS.semibold,
     color: COLORS.primary,
-    fontWeight: "500",
+  },
+  appliedChipRemove: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primaryTint,
   },
   resultsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    // No paddingHorizontal: this now lives inside the list content container,
+    // which already insets by 20.
     marginTop: 16,
     marginBottom: 12,
   },

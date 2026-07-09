@@ -22,7 +22,7 @@ import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import FadeInItem from '../components/FadeInItem';
-import Avatar from '../components/Avatar';
+import GreetingRow from '../components/GreetingRow';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
@@ -40,6 +40,15 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+  // Hand-rolled search transition (the Search route uses animation: 'none').
+  // Home navigates immediately and Search mounts with the exact same header
+  // geometry — greeting expanded, full-width bar, no side buttons — then
+  // collapses the greeting and grows the buttons in on its own timeline. So
+  // the whole entrance (swipe-up + buttons appearing) runs at once on Search.
+  const openSearch = (showFilters?: boolean) => {
+    navigation.navigate('Search', showFilters ? { showFilters } : undefined);
+  };
 
   const category = activeCategory === 'All' ? undefined : activeCategory;
   const {
@@ -112,54 +121,24 @@ export default function HomeScreen({ navigation }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}
       >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Avatar
-              url={profile?.avatarUrl}
-              initials={profile?.initials ?? ''}
-              // Translucent chip look from the mock, not the profile's solid
-              // avatarColor — this sits on the purple gradient header.
-              color="rgba(255,255,255,0.2)"
-              size={38}
-              style={styles.avatarSmall}
-              textStyle={styles.avatarText}
-            />
-            <View>
-              <Text style={styles.greeting}>{firstName ? `Hi, ${firstName}` : 'Hi'}</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
-                <Text style={styles.location}>Western · London, ON</Text>
-              </View>
-            </View>
-          </View>
-          <PressableScale
-            style={styles.bellBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            scaleTo={0.9}
-          >
-            <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-            {unreadNotifications > 0 && <View style={styles.bellDot} />}
-          </PressableScale>
-        </View>
+        <GreetingRow
+          avatarUrl={profile?.avatarUrl}
+          initials={profile?.initials ?? ''}
+          firstName={firstName}
+          unreadCount={unreadNotifications}
+          onBellPress={() => navigation.navigate('Notifications')}
+        />
 
-        {/* Search Bar */}
+        {/* Search Bar — filters live inside Search, not here. */}
         <View style={styles.searchRow}>
           <TouchableOpacity
             style={styles.searchBar}
-            onPress={() => navigation.navigate('Search')}
+            onPress={() => openSearch()}
             activeOpacity={0.85}
           >
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
             <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>
           </TouchableOpacity>
-          <PressableScale
-            style={styles.filterBtn}
-            onPress={() => navigation.navigate('Search')}
-            scaleTo={0.92}
-          >
-            <Ionicons name="options-outline" size={20} color={COLORS.white} />
-          </PressableScale>
         </View>
       </LinearGradient>
 
@@ -255,60 +234,6 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatarSmall: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-  avatarText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  greeting: {
-    fontSize: 15,
-    fontFamily: FONTS.bold,
-    color: COLORS.white,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  location: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  bellBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.error,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -320,8 +245,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    paddingHorizontal: 14,
+    borderRadius: 24,
+    paddingHorizontal: 16,
     height: 48,
     gap: 8,
     ...SHADOWS.card,
@@ -330,14 +255,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: COLORS.textMuted,
     fontSize: 14,
-  },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: COLORS.primaryDark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   categoryScroll: {
     flexGrow: 0,
