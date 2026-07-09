@@ -21,6 +21,7 @@ type Props = Omit<ImageProps, 'source'> & { uri: string };
 
 export default function RemoteImage({ uri, onError, ...rest }: Props) {
   const [attempt, setAttempt] = useState(0);
+  const [attemptUri, setAttemptUri] = useState(uri);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimer = () => {
@@ -30,17 +31,28 @@ export default function RemoteImage({ uri, onError, ...rest }: Props) {
     }
   };
 
-  // Reset retry state when the uri changes (e.g. a recycled FlatList row now
-  // rendering a different listing) and drop any pending retry for the old uri.
-  useEffect(() => {
+  // Reset the retry counter *during render* when the uri changes (a recycled
+  // FlatList row now showing a different listing). Doing this in a post-commit
+  // effect instead would let the first render for the new uri reuse the old
+  // image's counter and build a cache-busted `uri?_retry=N` — firing a wasted
+  // network fetch that bypasses the CDN cache before the effect corrects it.
+  // Adjusting state during render is React's supported pattern for this, and
+  // `currentAttempt` keeps this transitional render's source/onError at 0 too.
+  const changed = uri !== attemptUri;
+  if (changed) {
+    setAttemptUri(uri);
     setAttempt(0);
-    return clearTimer;
-  }, [uri]);
+  }
+  const currentAttempt = changed ? 0 : attempt;
+
+  // Drop any pending retry from the previous uri (and on unmount) so a late
+  // timer can't bump the new image's counter after the row is recycled.
+  useEffect(() => clearTimer, [uri]);
 
   const source =
-    attempt === 0
+    currentAttempt === 0
       ? { uri }
-      : { uri: `${uri}${uri.includes('?') ? '&' : '?'}_retry=${attempt}` };
+      : { uri: `${uri}${uri.includes('?') ? '&' : '?'}_retry=${currentAttempt}` };
 
   return (
     <Image
@@ -50,11 +62,11 @@ export default function RemoteImage({ uri, onError, ...rest }: Props) {
       // uri, so a previous listing's image never lingers in this slot.
       recyclingKey={uri}
       onError={(event) => {
-        if (attempt < MAX_RETRIES) {
+        if (currentAttempt < MAX_RETRIES) {
           clearTimer();
           timer.current = setTimeout(
             () => setAttempt((a) => a + 1),
-            RETRY_BASE_MS * 2 ** attempt,
+            RETRY_BASE_MS * 2 ** currentAttempt,
           );
         }
         onError?.(event);
