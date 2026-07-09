@@ -256,20 +256,12 @@ function EditListingForm({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.section}>
-            <Text style={styles.sectionHeading}>Photos</Text>
+          <View style={styles.photoSection}>
+            <Text style={[styles.sectionHeading, styles.photoSectionHeading]}>Photos</Text>
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
               onRemove={form.handleRemovePhoto}
-              onMakeCover={index =>
-                form.setPhotos(prev => {
-                  const next = [...prev];
-                  const [photo] = next.splice(index, 1);
-                  next.unshift(photo);
-                  return next;
-                })
-              }
               maxPhotos={MAX_PHOTOS}
               locked={scamLocked}
               onLockedPress={handleLockedPress}
@@ -422,6 +414,15 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+  },
+  // Escapes the ScrollView's horizontal padding so the photo carousel runs
+  // full-bleed edge-to-edge; the heading re-adds it just for itself.
+  photoSection: {
+    marginHorizontal: -20,
+    marginBottom: 24,
+  },
+  photoSectionHeading: {
+    paddingHorizontal: 20,
   },
   sectionDivider: {
     paddingTop: 24,

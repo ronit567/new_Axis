@@ -20,13 +20,10 @@ type Props = {
   photos: EditablePhoto[];
   onAdd: () => void;
   onRemove: (index: number) => void;
-  // Reorders photos so the tapped index becomes the cover (index 0). Optional
-  // so any other PhotoPicker consumer isn't forced to wire it up.
-  onMakeCover?: (index: number) => void;
   maxPhotos: number;
   // EditListingScreen: photos are a scam-vector field — once the listing is
   // engaged, changing them requires review instead of a direct save. Locked
-  // hides add/remove/make-cover and swaps in a "Requires review" affordance.
+  // hides add/remove and swaps in a "Requires review" affordance.
   locked?: boolean;
   onLockedPress?: () => void;
 };
@@ -38,7 +35,6 @@ export default function PhotoPicker({
   photos,
   onAdd,
   onRemove,
-  onMakeCover,
   maxPhotos,
   locked,
   onLockedPress,
@@ -76,11 +72,6 @@ export default function PhotoPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageCount, width]);
 
-  const handleMakeCover = (index: number) => {
-    onMakeCover?.(index);
-    scrollToIndex(0);
-  };
-
   if (photos.length === 0) {
     return (
       <View>
@@ -97,6 +88,7 @@ export default function PhotoPicker({
         </PressableScale>
         {locked && (
           <PressableScale
+            style={styles.paddedRow}
             onPress={onLockedPress}
             scaleTo={0.98}
             accessibilityLabel="Photos require review to change"
@@ -111,7 +103,7 @@ export default function PhotoPicker({
 
   return (
     <View>
-      <View style={styles.countRow}>
+      <View style={[styles.countRow, styles.paddedRow]}>
         <Text style={styles.countText}>
           {photos.length} of {maxPhotos}
         </Text>
@@ -142,24 +134,11 @@ export default function PhotoPicker({
                     </View>
                   </PressableScale>
                 )}
-                {index === 0 ? (
+                {index === 0 && (
                   <View style={styles.coverChip}>
                     <Ionicons name="image" size={12} color={COLORS.white} />
                     <Text style={styles.coverChipText}>Cover</Text>
                   </View>
-                ) : (
-                  !locked && (
-                    <PressableScale
-                      style={styles.coverPill}
-                      onPress={() => handleMakeCover(index)}
-                      scaleTo={0.94}
-                      accessibilityLabel="Make cover photo"
-                      accessibilityRole="button"
-                    >
-                      <Ionicons name="image-outline" size={13} color={COLORS.white} />
-                      <Text style={styles.coverPillText}>Make cover</Text>
-                    </PressableScale>
-                  )
                 )}
               </View>
             ))}
@@ -179,7 +158,7 @@ export default function PhotoPicker({
         )}
       </View>
       {pageCount > 1 && (
-        <View style={styles.dotsRow}>
+        <View style={[styles.dotsRow, styles.paddedRow]}>
           {Array.from({ length: pageCount }).map((_, i) => (
             <TouchableOpacity
               key={i}
@@ -196,6 +175,7 @@ export default function PhotoPicker({
       )}
       {locked && (
         <PressableScale
+          style={styles.paddedRow}
           onPress={onLockedPress}
           scaleTo={0.98}
           accessibilityLabel="Photos require review to change"
@@ -209,6 +189,13 @@ export default function PhotoPicker({
 }
 
 const styles = StyleSheet.create({
+  // The carousel/dropzone image itself runs full-bleed edge-to-edge (its
+  // parent section escapes the screen's horizontal padding) — this re-adds
+  // that padding for the pieces that should stay inset, like the buyer-facing
+  // gallery on ListingDetailScreen.
+  paddedRow: {
+    paddingHorizontal: 20,
+  },
   countRow: {
     alignItems: 'flex-end',
     marginBottom: 6,
@@ -222,7 +209,6 @@ const styles = StyleSheet.create({
   carouselWrap: {
     width: '100%',
     aspectRatio: 4 / 3,
-    borderRadius: SIZES.borderRadius,
     overflow: 'hidden',
     backgroundColor: COLORS.surfaceAlt,
   },
@@ -250,7 +236,6 @@ const styles = StyleSheet.create({
   dropzone: {
     width: '100%',
     aspectRatio: 4 / 3,
-    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
     borderColor: COLORS.primaryBorder,
     borderStyle: 'dashed',
@@ -296,23 +281,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay,
   },
   coverChipText: {
-    fontSize: SIZES.xs,
-    fontFamily: FONTS.semibold,
-    color: COLORS.white,
-  },
-  coverPill: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: COLORS.overlay,
-  },
-  coverPillText: {
     fontSize: SIZES.xs,
     fontFamily: FONTS.semibold,
     color: COLORS.white,
