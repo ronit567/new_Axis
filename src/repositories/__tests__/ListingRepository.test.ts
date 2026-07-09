@@ -559,6 +559,7 @@ function createSearchBuilder(result: SearchQueryResult) {
   const builder: any = {
     select: (...args: any[]) => { record('select', args); return builder; },
     eq: (...args: any[]) => { record('eq', args); return builder; },
+    neq: (...args: any[]) => { record('neq', args); return builder; },
     ilike: (...args: any[]) => { record('ilike', args); return builder; },
     or: (...args: any[]) => { record('or', args); return builder; },
     in: (...args: any[]) => { record('in', args); return builder; },
@@ -752,6 +753,16 @@ describe('ListingRepository.search', () => {
     expect(items.find((r) => r.id === 'l2')?.saved).toBe(false);
     expect(searchSavedBuilder.calls.eq).toEqual([['user_id', 'u1']]);
     expect(searchSavedBuilder.calls.in).toEqual([['listing_id', ['l1', 'l2']]]);
+  });
+
+  it("excludes the caller's own listings, same as the home feed, when a user is given", async () => {
+    await ListingRepository.search('', {}, 'u1');
+    expect(searchListingsBuilder.calls.neq).toEqual([['seller_id', 'u1']]);
+  });
+
+  it('does not filter by seller for a signed-out search (no current user)', async () => {
+    await ListingRepository.search('', {});
+    expect(searchListingsBuilder.calls.neq).toBeUndefined();
   });
 
   it('throws when the listings query errors', async () => {

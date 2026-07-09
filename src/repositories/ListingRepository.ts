@@ -348,6 +348,12 @@ export const ListingRepository = {
       .select('*, seller:profiles!listings_seller_id_fkey(*)')
       .eq('status', 'active')
 
+    // Exclude the caller's own listings, same as the home feed (getAll): the
+    // marketplace surfaces other people's items, so a seller shouldn't turn up
+    // their own listing while browsing/searching. A signed-out search (no
+    // currentUserId) has no owner to exclude.
+    if (currentUserId) request = request.neq('seller_id', currentUserId)
+
     if (trimmed) request = request.or(buildTextFilter(trimmed))
     if (filters.categories?.length) request = request.in('category', filters.categories)
     if (filters.priceMax != null) request = request.lte('price', filters.priceMax)

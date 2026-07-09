@@ -13,6 +13,7 @@ import {
   DMSans_800ExtraBold,
 } from '@expo-google-fonts/dm-sans';
 import { RootStackParamList } from './src/types';
+import { navigationRef } from './src/lib/navigation';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NotificationBannerProvider } from './src/context/NotificationBannerContext';
 import { useCurrentProfile } from './src/hooks/useProfile';
@@ -155,7 +156,7 @@ export default function App() {
       <QueryProvider>
         <SafeAreaProvider>
           <NotificationBannerProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
               <RootNavigator />
             </NavigationContainer>
           </NotificationBannerProvider>

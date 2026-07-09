@@ -10,6 +10,7 @@ import MessagesScreen from './MessagesScreen';
 import ProfileScreen from './ProfileScreen';
 import { RootStackParamList } from '../types';
 import type { NotificationRow } from '../types/database';
+import { navigationRef } from '../lib/navigation';
 import { useConversations, useMessagesRealtime } from '../hooks/useMessages';
 import { useNotificationsRealtime } from '../hooks/useNotifications';
 import { useNotificationBanner, type BannerContent } from '../context/NotificationBannerContext';
@@ -33,6 +34,17 @@ function bannerForNotification(
   }
 }
 
+// True when the current route is the Chat with `partnerId` — used to suppress a
+// redundant message banner for a conversation the user is already viewing.
+function isViewingChatWith(partnerId: string | null): boolean {
+  if (!partnerId || !navigationRef.isReady()) return false;
+  const route = navigationRef.getCurrentRoute();
+  return (
+    route?.name === 'Chat' &&
+    (route.params as RootStackParamList['Chat'] | undefined)?.partnerId === partnerId
+  );
+}
+
 export default function MainScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<TabName>('Home');
   const banner = useNotificationBanner();
@@ -43,6 +55,10 @@ export default function MainScreen({ navigation }: Props) {
   // list live for the whole signed-in session. The callback surfaces each new
   // notification as a foreground banner (tap → open the Notifications list).
   useNotificationsRealtime((row) => {
+    // Skip the redundant "New message" banner when the user is already looking
+    // at that sender's chat — the incoming bubble (via useMessagesRealtime)
+    // already shows the message there.
+    if (row.type === 'message' && isViewingChatWith(row.actor_id)) return;
     banner.show({
       ...bannerForNotification(row),
       onPress: () => navigation.navigate('Notifications'),
