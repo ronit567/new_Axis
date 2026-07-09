@@ -209,6 +209,14 @@ export default function SettingsScreen({ navigation }: Props) {
           <RowItem icon="ban-outline" label="Blocked users" />
         </View>
 
+        {/* ── SUPPORT ── */}
+        <SectionLabel title="SUPPORT" />
+        <View style={styles.card}>
+          <RowItem icon="help-circle-outline" label="Help & support" />
+          <RowDivider />
+          <RowItem icon="flag-outline" label="Report a problem" />
+        </View>
+
         {/* ── LEGAL ── */}
         <SectionLabel title="LEGAL" />
         <View style={styles.card}>
