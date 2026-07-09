@@ -84,7 +84,7 @@ export type Contact = {
   avatarUrl?: string | null;
 };
 
-export type NotificationType = 'message' | 'listing_saved';
+export type NotificationType = 'message' | 'listing_saved' | 'listing_edited';
 
 export type Notification = {
   id: string;
@@ -138,6 +138,22 @@ export type Conversation = {
 export type ReportTarget = 'listing' | 'user' | 'chat';
 export type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
 
+// A pending (or resolved) proposal to change one of the scam-vector fields
+// (title/category/condition/photos) on a listing that already has outside
+// interest — see migration 0021. A null proposed* means "no change proposed
+// for this field"; proposedImageUrls, when set, is the complete desired
+// ordered array (not a delta).
+export type ListingEditRequest = {
+  id: string;
+  listingId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  proposedTitle: string | null;
+  proposedCategory: string | null;
+  proposedCondition: string | null;
+  proposedImageUrls: string[] | null;
+  createdAt: string;
+};
+
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
@@ -155,6 +171,7 @@ export type RootStackParamList = {
   ListingDetail: { listingId: string };
   SellerProfile: { seller: SellerProfile };
   CreateListing: undefined;
+  EditListing: { listingId: string };
   Messages: undefined;
   // IDs drive the data; `partner` is display info so the header renders before
   // any fetch. listingTitle/listingPrice feed the banner, and a present title

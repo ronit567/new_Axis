@@ -9,6 +9,7 @@ import type {
   Contact,
   Conversation,
   Listing,
+  ListingEditRequest,
   Message,
   MyListing,
   Notification,
@@ -16,7 +17,13 @@ import type {
   Seller,
   SellerProfile,
 } from '../types';
-import type { ListingRow, MessageRow, NotificationRow, ProfileRow } from '../types/database';
+import type {
+  ListingEditRequestRow,
+  ListingRow,
+  MessageRow,
+  NotificationRow,
+  ProfileRow,
+} from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
 // --- Deterministic placeholder palettes -------------------------------------
@@ -135,6 +142,21 @@ export function toMyListing(row: ListingRow, saves: number): MyListing {
   };
 }
 
+// 0021: a proposed change to the scam-vector fields of an engaged listing.
+// status is always one of the three DB-checked values, so the cast is safe.
+export function toListingEditRequest(row: ListingEditRequestRow): ListingEditRequest {
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    status: row.status as ListingEditRequest['status'],
+    proposedTitle: row.proposed_title,
+    proposedCategory: row.proposed_category,
+    proposedCondition: row.proposed_condition,
+    proposedImageUrls: row.proposed_image_urls,
+    createdAt: row.created_at,
+  };
+}
+
 type SellerStats = { listings: number; sold: number; replyTime: string };
 
 // `stats` (including replyTime) is supplied by the repository, not read off the
@@ -247,9 +269,13 @@ export function toNotification(parts: NotificationParts): Notification {
       ? title
         ? `${actorName} sent you a message about "${title}"`
         : `${actorName} sent you a message`
-      : title
-        ? `${actorName} saved your listing "${title}"`
-        : `${actorName} saved your listing`;
+      : row.type === 'listing_edited'
+        ? title
+          ? `${actorName} updated "${title}"`
+          : `${actorName} updated a listing you saved`
+        : title
+          ? `${actorName} saved your listing "${title}"`
+          : `${actorName} saved your listing`;
   return {
     id: row.id,
     type: row.type as NotificationType,

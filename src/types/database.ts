@@ -46,6 +46,11 @@
 // MANUAL ADDITION (pending regen): the `create_test_notification` function was
 // hand-added alongside migration 0017 (dev test-notification RPC). Same deal.
 //
+// MANUAL ADDITION (pending regen): the `listing_edit_requests` table +
+// ListingEditRequestRow alias, and the `is_listing_engaged`/`apply_listing_edit`
+// functions, were hand-added alongside migration 0021 (listing edit review
+// flow). Drop this note once regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -87,6 +92,60 @@ export type Database = {
           {
             foreignKeyName: "blocks_blocked_id_fkey"
             columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing_edit_requests: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string
+          proposed_category: string | null
+          proposed_condition: string | null
+          proposed_image_urls: string[] | null
+          proposed_title: string | null
+          requester_id: string
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id: string
+          proposed_category?: string | null
+          proposed_condition?: string | null
+          proposed_image_urls?: string[] | null
+          proposed_title?: string | null
+          requester_id: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string
+          proposed_category?: string | null
+          proposed_condition?: string | null
+          proposed_image_urls?: string[] | null
+          proposed_title?: string | null
+          requester_id?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_edit_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_edit_requests_requester_id_fkey"
+            columns: ["requester_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -447,6 +506,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      is_listing_engaged: {
+        Args: { p_listing_id: string }
+        Returns: boolean
+      }
+      apply_listing_edit: {
+        Args: { p_edit_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -470,5 +537,6 @@ export type ConversationListRow = DefaultSchema['Views']['conversation_list']['R
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 export type ReportRow = DefaultSchema['Tables']['reports']['Row']
+export type ListingEditRequestRow = DefaultSchema['Tables']['listing_edit_requests']['Row']
 
 export type ListingStatus = 'active' | 'sold'

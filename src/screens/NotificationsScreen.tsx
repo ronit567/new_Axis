@@ -39,6 +39,8 @@ function iconForType(type: NotificationType): {
       return { icon: 'chatbubble-outline', iconBg: COLORS.primarySoft, iconColor: COLORS.primary };
     case 'listing_saved':
       return { icon: 'heart-outline', iconBg: '#FEE8E8', iconColor: COLORS.like };
+    case 'listing_edited':
+      return { icon: 'create-outline', iconBg: COLORS.primarySoft, iconColor: COLORS.primary };
   }
 }
 
