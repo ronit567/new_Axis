@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
@@ -16,6 +17,8 @@ import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
 import ReviewCard from '../components/ReviewCard';
 import SegmentedTabs from '../components/SegmentedTabs';
+import ReviewSummary from '../components/ReviewSummary';
+import EmptyState from '../components/EmptyState';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { useFollowing } from '../hooks/useFollows';
@@ -119,8 +122,27 @@ export default function ProfileScreen({ navigation }: Props) {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Top bar (gear icon) ── */}
+        {/* ── Top bar (share + gear icons) ── */}
         <View style={styles.topBar}>
+          <PressableScale
+            style={styles.gearBtn}
+            onPress={async () => {
+              if (!profile) return;
+              try {
+                await Share.share({
+                  message: `${profile.name} is on Axis — check out their listings`,
+                });
+              } catch {
+                // Silently ignore — the user cancelling the share sheet isn't an error.
+              }
+            }}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Share profile"
+          >
+            <Ionicons name="share-outline" size={18} color={COLORS.textSecondary} />
+          </PressableScale>
           <PressableScale
             style={styles.gearBtn}
             onPress={() => navigation.navigate('Settings')}
@@ -231,7 +253,12 @@ export default function ProfileScreen({ navigation }: Props) {
                 ))}
               </View>
             ) : (
-              <Text style={styles.noListingsText}>No listings yet.</Text>
+              <EmptyState
+                icon="storefront-outline"
+                title="No listings yet — post your first item."
+                ctaLabel="Post a listing"
+                onCta={() => navigation.navigate('CreateListing')}
+              />
             )}
           </View>
         ) : (
@@ -239,11 +266,14 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={styles.reviewsBlock}>
             <Text style={styles.listingsTitle}>Reviews ({myReviews.length})</Text>
             {myReviews.length > 0 ? (
-              <View style={styles.reviewsList}>
-                {myReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
-              </View>
+              <>
+                <ReviewSummary reviews={myReviews} />
+                <View style={styles.reviewsList}>
+                  {myReviews.map((review) => (
+                    <ReviewCard key={review.id} review={review} />
+                  ))}
+                </View>
+              </>
             ) : (
               <Text style={styles.noListingsText}>
                 No reviews yet — they&apos;ll show up after your first sale.
@@ -270,6 +300,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: 8,
     paddingHorizontal: H_PAD,
     paddingTop: 12,
     paddingBottom: 8,

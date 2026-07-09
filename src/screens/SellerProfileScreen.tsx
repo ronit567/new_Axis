@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +17,7 @@ import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
 import ReviewCard from '../components/ReviewCard';
+import ReviewSummary from '../components/ReviewSummary';
 import WriteReviewModal from '../components/WriteReviewModal';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useSellerListings } from '../hooks/useListings';
@@ -135,19 +137,40 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         >
           <Ionicons name="chevron-back" size={20} color={COLORS.text} />
         </PressableScale>
-        <PressableScale
-          style={styles.iconBtn}
-          onPress={() => {
-            haptics.tap();
-            setReportVisible(true);
-          }}
-          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="More options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
-        </PressableScale>
+        <View style={styles.navBarRight}>
+          <PressableScale
+            style={styles.iconBtn}
+            onPress={async () => {
+              haptics.tap();
+              try {
+                await Share.share({
+                  message: `${seller.name} is on Axis — check out their listings`,
+                });
+              } catch {
+                // Silently ignore — the user cancelling the share sheet isn't an error.
+              }
+            }}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Share profile"
+          >
+            <Ionicons name="share-outline" size={20} color={COLORS.text} />
+          </PressableScale>
+          <PressableScale
+            style={styles.iconBtn}
+            onPress={() => {
+              haptics.tap();
+              setReportVisible(true);
+            }}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="More options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
+          </PressableScale>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -289,11 +312,14 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               )}
             </View>
             {reviews.length > 0 ? (
-              <View style={styles.reviewsList}>
-                {reviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
-              </View>
+              <>
+                <ReviewSummary reviews={reviews} />
+                <View style={styles.reviewsList}>
+                  {reviews.map((review) => (
+                    <ReviewCard key={review.id} review={review} />
+                  ))}
+                </View>
+              </>
             ) : (
               <Text style={styles.noReviewsText}>
                 No reviews yet.
@@ -337,6 +363,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  navBarRight: {
+    flexDirection: 'row',
+    gap: 8,
   },
   iconBtn: {
     width: 38,
