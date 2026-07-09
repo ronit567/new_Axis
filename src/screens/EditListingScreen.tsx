@@ -262,6 +262,14 @@ function EditListingForm({
               photos={form.photos}
               onAdd={form.handleAddPhoto}
               onRemove={form.handleRemovePhoto}
+              onMakeCover={index =>
+                form.setPhotos(prev => {
+                  const next = [...prev];
+                  const [photo] = next.splice(index, 1);
+                  next.unshift(photo);
+                  return next;
+                })
+              }
               maxPhotos={MAX_PHOTOS}
               locked={scamLocked}
               onLockedPress={handleLockedPress}

@@ -88,13 +88,18 @@ export default function CreateListingScreen({ navigation }: Props) {
         >
           <View style={styles.section}>
             <Text style={styles.sectionHeading}>Photos</Text>
-            <Text style={styles.sectionHint}>
-              Add up to {MAX_PHOTOS} — the first photo is your cover.
-            </Text>
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
               onRemove={form.handleRemovePhoto}
+              onMakeCover={index =>
+                form.setPhotos(prev => {
+                  const next = [...prev];
+                  const [photo] = next.splice(index, 1);
+                  next.unshift(photo);
+                  return next;
+                })
+              }
               maxPhotos={MAX_PHOTOS}
             />
           </View>
@@ -209,11 +214,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: COLORS.text,
     marginBottom: 6,
-  },
-  sectionHint: {
-    fontSize: SIZES.sm,
-    color: COLORS.textMuted,
-    marginBottom: 12,
   },
   fieldLabel: {
     fontSize: SIZES.sm,
