@@ -149,8 +149,9 @@ grant select, insert on public.listing_edit_requests to authenticated;
 --
 -- Verified interplay with existing writers: increment_listing_views (0007)
 -- only touches views; markSold/relist (ListingRepository) only touch status;
--- a low-risk edit patch (price/description/is_free/is_trade) never touches
--- title/category/condition/image_urls — so none of those trip this trigger.
+-- a low-risk edit patch (price/description/is_free/is_trade/pickup) never
+-- touches title/category/condition/image_urls — so none of those trip this
+-- trigger.
 -- ---------------------------------------------------------------------------
 create or replace function public.guard_engaged_listing_edit()
   returns trigger
@@ -184,9 +185,11 @@ create trigger trg_guard_engaged_listing_edit
 -- ---------------------------------------------------------------------------
 -- 4. Notification fan-out: widen the type check (0013) to admit
 -- 'listing_edited', then notify every saver (never the seller themself) when
--- the low-risk price/description fields change on a listing they saved.
--- Savers-only audience is a deliberate v1 scope — buyers mid-conversation
--- already see the listing snapshot resurface in chat.
+-- the low-risk price/description/pickup fields change on a listing they
+-- saved — a saver who already agreed on a meetup spot should hear if it
+-- moves, same as a price change. Savers-only audience is a deliberate v1
+-- scope — buyers mid-conversation already see the listing snapshot resurface
+-- in chat.
 -- ---------------------------------------------------------------------------
 alter table public.notifications drop constraint notifications_type_check;
 alter table public.notifications
@@ -205,7 +208,10 @@ create or replace function public.notify_on_listing_edit()
   set search_path = public
 as $$
 begin
-  if new.price is distinct from old.price or new.description is distinct from old.description then
+  if new.price is distinct from old.price
+    or new.description is distinct from old.description
+    or new.pickup is distinct from old.pickup
+  then
     insert into public.notifications (user_id, type, actor_id, listing_id)
     select sl.user_id, 'listing_edited', new.seller_id, new.id
     from public.saved_listings sl

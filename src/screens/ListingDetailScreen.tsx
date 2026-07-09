@@ -358,16 +358,19 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Location */}
-          <View style={styles.locationCard}>
-            <View style={styles.locationIcon}>
-              <Ionicons name="location" size={18} color={COLORS.primary} />
+          {/* Location — hidden entirely when the seller never set one, rather
+              than rendering a card with a blank address. */}
+          {!!listing.pickup && (
+            <View style={styles.locationCard}>
+              <View style={styles.locationIcon}>
+                <Ionicons name="location" size={18} color={COLORS.primary} />
+              </View>
+              <View>
+                <Text style={styles.locationTitle}>Campus pickup</Text>
+                <Text style={styles.locationAddress}>{listing.pickup}</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.locationTitle}>Campus pickup</Text>
-              <Text style={styles.locationAddress}>{listing.pickup}</Text>
-            </View>
-          </View>
+          )}
         </View>
       </ScrollView>
 

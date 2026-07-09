@@ -15,10 +15,10 @@ export type CreateListingInput = {
   image_urls: string[]
 }
 
-// 0021: EditListingScreen never touches pickup (no pickup-location input
-// exists on either form), so it's excluded from the editable surface rather
-// than left in as a field nothing ever sets.
-export type UpdateListingInput = Omit<CreateListingInput, 'pickup'>
+// 0021/pickup picker: pickup is a low-risk field (never review-gated, same as
+// price/description/is_free/is_trade) — both CreateListingScreen and
+// EditListingScreen can set it directly.
+export type UpdateListingInput = CreateListingInput
 
 export type GetAllListingsOptions = {
   category?: string

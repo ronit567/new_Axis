@@ -969,9 +969,17 @@ describe('ListingRepository.updateListing', () => {
       throw new Error(`Unexpected table: ${table}`);
     });
 
-    await ListingRepository.updateListing('l1', seller.id, { price: 20, description: 'Updated' });
+    await ListingRepository.updateListing('l1', seller.id, {
+      price: 20,
+      description: 'Updated',
+      pickup: 'Student center',
+    });
 
-    expect(listingsBuilder.update).toHaveBeenCalledWith({ price: 20, description: 'Updated' });
+    expect(listingsBuilder.update).toHaveBeenCalledWith({
+      price: 20,
+      description: 'Updated',
+      pickup: 'Student center',
+    });
     expect(listingsBuilder.eq).toHaveBeenCalledWith('id', 'l1');
     expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
   });

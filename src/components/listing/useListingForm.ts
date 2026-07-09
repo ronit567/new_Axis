@@ -25,6 +25,7 @@ export type ListingFormInitial = {
   price?: string;
   isFree?: boolean;
   isTrade?: boolean;
+  pickup?: string;
   // Existing remote photos (isLocal: false) prefilled from the listing being
   // edited; CreateListing always starts with an empty array.
   photos?: EditablePhoto[];
@@ -42,6 +43,7 @@ export function useListingForm(initial?: ListingFormInitial) {
   const [price, setPrice] = useState(initial?.price ?? '');
   const [isFree, setIsFree] = useState(initial?.isFree ?? false);
   const [isTrade, setIsTrade] = useState(initial?.isTrade ?? false);
+  const [pickup, setPickup] = useState(initial?.pickup ?? '');
   const [photos, setPhotos] = useState<EditablePhoto[]>(initial?.photos ?? []);
 
   const handleAddPhoto = () => {
@@ -140,6 +142,8 @@ export function useListingForm(initial?: ListingFormInitial) {
     setPrice,
     isFree,
     isTrade,
+    pickup,
+    setPickup,
     photos,
     setPhotos,
     handleAddPhoto,

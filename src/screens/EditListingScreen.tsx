@@ -23,6 +23,7 @@ import CategoryDropdown from '../components/listing/CategoryDropdown';
 import ConditionSelector from '../components/listing/ConditionSelector';
 import DescriptionField from '../components/listing/DescriptionField';
 import PriceToggles from '../components/listing/PriceToggles';
+import PickupPicker from '../components/listing/PickupPicker';
 import { useListingForm, MAX_PHOTOS, DEFAULT_CONDITION } from '../components/listing/useListingForm';
 import { haptics } from '../lib/haptics';
 import { useListing } from '../hooks/useListings';
@@ -111,6 +112,7 @@ function EditListingForm({
     price: listing.isFree ? '' : String(listing.price),
     isFree: listing.isFree,
     isTrade: listing.isTrade,
+    pickup: listing.pickup,
     photos: listing.imageUrls.map((url) => ({ uri: url, mimeType: null, isLocal: false })),
   });
 
@@ -142,6 +144,7 @@ function EditListingForm({
     }
     if (form.isFree !== listing.isFree) lowRiskPatch.is_free = form.isFree;
     if (form.isTrade !== listing.isTrade) lowRiskPatch.is_trade = form.isTrade;
+    if (form.pickup.trim() !== listing.pickup) lowRiskPatch.pickup = form.pickup.trim();
 
     const titleChanged = form.title.trim() !== listing.title;
     const categoryChanged = form.category !== listing.category;
@@ -306,14 +309,19 @@ function EditListingForm({
           </View>
 
           <Text style={styles.sectionHeading}>Price</Text>
-          <PriceToggles
-            price={form.price}
-            onPriceChange={form.setPrice}
-            isFree={form.isFree}
-            onToggleFree={form.handleFree}
-            isTrade={form.isTrade}
-            onToggleTrade={form.handleTrade}
-          />
+          <View style={styles.field}>
+            <PriceToggles
+              price={form.price}
+              onPriceChange={form.setPrice}
+              isFree={form.isFree}
+              onToggleFree={form.handleFree}
+              isTrade={form.isTrade}
+              onToggleTrade={form.handleTrade}
+            />
+          </View>
+
+          <Text style={styles.sectionHeading}>Pickup spot</Text>
+          <PickupPicker value={form.pickup} onChange={form.setPickup} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

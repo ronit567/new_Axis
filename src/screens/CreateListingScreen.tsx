@@ -21,6 +21,7 @@ import CategoryDropdown from '../components/listing/CategoryDropdown';
 import ConditionSelector from '../components/listing/ConditionSelector';
 import DescriptionField from '../components/listing/DescriptionField';
 import PriceToggles from '../components/listing/PriceToggles';
+import PickupPicker from '../components/listing/PickupPicker';
 import { useListingForm, MAX_PHOTOS } from '../components/listing/useListingForm';
 import { haptics } from '../lib/haptics';
 import { useCreateListing } from '../hooks/useListings';
@@ -43,8 +44,7 @@ export default function CreateListingScreen({ navigation }: Props) {
         is_trade: form.isTrade,
         condition: form.condition as 'Like new' | 'Good' | 'Fair',
         category: form.category,
-        // No pickup-location input on this screen yet — left blank until one exists.
-        pickup: '',
+        pickup: form.pickup.trim(),
         // Every photo on this screen is freshly picked (isLocal), never a
         // prefilled remote one — strip down to the plain LocalPhoto shape
         // useCreateListing expects.
@@ -129,6 +129,11 @@ export default function CreateListingScreen({ navigation }: Props) {
           <Text style={styles.sectionHeading}>Condition</Text>
           <View style={styles.field}>
             <ConditionSelector value={form.condition} onChange={form.setCondition} />
+          </View>
+
+          <Text style={styles.sectionHeading}>Pickup spot</Text>
+          <View style={styles.field}>
+            <PickupPicker value={form.pickup} onChange={form.setPickup} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
