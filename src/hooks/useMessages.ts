@@ -32,6 +32,18 @@ export function useMessages(listingId: string | null, partnerId: string) {
   })
 }
 
+// Whether the current user has ever messaged this seller, in either
+// direction — gates the review-writing UI to match the reviews_insert_reviewer
+// RLS policy (0020) so the affordance isn't shown only to fail on submit.
+export function useHasChattedWith(partnerId: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.hasChattedWith(user?.id ?? '', partnerId),
+    queryFn: () => MessageRepository.hasChattedWith(user!.id, partnerId),
+    enabled: !!user && !!partnerId,
+  })
+}
+
 // Optimistic send: the bubble appears instantly under the message's real
 // (client-generated) id, rolls back on error, and is reconciled with the
 // server row — by the realtime echo and the settled invalidation — via that

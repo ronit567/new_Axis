@@ -17,6 +17,8 @@ export const queryKeys = {
   // 'none' so the cache key stays a stable string tuple.
   messages: (listingId: string | null, partnerId: string) =>
     ['messages', listingId ?? 'none', partnerId] as const,
+  hasChattedWith: (userId: string, partnerId: string) =>
+    ['hasChattedWith', userId, partnerId] as const,
   following: (userId: string) => ['following', userId] as const,
   isFollowing: (userId: string, sellerId: string) =>
     ['isFollowing', userId, sellerId] as const,

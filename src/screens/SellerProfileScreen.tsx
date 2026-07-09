@@ -25,6 +25,7 @@ import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
+import { useHasChattedWith } from '../hooks/useMessages';
 import { useSellerReviews, useUpsertReview } from '../hooks/useReviews';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { useAuth } from '../context/AuthContext';
@@ -54,6 +55,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const isOwnProfile = user?.id === seller.id;
   const { data: following = false } = useIsFollowing(seller.id);
   const toggleFollow = useToggleFollow();
+  // Reviews are only writable by someone who's actually messaged this seller
+  // (0020's reviews_insert_reviewer policy) — gate the affordance on that
+  // rather than let everyone hit an RLS rejection on submit.
+  const { data: hasChatted = false } = useHasChattedWith(seller.id);
 
   // Live rating from real reviews — seller.rating in the route param is the
   // mapper's deferred 0 and never trustworthy for display.
@@ -113,8 +118,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       const message = e instanceof Error ? e.message : '';
       Alert.alert(
         'Review not submitted',
-        // The 0020 INSERT policy requires an existing chat with the seller —
-        // translate its bare RLS rejection into the actual rule.
+        // Backstop only — the UI already hides the review affordance for
+        // sellers the viewer hasn't chatted with. Translates a bare RLS
+        // rejection into the actual rule in case this is ever reached anyway
+        // (e.g. a stale hasChatted read).
         /row-level security/i.test(message)
           ? `You can only review someone you've chatted with on Axis. Message ${seller.name} first.`
           : message || 'Please try again.',
@@ -274,7 +281,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               <Text style={styles.sectionTitle}>
                 Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
               </Text>
-              {!isOwnProfile && (
+              {!isOwnProfile && hasChatted && (
                 <PressableScale
                   onPress={() => {
                     haptics.tap();
@@ -301,7 +308,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             ) : (
               <Text style={styles.noReviewsText}>
                 No reviews yet.
-                {isOwnProfile ? '' : ` Chatted with ${seller.name}? Leave the first one.`}
+                {isOwnProfile
+                  ? ''
+                  : hasChatted
+                    ? ` Chatted with ${seller.name}? Leave the first one.`
+                    : ` Reviews come from people who've chatted with ${seller.name}.`}
               </Text>
             )}
           </View>
