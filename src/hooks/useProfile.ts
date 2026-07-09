@@ -3,8 +3,15 @@ import {
   ProfileRepository,
   UpsertProfileInput,
 } from '../repositories/ProfileRepository'
+import { LocalPhoto, StorageRepository } from '../repositories/StorageRepository'
 import { signOut, useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
+
+// UpsertProfileInput plus an optional freshly-picked photo. The upload happens
+// inside the mutation (same shape as useCreateListing's photos handling) so a
+// screen never orchestrates storage itself: photo present -> upload first,
+// then persist the resulting public URL with the rest of the profile.
+export type UpsertProfileVars = UpsertProfileInput & { photo?: LocalPhoto | null }
 
 export function useProfile(userId: string) {
   const { user } = useAuth()
@@ -28,8 +35,11 @@ export function useUpsertProfile() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: UpsertProfileInput) => {
+    mutationFn: async ({ photo, ...input }: UpsertProfileVars) => {
       if (!user) throw new Error('Not signed in')
+      if (photo) {
+        input.avatar_url = await StorageRepository.uploadAvatar(user.id, photo)
+      }
       return ProfileRepository.upsert(user.id, input)
     },
     onSuccess: profile => {

@@ -26,6 +26,7 @@ import GreetingRow from '../components/GreetingRow';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
+import { useCurrentProfile } from '../hooks/useProfile';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -63,6 +64,8 @@ export default function HomeScreen({ navigation }: Props) {
   } = useListings(category);
   const toggleSavedMutation = useToggleSaved();
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
+  const { data: profile } = useCurrentProfile();
+  const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
 
   const listings = data?.pages.flatMap(page => page.items) ?? [];
 
@@ -119,6 +122,9 @@ export default function HomeScreen({ navigation }: Props) {
         style={[styles.purpleHeader, { paddingTop: insets.top + 8 }]}
       >
         <GreetingRow
+          avatarUrl={profile?.avatarUrl}
+          initials={profile?.initials ?? ''}
+          firstName={firstName}
           unreadCount={unreadNotifications}
           onBellPress={() => navigation.navigate('Notifications')}
         />

@@ -9,6 +9,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   useWindowDimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -148,6 +149,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         <View style={styles.topRight}>
           <PressableScale
             style={styles.iconBtn}
+            onPress={async () => {
+              haptics.tap();
+              try {
+                await Share.share({ message: `${listing.title} — $${listing.price} on Axis` });
+              } catch {
+                // Silently ignore — the user cancelling the share sheet isn't an error.
+              }
+            }}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             scaleTo={0.9}
             accessibilityRole="button"

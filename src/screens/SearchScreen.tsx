@@ -24,6 +24,7 @@ import { RootStackParamList, Listing, ListingCondition } from "../types";
 import { useSearchListings } from "../hooks/useListings";
 import { useToggleSaved } from "../hooks/useSavedListings";
 import { useUnreadNotificationCount } from "../hooks/useNotifications";
+import { useCurrentProfile } from "../hooks/useProfile";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -150,6 +151,10 @@ export default function SearchScreen({ navigation, route }: Props) {
   });
   const toggleSavedMutation = useToggleSaved();
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
+  // Same profile the Home greeting uses — GreetingRow must render identically
+  // on both so the (animation: 'none') Home↔Search swap stays pixel-perfect.
+  const { data: profile } = useCurrentProfile();
+  const firstName = profile?.name.trim().split(/\s+/)[0] ?? "";
 
   const results = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -227,6 +232,9 @@ export default function SearchScreen({ navigation, route }: Props) {
           pointerEvents="none"
         >
           <GreetingRow
+            avatarUrl={profile?.avatarUrl}
+            initials={profile?.initials ?? ""}
+            firstName={firstName}
             unreadCount={unreadNotifications}
             onBellPress={() => navigation.navigate("Notifications")}
           />

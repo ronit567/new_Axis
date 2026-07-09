@@ -14,15 +14,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList, SellerProfile, YearOfStudy } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
+import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
 import { useCurrentProfile, useUpsertProfile } from '../hooks/useProfile';
 import { deriveInitials } from '../repositories/mappers';
+import { LocalPhoto } from '../repositories/StorageRepository';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
@@ -86,10 +89,32 @@ function EditProfileForm({
   const [bio, setBio] = useState(profile.bio);
   const [pickupArea, setPickupArea] = useState(profile.location);
   const [showProgramPicker, setShowProgramPicker] = useState(false);
+  // A freshly-picked photo, previewed immediately but only uploaded on Save
+  // (inside useUpsertProfile) — backing out discards it, like every other field.
+  const [pickedPhoto, setPickedPhoto] = useState<LocalPhoto | null>(null);
 
   const [bioFocused, setBioFocused] = useState(false);
 
   const canSave = name.trim().length > 0 && !upsertProfile.isPending;
+
+  const handleChangePhoto = async () => {
+    haptics.tap();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Photo library access is needed to pick a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setPickedPhoto({ uri: asset.uri, mimeType: asset.mimeType ?? null });
+    }
+  };
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -102,6 +127,7 @@ function EditProfileForm({
         year: typeof year === 'number' ? year : null,
         bio: bio.trim(),
         location: pickupArea.trim(),
+        photo: pickedPhoto,
       });
       navigation.goBack();
     } catch (e) {
@@ -147,16 +173,32 @@ function EditProfileForm({
         >
           {/* Avatar */}
           <View style={styles.avatarSection}>
-            <View style={[styles.avatar, { backgroundColor: profile.avatarColor }]}>
-              <Text style={styles.avatarText}>{deriveInitials(name) || '?'}</Text>
+            <PressableScale
+              style={styles.avatarWrap}
+              onPress={handleChangePhoto}
+              scaleTo={0.96}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
+              <Avatar
+                url={pickedPhoto?.uri ?? profile.avatarUrl}
+                initials={deriveInitials(name) || '?'}
+                color={profile.avatarColor}
+                size={84}
+                style={styles.avatarShadow}
+                textStyle={styles.avatarText}
+              />
+              {/* Outside the Avatar so its overflow:hidden circle can't clip it. */}
               <View style={styles.cameraBtn}>
                 <Ionicons name="camera" size={13} color={COLORS.white} />
               </View>
-            </View>
+            </PressableScale>
             <PressableScale
-              onPress={() => haptics.tap()}
+              onPress={handleChangePhoto}
               scaleTo={0.94}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
             >
               <Text style={styles.changePhoto}>Change photo</Text>
             </PressableScale>
@@ -327,20 +369,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
     marginBottom: 10,
+  },
+  avatarShadow: {
     ...SHADOWS.raised,
   },
   avatarText: {
-    color: COLORS.white,
     fontSize: SIZES.xl,
-    fontWeight: '700',
   },
   cameraBtn: {
     position: 'absolute',

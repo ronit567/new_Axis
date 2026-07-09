@@ -88,6 +88,7 @@ export function toSeller(row: ProfileRow): Seller {
     location: row.location ?? '',
     program: row.program ?? '',
     dotColor: DEFAULT_DOT_COLOR,
+    avatarUrl: row.avatar_url,
   };
 }
 
@@ -158,6 +159,7 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     verified: row.verified,
     stats,
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
+    avatarUrl: row.avatar_url,
   };
 }
 
@@ -182,6 +184,7 @@ export function toContact(row: ProfileRow): Contact {
     name: row.name,
     initials: row.initials ?? deriveInitials(row.name),
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
+    avatarUrl: row.avatar_url,
   };
 }
 
@@ -195,6 +198,7 @@ export function sellerToContact(seller: Seller): Contact {
     name: seller.name,
     initials: deriveInitials(seller.name),
     avatarColor: pickAvatarColor(seller.id),
+    avatarUrl: seller.avatarUrl,
   };
 }
 

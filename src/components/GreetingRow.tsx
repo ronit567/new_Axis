@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import PressableScale from './PressableScale';
+import Avatar from './Avatar';
 
 // Height of the collapsed-away greeting row: 38px avatar + 14px paddingBottom.
 // Home and Search both collapse exactly this so the purple header lands at the
@@ -10,21 +11,38 @@ import PressableScale from './PressableScale';
 export const GREETING_ROW_HEIGHT = 52;
 
 type Props = {
+  avatarUrl?: string | null;
+  initials?: string;
+  firstName?: string;
   unreadCount?: number;
   onBellPress: () => void;
 };
 
 // Shared between Home (static) and Search (collapses on entrance) so the two
-// can't drift and the screen swap stays pixel-identical.
-export default function GreetingRow({ unreadCount = 0, onBellPress }: Props) {
+// can't drift and the screen swap stays pixel-identical — which is also why the
+// real avatar/name live here rather than being duplicated per screen.
+export default function GreetingRow({
+  avatarUrl,
+  initials = '',
+  firstName,
+  unreadCount = 0,
+  onBellPress,
+}: Props) {
   return (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <View style={styles.avatarSmall}>
-          <Text style={styles.avatarText}>RS</Text>
-        </View>
+        <Avatar
+          url={avatarUrl}
+          initials={initials}
+          // Translucent chip look from the mock, not the profile's solid
+          // avatarColor — this sits on the purple gradient header.
+          color="rgba(255,255,255,0.2)"
+          size={38}
+          style={styles.avatarSmall}
+          textStyle={styles.avatarText}
+        />
         <View>
-          <Text style={styles.greeting}>Hi, Ronit</Text>
+          <Text style={styles.greeting}>{firstName ? `Hi, ${firstName}` : 'Hi'}</Text>
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
             <Text style={styles.location}>Western · London, ON</Text>
@@ -58,14 +76,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   avatarSmall: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,

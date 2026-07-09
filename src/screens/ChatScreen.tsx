@@ -23,6 +23,7 @@ import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
 import ActivitySpinner from '../components/ActivitySpinner';
 import ErrorState from '../components/ErrorState';
+import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
 import { useAuth } from '../context/AuthContext';
 import { useMessages, useSendMessage, useMarkConversationRead } from '../hooks/useMessages';
@@ -232,9 +233,13 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
-        <View style={[styles.headerAvatar, { backgroundColor: partner.avatarColor }]}>
-          <Text style={styles.headerAvatarText}>{partner.initials}</Text>
-        </View>
+        <Avatar
+          url={partner.avatarUrl}
+          initials={partner.initials}
+          color={partner.avatarColor}
+          size={36}
+          textStyle={styles.headerAvatarText}
+        />
         <View style={styles.headerInfo}>
           <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
         </View>

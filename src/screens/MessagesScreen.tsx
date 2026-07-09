@@ -14,6 +14,7 @@ import { COLORS, SIZES, FONTS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import Avatar from '../components/Avatar';
 import { useConversations } from '../hooks/useMessages';
 import { Conversation, RootStackParamList } from '../types';
 
@@ -59,9 +60,14 @@ export default function MessagesScreen({ navigation }: Props) {
         })
       }
     >
-      <View style={[styles.avatar, { backgroundColor: item.partner.avatarColor }]}>
-        <Text style={styles.avatarText}>{item.partner.initials}</Text>
-      </View>
+      <Avatar
+        url={item.partner.avatarUrl}
+        initials={item.partner.initials}
+        color={item.partner.avatarColor}
+        size={48}
+        style={styles.avatar}
+        textStyle={styles.avatarText}
+      />
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
           <Text style={[styles.name, item.unreadCount > 0 ? styles.nameUnread : null]}>
@@ -246,11 +252,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.divider,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 14,
     flexShrink: 0,
   },
