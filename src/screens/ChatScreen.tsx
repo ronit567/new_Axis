@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMessages, useSendMessage, useMarkConversationRead } from '../hooks/useMessages';
 import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
+import { useProfile } from '../hooks/useProfile';
 import { formatClockTime } from '../lib/timeAgo';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
@@ -54,6 +55,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   const { user } = useAuth();
 
   const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
+  // Full profile for the header's tap-through to the partner's SellerProfile
+  // page (the route needs a whole SellerProfile, not just the Contact we have).
+  const { data: partnerProfile } = useProfile(partnerId);
   const messages = useMemo(() => data ?? [], [data]);
   const items = useMemo<ChatItem[]>(
     () =>
@@ -233,16 +237,30 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
-        <Avatar
-          url={partner.avatarUrl}
-          initials={partner.initials}
-          color={partner.avatarColor}
-          size={36}
-          textStyle={styles.headerAvatarText}
-        />
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
-        </View>
+        <PressableScale
+          style={styles.headerIdentity}
+          onPress={() => {
+            // partnerProfile is null while loading or when RLS hides the
+            // profile (blocked/deleted) — no profile page to open then.
+            if (!partnerProfile) return;
+            haptics.tap();
+            navigation.navigate('SellerProfile', { seller: partnerProfile });
+          }}
+          scaleTo={0.97}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${partner.name}'s profile`}
+        >
+          <Avatar
+            url={partner.avatarUrl}
+            initials={partner.initials}
+            color={partner.avatarColor}
+            size={36}
+            textStyle={styles.headerAvatarText}
+          />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
+          </View>
+        </PressableScale>
         {canViewListing && (
           <PressableScale
             style={styles.viewBtn}
@@ -380,6 +398,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerIdentity: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerAvatar: {
     width: 36,
