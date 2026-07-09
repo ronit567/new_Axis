@@ -16,6 +16,9 @@ export type UpsertProfileInput = {
   initials?: string
   location?: string
   avatar_color?: string
+  // Public storage URL from StorageRepository.uploadAvatar. Omitted = leave
+  // the stored photo unchanged (upsert only writes the keys it's given).
+  avatar_url?: string
 }
 
 // listings/sold stay 0 until AX-111 gives ProfileRepository real listing

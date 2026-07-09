@@ -22,9 +22,11 @@ import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import FadeInItem from '../components/FadeInItem';
+import Avatar from '../components/Avatar';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
+import { useCurrentProfile } from '../hooks/useProfile';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 
@@ -53,6 +55,8 @@ export default function HomeScreen({ navigation }: Props) {
   } = useListings(category);
   const toggleSavedMutation = useToggleSaved();
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
+  const { data: profile } = useCurrentProfile();
+  const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
 
   const listings = data?.pages.flatMap(page => page.items) ?? [];
 
@@ -110,11 +114,18 @@ export default function HomeScreen({ navigation }: Props) {
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.avatarSmall}>
-              <Text style={styles.avatarText}>RS</Text>
-            </View>
+            <Avatar
+              url={profile?.avatarUrl}
+              initials={profile?.initials ?? ''}
+              // Translucent chip look from the mock, not the profile's solid
+              // avatarColor — this sits on the purple gradient header.
+              color="rgba(255,255,255,0.2)"
+              size={38}
+              style={styles.avatarSmall}
+              textStyle={styles.avatarText}
+            />
             <View>
-              <Text style={styles.greeting}>Hi, Ronit</Text>
+              <Text style={styles.greeting}>{firstName ? `Hi, ${firstName}` : 'Hi'}</Text>
               <View style={styles.locationRow}>
                 <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
                 <Text style={styles.location}>Western · London, ON</Text>
@@ -257,14 +268,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   avatarSmall: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   avatarText: {
     color: COLORS.white,

@@ -12,6 +12,9 @@ export type Seller = {
   location: string;
   program: string;
   dotColor: string;
+  // Public storage URL of the uploaded profile photo; null renders the
+  // initials + avatarColor fallback.
+  avatarUrl: string | null;
 };
 
 export type SellerProfile = {
@@ -28,6 +31,7 @@ export type SellerProfile = {
   verified: boolean;
   stats: { listings: number; sold: number; replyTime: string };
   avatarColor: string;
+  avatarUrl: string | null;
 };
 
 // The finite set of condition values the UI offers (create-listing form,
@@ -75,6 +79,9 @@ export type Contact = {
   initials: string;
   avatarColor: string;
   name: string;
+  // Optional so Contact literals built without a profile row in hand stay
+  // valid; absent/null renders the initials fallback.
+  avatarUrl?: string | null;
 };
 
 export type NotificationType = 'message' | 'listing_saved';
