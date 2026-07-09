@@ -9,7 +9,10 @@ export const MAX_PHOTOS = 4;
 export const DESC_MAX = 300;
 
 const DEFAULT_CATEGORY = 'Electronics';
-const DEFAULT_CONDITION = 'Like new';
+// Exported so EditListingScreen can map the mapper's 'N/A' fallback (an old
+// listing with no DB condition) to the same default this form seeds with,
+// rather than ever seeding/submitting the sentinel itself.
+export const DEFAULT_CONDITION = 'Like new';
 
 // Seeds for EditListingScreen's prefill; every field is optional so
 // CreateListingScreen can call useListingForm() with nothing and get the

@@ -120,6 +120,8 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     views: row.views,
     postedAgo: timeAgo(row.created_at),
     pickup: row.pickup ?? '',
+    isFree: row.is_free,
+    isTrade: row.is_trade,
   };
 }
 

@@ -56,6 +56,11 @@ export type Listing = {
   views: number;
   postedAgo: string;
   pickup: string;
+  // 0021: EditListingScreen needs these to prefill the low-risk Free/Trade
+  // toggles — no other screen surfaced them before this (there's no
+  // Free/Trade badge on ListingDetail yet).
+  isFree: boolean;
+  isTrade: boolean;
 };
 
 export type MyListing = {

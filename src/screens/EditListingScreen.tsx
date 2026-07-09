@@ -1,0 +1,399 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { Listing, ListingEditRequest, RootStackParamList } from '../types';
+import ErrorState from '../components/ErrorState';
+import PressableScale from '../components/PressableScale';
+import PhotoPicker from '../components/listing/PhotoPicker';
+import TitleField from '../components/listing/TitleField';
+import CategoryDropdown from '../components/listing/CategoryDropdown';
+import ConditionSelector from '../components/listing/ConditionSelector';
+import DescriptionField from '../components/listing/DescriptionField';
+import PriceToggles from '../components/listing/PriceToggles';
+import { useListingForm, MAX_PHOTOS, DEFAULT_CONDITION } from '../components/listing/useListingForm';
+import { haptics } from '../lib/haptics';
+import { useListing } from '../hooks/useListings';
+import {
+  useListingEngagement,
+  usePendingEditRequest,
+  useUpdateListing,
+  useCreateEditRequest,
+  type EditablePhoto,
+} from '../hooks/useListingEdits';
+import type { UpdateListingInput } from '../repositories/ListingRepository';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'EditListing'>;
+
+export default function EditListingScreen({ navigation, route }: Props) {
+  const { listingId } = route.params;
+  const { data: listing, isLoading, isError, refetch } = useListing(listingId);
+  const { data: engaged } = useListingEngagement(listingId);
+  const { data: pendingRequest } = usePendingEditRequest(listingId);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !listing) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState message="Something went wrong. Please try again." onRetry={() => refetch()} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <EditListingForm
+      navigation={navigation}
+      listing={listing}
+      // Best-effort: while the engagement check is still loading, treat the
+      // listing as unengaged (the same posture as a fresh listing with no
+      // interest yet) — this is UX-only, guard_engaged_listing_edit (0021) is
+      // the real authority and a stale/optimistic read here is caught by the
+      // race fallback in handleSave.
+      engaged={!!engaged}
+      pendingRequest={pendingRequest ?? null}
+    />
+  );
+}
+
+// A photo set changed only if the count differs or any entry is either a
+// newly-picked local photo or a kept remote photo whose URL moved position —
+// image_urls equality is order-sensitive (0021).
+function photosChanged(photos: EditablePhoto[], original: string[]): boolean {
+  if (photos.length !== original.length) return true;
+  return photos.some((p, i) => p.isLocal || p.uri !== original[i]);
+}
+
+function EditListingForm({
+  navigation,
+  listing,
+  engaged,
+  pendingRequest,
+}: {
+  navigation: Props['navigation'];
+  listing: Listing;
+  engaged: boolean;
+  pendingRequest: ListingEditRequest | null;
+}) {
+  const updateListing = useUpdateListing();
+  const createEditRequest = useCreateEditRequest();
+  const [saving, setSaving] = useState(false);
+
+  // Never seed (or submit) the mapper's 'N/A' sentinel for a listing whose DB
+  // condition is null — fall back to the same default the picker uses.
+  const originalCondition = listing.condition === 'N/A' ? DEFAULT_CONDITION : listing.condition;
+
+  const form = useListingForm({
+    title: listing.title,
+    description: listing.description,
+    category: listing.category,
+    condition: originalCondition,
+    price: listing.isFree ? '' : String(listing.price),
+    isFree: listing.isFree,
+    isTrade: listing.isTrade,
+    photos: listing.imageUrls.map((url) => ({ uri: url, mimeType: null, isLocal: false })),
+  });
+
+  // A pending request already covers the scam-vector fields — resubmitting
+  // while one is outstanding would just pile up duplicate requests, so those
+  // fields stay locked the same as when the listing is actively engaged.
+  const scamLocked = engaged || !!pendingRequest;
+
+  const handleLockedPress = () => {
+    haptics.tap();
+    Alert.alert(
+      'Requires review',
+      pendingRequest
+        ? "You already have changes pending review for this listing's photos, title, category, or condition."
+        : "This listing has buyer interest (a save or a message), so changes to its photos, title, category, or condition go through a quick review before they go live.",
+    );
+  };
+
+  const handleSave = async () => {
+    if (saving || !form.detailsValid || !form.priceValid) return;
+    haptics.impact();
+    setSaving(true);
+
+    const priceNum = form.isFree ? 0 : parseFloat(form.price) || 0;
+    const lowRiskPatch: Partial<Omit<UpdateListingInput, 'image_urls'>> = {};
+    if (priceNum !== listing.price) lowRiskPatch.price = priceNum;
+    if (form.description.trim() !== listing.description) {
+      lowRiskPatch.description = form.description.trim();
+    }
+    if (form.isFree !== listing.isFree) lowRiskPatch.is_free = form.isFree;
+    if (form.isTrade !== listing.isTrade) lowRiskPatch.is_trade = form.isTrade;
+
+    const titleChanged = form.title.trim() !== listing.title;
+    const categoryChanged = form.category !== listing.category;
+    const conditionChanged = form.condition !== originalCondition;
+    const photosDidChange = photosChanged(form.photos, listing.imageUrls);
+    const scamFieldsChanged = titleChanged || categoryChanged || conditionChanged || photosDidChange;
+
+    try {
+      // Low-risk fields are never guarded — write them unconditionally first,
+      // independent of whatever happens with the scam-vector fields below.
+      if (Object.keys(lowRiskPatch).length > 0) {
+        await updateListing.mutateAsync({ listingId: listing.id, patch: lowRiskPatch });
+      }
+
+      if (!scamFieldsChanged) {
+        navigation.goBack();
+        return;
+      }
+
+      const scamPatch: Partial<Omit<UpdateListingInput, 'image_urls'>> = {};
+      if (titleChanged) scamPatch.title = form.title.trim();
+      if (categoryChanged) scamPatch.category = form.category;
+      if (conditionChanged) scamPatch.condition = form.condition as 'Like new' | 'Good' | 'Fair';
+
+      if (!scamLocked) {
+        try {
+          await updateListing.mutateAsync({
+            listingId: listing.id,
+            patch: scamPatch,
+            photos: photosDidChange ? form.photos : undefined,
+          });
+          navigation.goBack();
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          // Race: the listing picked up engagement between our (UX-only)
+          // check and this write landing — the server-side guard is the real
+          // authority and just rejected it. Fall through to filing a review
+          // request instead of surfacing a dead-end error.
+          if (!message.includes('listing_edit_requires_review')) throw error;
+        }
+      }
+
+      await createEditRequest.mutateAsync({
+        listingId: listing.id,
+        title: titleChanged ? form.title.trim() : undefined,
+        category: categoryChanged ? form.category : undefined,
+        condition: conditionChanged ? form.condition : undefined,
+        photos: photosDidChange ? form.photos : undefined,
+      });
+      Alert.alert(
+        'Submitted for review',
+        "This listing's photo, title, category, or condition changes are pending review before they go live.",
+      );
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert(
+        "Couldn't save changes",
+        error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const canSave = form.detailsValid && form.priceValid && !saving;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
+      <View style={styles.header}>
+        <PressableScale
+          style={styles.headerIconBtn}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          scaleTo={0.9}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </PressableScale>
+        <Text style={styles.headerTitle}>Edit listing</Text>
+        <PressableScale
+          style={styles.saveHeaderBtn}
+          onPress={handleSave}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          scaleTo={0.92}
+          disabled={!canSave}
+          accessibilityLabel="Save changes"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canSave }}
+        >
+          <Text style={[styles.saveText, !canSave ? styles.saveTextDisabled : null]}>
+            {saving ? 'Saving…' : 'Save'}
+          </Text>
+        </PressableScale>
+      </View>
+
+      {pendingRequest && (
+        <View style={styles.pendingBanner}>
+          <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+          <Text style={styles.pendingBannerText}>
+            Changes to photos, title, category, or condition are pending review.
+          </Text>
+        </View>
+      )}
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.sectionHeading}>Photos</Text>
+          <View style={styles.field}>
+            <PhotoPicker
+              photos={form.photos}
+              onAdd={form.handleAddPhoto}
+              onRemove={form.handleRemovePhoto}
+              maxPhotos={MAX_PHOTOS}
+              locked={scamLocked}
+              onLockedPress={handleLockedPress}
+            />
+          </View>
+
+          <Text style={styles.sectionHeading}>Title</Text>
+          <View style={styles.field}>
+            <TitleField
+              value={form.title}
+              onChange={form.setTitle}
+              locked={scamLocked}
+              onLockedPress={handleLockedPress}
+            />
+          </View>
+
+          <Text style={styles.sectionHeading}>Category</Text>
+          <View style={styles.field}>
+            <CategoryDropdown
+              value={form.category}
+              onChange={form.setCategory}
+              locked={scamLocked}
+              onLockedPress={handleLockedPress}
+            />
+          </View>
+
+          <Text style={styles.sectionHeading}>Condition</Text>
+          <View style={styles.field}>
+            <ConditionSelector
+              value={form.condition}
+              onChange={form.setCondition}
+              locked={scamLocked}
+              onLockedPress={handleLockedPress}
+            />
+          </View>
+
+          <Text style={styles.sectionHeading}>Description</Text>
+          <View style={styles.field}>
+            <DescriptionField value={form.description} onChange={form.setDescription} />
+          </View>
+
+          <Text style={styles.sectionHeading}>Price</Text>
+          <PriceToggles
+            price={form.price}
+            onPriceChange={form.setPrice}
+            isFree={form.isFree}
+            onToggleFree={form.handleFree}
+            isTrade={form.isTrade}
+            onToggleTrade={form.handleTrade}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: SIZES.base,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+  },
+  saveHeaderBtn: {
+    minWidth: 44,
+    height: 38,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  saveText: {
+    fontSize: SIZES.base,
+    fontFamily: FONTS.semibold,
+    color: COLORS.primary,
+  },
+  saveTextDisabled: {
+    color: COLORS.textMuted,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primaryTint,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  pendingBannerText: {
+    flex: 1,
+    fontSize: SIZES.xs,
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
+  },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 60,
+  },
+  sectionHeading: {
+    fontSize: SIZES.md,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  field: {
+    marginBottom: 24,
+  },
+});

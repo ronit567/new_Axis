@@ -102,6 +102,16 @@ describe('toListing', () => {
     expect(toListing(listingRow, sellerRow, false).saved).toBe(false);
   });
 
+  it('passes is_free/is_trade through unchanged', () => {
+    expect(toListing(listingRow, sellerRow, false)).toMatchObject({ isFree: false, isTrade: false });
+    expect(
+      toListing({ ...listingRow, is_free: true, is_trade: false }, sellerRow, false),
+    ).toMatchObject({ isFree: true, isTrade: false });
+    expect(
+      toListing({ ...listingRow, is_free: false, is_trade: true }, sellerRow, false),
+    ).toMatchObject({ isFree: false, isTrade: true });
+  });
+
   it('gives an empty image_urls listing a stable, deterministic imageColor', () => {
     const a = toListing(listingRow, sellerRow, false).imageColor;
     const b = toListing(listingRow, sellerRow, false).imageColor;
