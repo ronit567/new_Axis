@@ -13,7 +13,9 @@ import {
   DMSans_800ExtraBold,
 } from '@expo-google-fonts/dm-sans';
 import { RootStackParamList } from './src/types';
+import { navigationRef } from './src/lib/navigation';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { NotificationBannerProvider } from './src/context/NotificationBannerContext';
 import { useCurrentProfile } from './src/hooks/useProfile';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
@@ -153,9 +155,11 @@ export default function App() {
     <AuthProvider>
       <QueryProvider>
         <SafeAreaProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <NotificationBannerProvider>
+            <NavigationContainer ref={navigationRef}>
+              <RootNavigator />
+            </NavigationContainer>
+          </NotificationBannerProvider>
         </SafeAreaProvider>
       </QueryProvider>
     </AuthProvider>

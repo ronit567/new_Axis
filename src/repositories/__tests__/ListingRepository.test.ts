@@ -12,6 +12,7 @@ function makeQueryBuilder<T>(result: QueryResult<T>) {
   const builder: any = {
     select: jest.fn(() => builder),
     eq: jest.fn(() => builder),
+    neq: jest.fn(() => builder),
     order: jest.fn(() => builder),
     range: jest.fn(() => builder),
     in: jest.fn(() => builder),
@@ -122,6 +123,17 @@ describe('ListingRepository.getAll', () => {
     expect(listingsBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(listingsBuilder.range).toHaveBeenCalledWith(0, LISTINGS_PAGE_SIZE - 1);
     expect(listingsBuilder.eq).not.toHaveBeenCalledWith('category', expect.anything());
+  });
+
+  it("excludes the caller's own listings so they don't appear in their own feed", async () => {
+    const { listingsBuilder } = mockQueries({
+      listings: { data: [makeListingRow()], error: null },
+      sellers: { data: [seller], error: null },
+    });
+
+    await ListingRepository.getAll('user-1');
+
+    expect(listingsBuilder.neq).toHaveBeenCalledWith('seller_id', 'user-1');
   });
 
   it('filters by category when provided and offsets by page', async () => {
@@ -380,15 +392,24 @@ describe('ListingRepository.getBySeller', () => {
     await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('network down');
   });
 
-  it('throws when the save-counts RPC errors', async () => {
-    const listingsBuilder = makeQueryBuilder({ data: [makeListingRow({ id: 'l1' })], error: null });
+  it('still returns the listings (with 0 saves) when the save-counts RPC errors', async () => {
+    // Save counts are secondary metadata; a failing/absent RPC must not zero
+    // out the owner's own-listings view (the Profile-shows-empty bug). The
+    // listings still load, just with saves defaulted to 0.
+    const listingsBuilder = makeQueryBuilder({
+      data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })],
+      error: null,
+    });
     mockFrom.mockImplementation((table: string) => {
       if (table === 'listings') return listingsBuilder;
       throw new Error(`Unexpected table: ${table}`);
     });
     mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
 
-    await expect(ListingRepository.getBySeller(seller.id)).rejects.toThrow('rpc failed');
+    const result = await ListingRepository.getBySeller(seller.id);
+
+    expect(result.map((l) => l.id)).toEqual(['l1', 'l2']);
+    expect(result.every((l) => l.saves === 0)).toBe(true);
   });
 });
 
@@ -538,6 +559,7 @@ function createSearchBuilder(result: SearchQueryResult) {
   const builder: any = {
     select: (...args: any[]) => { record('select', args); return builder; },
     eq: (...args: any[]) => { record('eq', args); return builder; },
+    neq: (...args: any[]) => { record('neq', args); return builder; },
     ilike: (...args: any[]) => { record('ilike', args); return builder; },
     or: (...args: any[]) => { record('or', args); return builder; },
     in: (...args: any[]) => { record('in', args); return builder; },
@@ -731,6 +753,16 @@ describe('ListingRepository.search', () => {
     expect(items.find((r) => r.id === 'l2')?.saved).toBe(false);
     expect(searchSavedBuilder.calls.eq).toEqual([['user_id', 'u1']]);
     expect(searchSavedBuilder.calls.in).toEqual([['listing_id', ['l1', 'l2']]]);
+  });
+
+  it("excludes the caller's own listings, same as the home feed, when a user is given", async () => {
+    await ListingRepository.search('', {}, 'u1');
+    expect(searchListingsBuilder.calls.neq).toEqual([['seller_id', 'u1']]);
+  });
+
+  it('does not filter by seller for a signed-out search (no current user)', async () => {
+    await ListingRepository.search('', {});
+    expect(searchListingsBuilder.calls.neq).toBeUndefined();
   });
 
   it('throws when the listings query errors', async () => {
