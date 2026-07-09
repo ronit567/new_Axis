@@ -13,9 +13,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
+import RemoteImage from '../components/RemoteImage';
 import ReportModal from '../components/ReportModal';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -201,9 +201,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             onMomentumScrollEnd={handleGalleryScrollEnd}
           >
             {listing.imageUrls.map((uri, i) => (
-              <Image
+              <RemoteImage
                 key={uri + i}
-                source={{ uri }}
+                uri={uri}
                 style={[
                   styles.imagePlaceholder,
                   { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
