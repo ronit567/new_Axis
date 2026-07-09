@@ -961,6 +961,54 @@ describe('ListingRepository.relist', () => {
   });
 });
 
+describe('ListingRepository.updateListing', () => {
+  it('updates the given patch scoped to the owner', async () => {
+    const listingsBuilder = makeQueryBuilder({ data: null, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await ListingRepository.updateListing('l1', seller.id, { price: 20, description: 'Updated' });
+
+    expect(listingsBuilder.update).toHaveBeenCalledWith({ price: 20, description: 'Updated' });
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+    expect(listingsBuilder.eq).toHaveBeenCalledWith('seller_id', seller.id);
+  });
+
+  it('throws when the update errors (e.g. the engaged-listing guard rejects it)', async () => {
+    const listingsBuilder = makeQueryBuilder({
+      data: null,
+      error: new Error('listing_edit_requires_review'),
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'listings') return listingsBuilder;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    await expect(
+      ListingRepository.updateListing('l1', seller.id, { title: 'New title' }),
+    ).rejects.toThrow('listing_edit_requires_review');
+  });
+});
+
+describe('ListingRepository.isEngaged', () => {
+  it('calls the is_listing_engaged RPC with the listing id', async () => {
+    mockRpc.mockResolvedValue({ data: true, error: null });
+
+    const result = await ListingRepository.isEngaged('l1');
+
+    expect(mockRpc).toHaveBeenCalledWith('is_listing_engaged', { p_listing_id: 'l1' });
+    expect(result).toBe(true);
+  });
+
+  it('throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
+
+    await expect(ListingRepository.isEngaged('l1')).rejects.toThrow('network down');
+  });
+});
+
 describe('ListingRepository.deleteListing', () => {
   it('hard-deletes scoped to the owner', async () => {
     const listingsBuilder = makeQueryBuilder({ data: null, error: null });
