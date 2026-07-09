@@ -46,6 +46,14 @@
 // MANUAL ADDITION (pending regen): the `create_test_notification` function was
 // hand-added alongside migration 0017 (dev test-notification RPC). Same deal.
 //
+// MANUAL ADDITION (pending regen): the `follows` table + FollowRow alias were
+// hand-added alongside migration 0019 (persisted profile follows). Drop this
+// note once regenerated.
+//
+// MANUAL ADDITION (pending regen): the `reviews` table + ReviewRow alias were
+// hand-added alongside migration 0020 (seller reviews). Drop this note once
+// regenerated.
+//
 // Boundary rule: only src/repositories/ imports these types.
 // Screens and hooks speak domain types from src/types/index.ts, never row types.
 
@@ -87,6 +95,39 @@ export type Database = {
           {
             foreignKeyName: "blocks_blocked_id_fkey"
             columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follows_followee_id_fkey"
+            columns: ["followee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -359,6 +400,48 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          rating: number
+          reviewer_id: string
+          seller_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          rating: number
+          reviewer_id: string
+          seller_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          reviewer_id?: string
+          seller_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_listings: {
         Row: {
           created_at: string
@@ -470,5 +553,7 @@ export type ConversationListRow = DefaultSchema['Views']['conversation_list']['R
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 export type ReportRow = DefaultSchema['Tables']['reports']['Row']
+export type FollowRow = DefaultSchema['Tables']['follows']['Row']
+export type ReviewRow = DefaultSchema['Tables']['reviews']['Row']
 
 export type ListingStatus = 'active' | 'sold'

@@ -10,26 +10,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
+import ReviewCard from '../components/ReviewCard';
 import { useMyListings } from '../hooks/useListings';
-import { useSavedListings } from '../hooks/useSavedListings';
 import { useCurrentProfile } from '../hooks/useProfile';
+import { useFollowing } from '../hooks/useFollows';
+import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
-};
-
-type IoniconsName = ComponentProps<typeof Ionicons>['name'];
-
-type MenuItem = {
-  icon: IoniconsName;
-  label: string;
-  target: 'EditProfile' | 'Settings' | null;
 };
 
 const { width } = Dimensions.get('window');
@@ -58,30 +51,23 @@ function HatchedThumb({ isSold }: { isSold: boolean }) {
   );
 }
 
-
-const MENU: MenuItem[] = [
-  { icon: 'create-outline', label: 'Edit profile', target: 'EditProfile' },
-  { icon: 'help-circle-outline', label: 'Help & support', target: null },
-  { icon: 'settings-outline', label: 'Settings', target: 'Settings' },
-];
-
 export default function ProfileScreen({ navigation }: Props) {
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [] } = useMyListings();
-  const { data: savedListings = [] } = useSavedListings();
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
   const { data: profile } = useCurrentProfile();
+  const { data: followingList = [] } = useFollowing();
+  // What others wrote about me (0020). Also feeds the stats bar's Reviews
+  // cell — profile.rating/reviewCount are the mapper's deferred zeros, never
+  // shown.
+  const { data: myReviews = [] } = useSellerReviews(profile?.id ?? '');
+  const averageRating =
+    myReviews.length > 0
+      ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
+      : 0;
   const listingsPreview = myListings.slice(0, 3);
-
-  // Stats derive from the same queries as the previews so the numbers can't
-  // drift from the listings actually shown below.
-  const stats: [string, string][] = [
-    [String(myListings.filter((l) => l.status === 'active').length), 'Listings'],
-    [String(myListings.filter((l) => l.status === 'sold').length), 'Sold'],
-    [String(savedListings.length), 'Saved'],
-  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -113,35 +99,62 @@ export default function ProfileScreen({ navigation }: Props) {
           />
           <View style={styles.nameRow}>
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
+            {profile?.verified && (
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
+            )}
           </View>
           <Text style={styles.programText}>
             {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
           </Text>
-          {/* rating/reviewCount are deferred to AX-702; the mapper returns 0
-              until then, and the convention is to hide the block rather than
-              show a "0.0 (0)" that reads as a real zero-star rating. */}
-          {(profile?.reviewCount ?? 0) > 0 && (
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color={COLORS.warning} />
-              <Text style={styles.ratingScore}> {profile!.rating.toFixed(1)} </Text>
-              <Text style={styles.ratingCount}>({profile!.reviewCount})</Text>
-            </View>
-          )}
+          {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
+          <TouchableOpacity
+            style={styles.followingLink}
+            onPress={() => navigation.navigate('Following')}
+            accessibilityRole="button"
+            accessibilityLabel={`${followingList.length} following`}
+          >
+            <Text style={styles.followingLinkText}>{followingList.length} Following</Text>
+          </TouchableOpacity>
+          <PressableScale
+            style={styles.editPill}
+            onPress={() => navigation.navigate('EditProfile')}
+            scaleTo={0.95}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+          >
+            <Ionicons name="create-outline" size={15} color={COLORS.primary} />
+            <Text style={styles.editPillText}>Edit profile</Text>
+          </PressableScale>
         </View>
 
         {/* ── Stats bar ── */}
         <View style={styles.statsCard}>
-          {stats.map(
-            ([n, l], i) => (
-              <React.Fragment key={l}>
-                {i > 0 && <View style={styles.statDivider} />}
-                <View style={styles.statCell}>
-                  <Text style={styles.statNum}>{n}</Text>
-                  <Text style={styles.statLabel}>{l}</Text>
-                </View>
-              </React.Fragment>
-            ),
-          )}
+          <TouchableOpacity
+            style={styles.statCell}
+            onPress={() => navigation.navigate('ManageListings')}
+            activeOpacity={0.6}
+            accessibilityRole="button"
+            accessibilityLabel={`${myListings.filter((l) => l.status === 'active').length} Listings`}
+          >
+            <Text style={styles.statNum}>
+              {myListings.filter((l) => l.status === 'active').length}
+            </Text>
+            <Text style={styles.statLabel}>Listings</Text>
+          </TouchableOpacity>
+          <View style={styles.statDivider} />
+          <View style={styles.statCell}>
+            <View style={styles.statNumRow}>
+              {myReviews.length > 0 ? (
+                <>
+                  <Ionicons name="star" size={14} color={COLORS.warning} />
+                  <Text style={styles.statNum}> {averageRating.toFixed(1)}</Text>
+                </>
+              ) : (
+                <Text style={styles.statNum}>—</Text>
+              )}
+            </View>
+            <Text style={styles.statLabel}>Reviews</Text>
+          </View>
         </View>
 
         {/* ── My Listings ── */}
@@ -181,28 +194,17 @@ export default function ProfileScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* ── Menu card ── */}
-        <View style={styles.menuCard}>
-          {MENU.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[
-                styles.menuRow,
-                i < MENU.length - 1 ? styles.menuRowBorder : null,
-              ]}
-              onPress={() => item.target ? navigation.navigate(item.target) : null}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuLeft}>
-                <View style={styles.menuIconBox}>
-                  <Ionicons name={item.icon} size={16} color={COLORS.primary} />
-                </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* ── Reviews about me ── */}
+        {myReviews.length > 0 && (
+          <View style={styles.reviewsBlock}>
+            <Text style={styles.listingsTitle}>Reviews ({myReviews.length})</Text>
+            <View style={styles.reviewsList}>
+              {myReviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
     </SafeAreaView>
@@ -263,18 +265,39 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: 6,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingScore: {
-    fontSize: SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  ratingCount: {
+  bioText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 40,
+    marginBottom: 6,
+  },
+  followingLink: {
+    marginBottom: 10,
+  },
+  followingLinkText: {
+    fontSize: SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  editPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
+    ...SHADOWS.card,
+  },
+  editPillText: {
+    fontSize: SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 
   /* stats */
@@ -295,6 +318,10 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: COLORS.divider,
     marginVertical: 4,
+  },
+  statNumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statNum: {
     fontSize: SIZES.xl,
@@ -383,39 +410,13 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
 
-  /* menu */
-  menuCard: {
-    backgroundColor: COLORS.white,
+  /* reviews */
+  reviewsBlock: {
     marginHorizontal: H_PAD,
-    borderRadius: SIZES.borderRadius,
-    paddingHorizontal: 16,
-    ...SHADOWS.card,
+    marginTop: 8,
   },
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-  },
-  menuRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  menuIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuLabel: {
-    fontSize: SIZES.base,
-    color: COLORS.text,
+  reviewsList: {
+    gap: 10,
+    marginTop: 12,
   },
 });

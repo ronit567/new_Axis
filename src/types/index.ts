@@ -131,6 +131,20 @@ export type Conversation = {
   type: 'Buying' | 'Selling';
 };
 
+// A written seller review (migration 0020). Screens compute the average
+// rating / count by aggregating these — the SellerProfile.rating field stays
+// the deferred-to-AX-702 zero and is not used for display anymore.
+export type Review = {
+  id: string;
+  sellerId: string;
+  // Reviewer display info; reviewer.id is always set (needed to spot "my"
+  // review so the write modal seeds an edit instead of a duplicate).
+  reviewer: Contact;
+  rating: number; // 1–5 stars
+  body: string;
+  timeAgo: string; // relative label via timeAgo ("2d ago")
+};
+
 // AX-703: report + block. ReportTarget mirrors the ReportModal UI's three
 // entry points (listing detail, seller profile, chat); ReportReason is the
 // finite list its reason picker offers. Single source of truth for both the
@@ -146,6 +160,8 @@ export type RootStackParamList = {
   SetupProfile: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  // Who the current user follows (reached from the Profile tab's stats bar).
+  Following: undefined;
   ManageListings: undefined;
   Settings: undefined;
   Main: undefined;

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -13,10 +14,15 @@ import { StatusBar } from 'expo-status-bar';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
+import ReviewCard from '../components/ReviewCard';
+import WriteReviewModal from '../components/WriteReviewModal';
 import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
+import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
+import { useSellerReviews, useUpsertReview } from '../hooks/useReviews';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import PressableScale from '../components/PressableScale';
@@ -27,14 +33,47 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SellerProfile'>;
 
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { seller } = route.params;
-  const [following, setFollowing] = useState(false);
+  const { user } = useAuth();
   const [reportVisible, setReportVisible] = useState(false);
+  const [reviewVisible, setReviewVisible] = useState(false);
   const { data: sellerListings = [], isLoading: listingsLoading } = useSellerListings(seller.id);
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
   const blockUser = useBlockUser();
+  // Reachable with your own profile (e.g. via a chat with yourself in dev, or
+  // deep links later) — hide partner-only actions rather than render a
+  // "Follow yourself" button.
+  const isOwnProfile = user?.id === seller.id;
+  const { data: following = false } = useIsFollowing(seller.id);
+  const toggleFollow = useToggleFollow();
 
-  const stars = Math.round(seller.rating);
+  // Live rating from real reviews — seller.rating in the route param is the
+  // mapper's deferred 0 and never trustworthy for display.
+  const { data: reviews = [] } = useSellerReviews(seller.id);
+  const upsertReview = useUpsertReview();
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+  const stars = Math.round(averageRating);
+  const myReview = reviews.find((r) => r.reviewer.id === user?.id);
+
+  const handleSubmitReview = async (rating: number, body: string) => {
+    try {
+      await upsertReview.mutateAsync({ sellerId: seller.id, rating, body });
+      setReviewVisible(false);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '';
+      Alert.alert(
+        'Review not submitted',
+        // The 0020 INSERT policy requires an existing chat with the seller —
+        // translate its bare RLS rejection into the actual rule.
+        /row-level security/i.test(message)
+          ? `You can only review someone you've chatted with on Axis. Message ${seller.name} first.`
+          : message || 'Please try again.',
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -83,10 +122,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           <Text style={styles.joinedText}>
             {seller.program} · Joined {seller.joinedDate}
           </Text>
-          {/* rating/reviewCount are deferred to AX-702 (mapper returns 0);
-              hide the block until reviews exist rather than showing an empty
+          {!!seller.stats.replyTime && (
+            <Text style={styles.replyTimeText}>Replies {seller.stats.replyTime}</Text>
+          )}
+          {/* Hidden until reviews exist rather than showing an empty
               zero-star "0 (0 reviews)". */}
-          {seller.reviewCount > 0 && (
+          {reviews.length > 0 && (
             <View style={styles.ratingRow}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <Ionicons
@@ -97,7 +138,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 />
               ))}
               <Text style={styles.ratingText}>
-                {seller.rating} ({seller.reviewCount} reviews)
+                {averageRating.toFixed(1)} ({reviews.length}{' '}
+                {reviews.length === 1 ? 'review' : 'reviews'})
               </Text>
             </View>
           )}
@@ -121,48 +163,58 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{seller.stats.replyTime}</Text>
-            <Text style={styles.statLabel}>Replies</Text>
+            {reviews.length > 0 ? (
+              <View style={styles.statValueRow}>
+                <Ionicons name="star" size={16} color={COLORS.warning} />
+                <Text style={styles.statValue}> {averageRating.toFixed(1)}</Text>
+              </View>
+            ) : (
+              <Text style={styles.statValue}>—</Text>
+            )}
+            <Text style={styles.statLabel}>Rating</Text>
           </View>
         </View>
 
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          <PressableScale
-            style={styles.messageBtn}
-            scaleTo={0.97}
-            onPress={() => {
-              haptics.tap();
-              // No listing context from a profile page — this opens (or
-              // continues) the general thread with this seller.
-              navigation.navigate('Chat', {
-                listingId: null,
-                partnerId: seller.id,
-                partner: {
-                  id: seller.id,
-                  initials: seller.initials,
-                  name: seller.name,
-                  avatarColor: seller.avatarColor,
-                  avatarUrl: seller.avatarUrl,
-                },
-              });
-            }}
-          >
-            <Text style={styles.messageBtnText}>Message</Text>
-          </PressableScale>
-          <PressableScale
-            style={[styles.followBtn, following ? styles.followBtnActive : null]}
-            scaleTo={0.97}
-            onPress={() => {
-              haptics.tap();
-              setFollowing(f => !f);
-            }}
-          >
-            <Text style={[styles.followBtnText, following ? styles.followBtnTextActive : null]}>
-              {following ? 'Following' : 'Follow'}
-            </Text>
-          </PressableScale>
-        </View>
+        {/* Action buttons — partner-only; there's no messaging or following
+            yourself. */}
+        {!isOwnProfile && (
+          <View style={styles.actionRow}>
+            <PressableScale
+              style={styles.messageBtn}
+              scaleTo={0.97}
+              onPress={() => {
+                haptics.tap();
+                // No listing context from a profile page — this opens (or
+                // continues) the general thread with this seller.
+                navigation.navigate('Chat', {
+                  listingId: null,
+                  partnerId: seller.id,
+                  partner: {
+                    id: seller.id,
+                    initials: seller.initials,
+                    name: seller.name,
+                    avatarColor: seller.avatarColor,
+                    avatarUrl: seller.avatarUrl,
+                  },
+                });
+              }}
+            >
+              <Text style={styles.messageBtnText}>Message</Text>
+            </PressableScale>
+            <PressableScale
+              style={[styles.followBtn, following ? styles.followBtnActive : null]}
+              scaleTo={0.97}
+              onPress={() => {
+                haptics.tap();
+                toggleFollow.mutate({ sellerId: seller.id, next: !following });
+              }}
+            >
+              <Text style={[styles.followBtnText, following ? styles.followBtnTextActive : null]}>
+                {following ? 'Following' : 'Follow'}
+              </Text>
+            </PressableScale>
+          </View>
+        )}
 
         {/* Active Listings */}
         <View style={styles.listingsSection}>
@@ -190,7 +242,51 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             />
           )}
         </View>
+
+        {/* Reviews */}
+        <View style={styles.reviewsSection}>
+          <View style={styles.reviewsHeader}>
+            <Text style={styles.sectionTitle}>
+              Reviews{reviews.length > 0 ? ` (${reviews.length})` : ''}
+            </Text>
+            {!isOwnProfile && (
+              <PressableScale
+                onPress={() => {
+                  haptics.tap();
+                  setReviewVisible(true);
+                }}
+                scaleTo={0.95}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={styles.writeReviewText}>
+                  {myReview ? 'Edit your review' : 'Write a review'}
+                </Text>
+              </PressableScale>
+            )}
+          </View>
+          {reviews.length > 0 ? (
+            <View style={styles.reviewsList}>
+              {reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noReviewsText}>
+              No reviews yet.
+              {isOwnProfile ? '' : ` Chatted with ${seller.name}? Leave the first one.`}
+            </Text>
+          )}
+        </View>
       </ScrollView>
+      <WriteReviewModal
+        visible={reviewVisible}
+        sellerName={seller.name}
+        initialRating={myReview?.rating}
+        initialBody={myReview?.body}
+        submitting={upsertReview.isPending}
+        onClose={() => setReviewVisible(false)}
+        onSubmit={handleSubmitReview}
+      />
       <ReportModal
         visible={reportVisible}
         target="user"
@@ -258,6 +354,11 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginBottom: 8,
   },
+  replyTimeText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: 8,
+  },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -287,6 +388,11 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 3,
     fontVariant: ['tabular-nums'],
+  },
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
   },
   statLabel: {
     fontSize: 12,
@@ -358,5 +464,27 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: '47%',
+  },
+  reviewsSection: {
+    paddingHorizontal: 20,
+    marginTop: 28,
+  },
+  reviewsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  writeReviewText: {
+    fontSize: SIZES.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  reviewsList: {
+    gap: 10,
+  },
+  noReviewsText: {
+    fontSize: SIZES.sm,
+    color: COLORS.textSecondary,
   },
 });

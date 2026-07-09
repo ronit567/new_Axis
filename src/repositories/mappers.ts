@@ -13,10 +13,17 @@ import type {
   MyListing,
   Notification,
   NotificationType,
+  Review,
   Seller,
   SellerProfile,
 } from '../types';
-import type { ListingRow, MessageRow, NotificationRow, ProfileRow } from '../types/database';
+import type {
+  ListingRow,
+  MessageRow,
+  NotificationRow,
+  ProfileRow,
+  ReviewRow,
+} from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
 // --- Deterministic placeholder palettes -------------------------------------
@@ -160,6 +167,22 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     stats,
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
     avatarUrl: row.avatar_url,
+  };
+}
+
+// --- Reviews (0020) -----------------------------------------------------------
+
+// `reviewer` is non-null by contract: ReviewRepository drops rows whose
+// reviewer profile is RLS-hidden before mapping (same convention as
+// NotificationRepository dropping actorless notifications).
+export function toReview(row: ReviewRow, reviewer: ProfileRow): Review {
+  return {
+    id: row.id,
+    sellerId: row.seller_id,
+    reviewer: toContact(reviewer),
+    rating: row.rating,
+    body: row.body,
+    timeAgo: timeAgo(row.created_at),
   };
 }
 

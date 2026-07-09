@@ -34,6 +34,7 @@ import SetupProfileScreen from './src/screens/SetupProfileScreen';
 import MainScreen from './src/screens/MainScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import FollowingScreen from './src/screens/FollowingScreen';
 import ManageListingsScreen from './src/screens/ManageListingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -107,6 +108,7 @@ function RootNavigator() {
           <Stack.Screen name="Main" component={MainScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+          <Stack.Screen name="Following" component={FollowingScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           {/* No stack animation at all: Search mounts with header geometry
