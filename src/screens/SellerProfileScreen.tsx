@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -59,8 +60,41 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     reviews.length > 0
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
       : 0;
-  const stars = Math.round(averageRating);
   const myReview = reviews.find((r) => r.reviewer.id === user?.id);
+
+  // Muted trust-row segments, " · "-separated — rating (tappable, jumps to
+  // the Reviews tab), sold count, and join date. seller.stats.sold is the
+  // deferred zero (AX-702) until the aggregate RPC lands, so it's omitted
+  // rather than shown as "0 sold".
+  const trustSegments: React.ReactNode[] = [];
+  if (reviews.length > 0) {
+    trustSegments.push(
+      <TouchableOpacity
+        key="rating"
+        style={styles.trustSegmentRow}
+        onPress={() => setActiveTab(1)}
+        accessibilityRole="button"
+        accessibilityLabel={`${averageRating.toFixed(1)} stars, ${reviews.length} reviews`}
+      >
+        <Ionicons name="star" size={13} color={COLORS.warning} />
+        <Text style={styles.trustText}> {averageRating.toFixed(1)} ({reviews.length})</Text>
+      </TouchableOpacity>,
+    );
+  }
+  if (seller.stats.sold > 0) {
+    trustSegments.push(
+      <Text key="sold" style={styles.trustText}>
+        {seller.stats.sold} sold
+      </Text>,
+    );
+  }
+  if (seller.joinedDate) {
+    trustSegments.push(
+      <Text key="joined" style={styles.trustText}>
+        Joined {seller.joinedDate}
+      </Text>,
+    );
+  }
 
   const handleSubmitReview = async (rating: number, body: string) => {
     try {
@@ -120,63 +154,27 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             style={styles.avatar}
             textStyle={styles.avatarText}
           />
-          <View style={styles.nameRow}>
-            <Text style={styles.sellerName}>{seller.name}</Text>
-          </View>
-          <Text style={styles.joinedText}>
-            {seller.program} · Joined {seller.joinedDate}
-          </Text>
+          <Text style={styles.sellerName}>{seller.name}</Text>
+          {seller.verified && (
+            <View style={styles.verifiedPill}>
+              <Ionicons name="checkmark-circle" size={13} color={COLORS.primary} />
+              <Text style={styles.verifiedPillText}>Verified student</Text>
+            </View>
+          )}
+          <Text style={styles.joinedText}>{seller.program}</Text>
+          {trustSegments.length > 0 && (
+            <View style={styles.trustRow}>
+              {trustSegments.map((segment, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <Text style={styles.trustDot}> · </Text>}
+                  {segment}
+                </React.Fragment>
+              ))}
+            </View>
+          )}
           {!!seller.stats.replyTime && (
             <Text style={styles.replyTimeText}>Replies {seller.stats.replyTime}</Text>
           )}
-          {/* Hidden until reviews exist rather than showing an empty
-              zero-star "0 (0 reviews)". */}
-          {reviews.length > 0 && (
-            <View style={styles.ratingRow}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Ionicons
-                  key={i}
-                  name={i < stars ? 'star' : 'star-outline'}
-                  size={14}
-                  color={COLORS.warning}
-                />
-              ))}
-              <Text style={styles.ratingText}>
-                {averageRating.toFixed(1)} ({reviews.length}{' '}
-                {reviews.length === 1 ? 'review' : 'reviews'})
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Stats row. Listings comes from the real active listings we fetch
-            below so the count can't contradict the grid. Sold stays from the
-            profile (0 for now): listings_select_public (0002) only exposes a
-            seller's ACTIVE listings to non-owners, so another user's sold
-            count isn't queryable client-side — it needs the deferred
-            aggregate RPC (AX-702), same as rating/reviewCount. */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{sellerListings.length}</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{seller.stats.sold}</Text>
-            <Text style={styles.statLabel}>Sold</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            {reviews.length > 0 ? (
-              <View style={styles.statValueRow}>
-                <Ionicons name="star" size={16} color={COLORS.warning} />
-                <Text style={styles.statValue}> {averageRating.toFixed(1)}</Text>
-              </View>
-            ) : (
-              <Text style={styles.statValue}>—</Text>
-            )}
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
         </View>
 
         {/* Action buttons — partner-only; there's no messaging or following
@@ -348,71 +346,53 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
   sellerName: {
     fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.text,
+    marginBottom: 6,
+  },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginBottom: 8,
+  },
+  verifiedPillText: {
+    fontSize: SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   joinedText: {
     fontSize: 13,
     color: COLORS.textMuted,
     marginBottom: 8,
   },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  trustSegmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trustText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  trustDot: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
   replyTimeText: {
     fontSize: 13,
     color: COLORS.textMuted,
     marginBottom: 8,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  ratingText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 16,
-    paddingVertical: 16,
-    marginBottom: 20,
-    ...SHADOWS.card,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
-    marginBottom: 3,
-    fontVariant: ['tabular-nums'],
-  },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: COLORS.divider,
-    alignSelf: 'center',
   },
   actionRow: {
     flexDirection: 'row',

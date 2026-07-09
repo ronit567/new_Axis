@@ -62,15 +62,49 @@ export default function ProfileScreen({ navigation }: Props) {
   // the time the main app renders; the fallbacks only cover a cold refetch.
   const { data: profile } = useCurrentProfile();
   const { data: followingList = [] } = useFollowing();
-  // What others wrote about me (0020). Also feeds the stats bar's Reviews
-  // cell — profile.rating/reviewCount are the mapper's deferred zeros, never
-  // shown.
+  // What others wrote about me (0020). Also feeds the trust row's rating
+  // segment — profile.rating/reviewCount are the mapper's deferred zeros,
+  // never shown.
   const { data: myReviews = [] } = useSellerReviews(profile?.id ?? '');
   const averageRating =
     myReviews.length > 0
       ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length
       : 0;
   const [activeTab, setActiveTab] = useState(0);
+  const soldCount = myListings.filter((l) => l.status === 'sold').length;
+
+  // Muted trust-row segments, " · "-separated — rating (tappable, jumps to
+  // the Reviews tab), sold count, and join date. Each is omitted when not
+  // applicable rather than showing a hollow "0 sold".
+  const trustSegments: React.ReactNode[] = [];
+  if (myReviews.length > 0) {
+    trustSegments.push(
+      <TouchableOpacity
+        key="rating"
+        style={styles.trustSegmentRow}
+        onPress={() => setActiveTab(1)}
+        accessibilityRole="button"
+        accessibilityLabel={`${averageRating.toFixed(1)} stars, ${myReviews.length} reviews`}
+      >
+        <Ionicons name="star" size={13} color={COLORS.warning} />
+        <Text style={styles.trustText}> {averageRating.toFixed(1)} ({myReviews.length})</Text>
+      </TouchableOpacity>,
+    );
+  }
+  if (soldCount > 0) {
+    trustSegments.push(
+      <Text key="sold" style={styles.trustText}>
+        {soldCount} sold
+      </Text>,
+    );
+  }
+  if (profile?.joinedDate) {
+    trustSegments.push(
+      <Text key="joined" style={styles.trustText}>
+        Joined {profile.joinedDate}
+      </Text>,
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -100,15 +134,26 @@ export default function ProfileScreen({ navigation }: Props) {
             style={styles.avatar}
             textStyle={styles.avatarText}
           />
-          <View style={styles.nameRow}>
-            <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
-            {profile?.verified && (
-              <Ionicons name="checkmark-circle" size={18} color={COLORS.primary} />
-            )}
-          </View>
+          <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
+          {profile?.verified && (
+            <View style={styles.verifiedPill}>
+              <Ionicons name="checkmark-circle" size={13} color={COLORS.primary} />
+              <Text style={styles.verifiedPillText}>Verified student</Text>
+            </View>
+          )}
           <Text style={styles.programText}>
             {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
           </Text>
+          {trustSegments.length > 0 && (
+            <View style={styles.trustRow}>
+              {trustSegments.map((segment, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <Text style={styles.trustDot}> · </Text>}
+                  {segment}
+                </React.Fragment>
+              ))}
+            </View>
+          )}
           {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
           <TouchableOpacity
             style={styles.followingLink}
@@ -128,36 +173,6 @@ export default function ProfileScreen({ navigation }: Props) {
             <Ionicons name="create-outline" size={15} color={COLORS.primary} />
             <Text style={styles.editPillText}>Edit profile</Text>
           </PressableScale>
-        </View>
-
-        {/* ── Stats bar ── */}
-        <View style={styles.statsCard}>
-          <TouchableOpacity
-            style={styles.statCell}
-            onPress={() => navigation.navigate('ManageListings')}
-            activeOpacity={0.6}
-            accessibilityRole="button"
-            accessibilityLabel={`${myListings.filter((l) => l.status === 'active').length} Listings`}
-          >
-            <Text style={styles.statNum}>
-              {myListings.filter((l) => l.status === 'active').length}
-            </Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </TouchableOpacity>
-          <View style={styles.statDivider} />
-          <View style={styles.statCell}>
-            <View style={styles.statNumRow}>
-              {myReviews.length > 0 ? (
-                <>
-                  <Ionicons name="star" size={14} color={COLORS.warning} />
-                  <Text style={styles.statNum}> {averageRating.toFixed(1)}</Text>
-                </>
-              ) : (
-                <Text style={styles.statNum}>—</Text>
-              )}
-            </View>
-            <Text style={styles.statLabel}>Reviews</Text>
-          </View>
         </View>
 
         {/* ── Tabs ── */}
@@ -263,21 +278,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.primary,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
   nameText: {
     fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.text,
+    marginBottom: 4,
+  },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginBottom: 6,
+  },
+  verifiedPillText: {
+    fontSize: SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   programText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
     marginBottom: 6,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  trustSegmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trustText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  trustDot: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
   },
   bioText: {
     fontSize: SIZES.sm,
@@ -312,41 +354,6 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     fontWeight: '600',
     color: COLORS.primary,
-  },
-
-  /* stats */
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.white,
-    marginHorizontal: H_PAD,
-    borderRadius: SIZES.borderRadius,
-    paddingVertical: 16,
-    marginBottom: 20,
-    ...SHADOWS.card,
-  },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.divider,
-    marginVertical: 4,
-  },
-  statNumRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statNum: {
-    fontSize: SIZES.xl,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: {
-    fontSize: SIZES.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
   },
 
   /* tabs */
