@@ -86,11 +86,11 @@ export default function CreateListingScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.sectionHeading}>Photos</Text>
-          <Text style={styles.sectionHint}>
-            Add up to {MAX_PHOTOS} — the first photo is your cover.
-          </Text>
-          <View style={styles.field}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Photos</Text>
+            <Text style={styles.cardHint}>
+              Add up to {MAX_PHOTOS} — the first photo is your cover.
+            </Text>
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
@@ -99,40 +99,44 @@ export default function CreateListingScreen({ navigation }: Props) {
             />
           </View>
 
-          <Text style={styles.sectionHeading}>Title</Text>
-          <View style={styles.field}>
-            <TitleField value={form.title} onChange={form.setTitle} />
-          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Listing details</Text>
 
-          <Text style={styles.sectionHeading}>Description</Text>
-          <View style={styles.field}>
-            <DescriptionField value={form.description} onChange={form.setDescription} />
-          </View>
+            <Text style={styles.fieldLabel}>Title</Text>
+            <View style={styles.field}>
+              <TitleField value={form.title} onChange={form.setTitle} />
+            </View>
 
-          <Text style={styles.sectionHeading}>Category</Text>
-          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Description</Text>
+            <View style={styles.field}>
+              <DescriptionField value={form.description} onChange={form.setDescription} />
+            </View>
+
+            <Text style={styles.fieldLabel}>Category</Text>
             <CategoryDropdown value={form.category} onChange={form.setCategory} />
           </View>
 
-          <Text style={styles.sectionHeading}>Price</Text>
-          <View style={styles.field}>
-            <PriceToggles
-              price={form.price}
-              onPriceChange={form.setPrice}
-              isFree={form.isFree}
-              onToggleFree={form.handleFree}
-              isTrade={form.isTrade}
-              onToggleTrade={form.handleTrade}
-            />
-          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Price &amp; pickup</Text>
 
-          <Text style={styles.sectionHeading}>Condition</Text>
-          <View style={styles.field}>
-            <ConditionSelector value={form.condition} onChange={form.setCondition} />
-          </View>
+            <Text style={styles.fieldLabel}>Price</Text>
+            <View style={styles.field}>
+              <PriceToggles
+                price={form.price}
+                onPriceChange={form.setPrice}
+                isFree={form.isFree}
+                onToggleFree={form.handleFree}
+                isTrade={form.isTrade}
+                onToggleTrade={form.handleTrade}
+              />
+            </View>
 
-          <Text style={styles.sectionHeading}>Pickup spot</Text>
-          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Condition</Text>
+            <View style={styles.field}>
+              <ConditionSelector value={form.condition} onChange={form.setCondition} />
+            </View>
+
+            <Text style={styles.fieldLabel}>Pickup spot</Text>
             <PickupPicker value={form.pickup} onChange={form.setPickup} />
           </View>
         </ScrollView>
@@ -159,7 +163,7 @@ export default function CreateListingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#EDEAF6',
   },
   header: {
     flexDirection: 'row',
@@ -167,6 +171,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
@@ -189,23 +194,35 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 140,
   },
-  sectionHeading: {
-    fontSize: SIZES.md,
-    fontFamily: FONTS.semibold,
-    color: COLORS.text,
-    marginBottom: 10,
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusLg,
+    padding: 16,
+    marginBottom: 16,
+    ...SHADOWS.card,
   },
-  sectionHint: {
+  cardTitle: {
+    fontSize: SIZES.lg,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  cardHint: {
     fontSize: SIZES.sm,
     color: COLORS.textMuted,
-    marginTop: -6,
     marginBottom: 12,
   },
+  fieldLabel: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
+  },
   field: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   footer: {
     position: 'absolute',

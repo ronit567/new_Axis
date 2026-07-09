@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { COLORS, SIZES } from '../../constants/theme';
+import LockedHint from './LockedHint';
 
 type Props = {
   value: string;
@@ -29,12 +29,7 @@ export default function TitleField({ value, onChange, locked, onLockedPress }: P
         />
         {locked && <Pressable style={StyleSheet.absoluteFill} onPress={onLockedPress} />}
       </View>
-      {locked && (
-        <View style={styles.lockedHint}>
-          <Ionicons name="lock-closed-outline" size={13} color={COLORS.textMuted} />
-          <Text style={styles.lockedHintText}>Title requires review to change</Text>
-        </View>
-      )}
+      {locked && <LockedHint label="Title requires review to change" />}
     </View>
   );
 }
@@ -49,15 +44,5 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     color: COLORS.text,
     backgroundColor: COLORS.white,
-  },
-  lockedHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  lockedHintText: {
-    fontSize: SIZES.xs,
-    color: COLORS.textMuted,
   },
 });

@@ -13,10 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { Listing, ListingEditRequest, RootStackParamList } from '../types';
 import ErrorState from '../components/ErrorState';
 import PressableScale from '../components/PressableScale';
+import PrimaryButton from '../components/PrimaryButton';
 import PhotoPicker from '../components/listing/PhotoPicker';
 import TitleField from '../components/listing/TitleField';
 import CategoryDropdown from '../components/listing/CategoryDropdown';
@@ -227,28 +228,22 @@ function EditListingForm({
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
         <Text style={styles.headerTitle}>Edit listing</Text>
-        <PressableScale
-          style={styles.saveHeaderBtn}
-          onPress={handleSave}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          scaleTo={0.92}
-          disabled={!canSave}
-          accessibilityLabel="Save changes"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canSave }}
-        >
-          <Text style={[styles.saveText, !canSave ? styles.saveTextDisabled : null]}>
-            {saving ? 'Saving…' : 'Save'}
-          </Text>
-        </PressableScale>
+        <View style={styles.headerSpacer} />
       </View>
 
       {pendingRequest && (
-        <View style={styles.pendingBanner}>
-          <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.pendingBannerText}>
-            Changes to photos, title, category, or condition are pending review.
-          </Text>
+        <View style={styles.pendingBannerWrap}>
+          <View style={styles.pendingBanner}>
+            <View style={styles.pendingIconTile}>
+              <Ionicons name="time-outline" size={18} color={COLORS.primary} />
+            </View>
+            <View style={styles.pendingBannerInfo}>
+              <Text style={styles.pendingBannerTitle}>Pending review</Text>
+              <Text style={styles.pendingBannerText}>
+                Changes to photos, title, category, or condition are pending review.
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
@@ -261,8 +256,8 @@ function EditListingForm({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.sectionHeading}>Photos</Text>
-          <View style={styles.field}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Photos</Text>
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
@@ -273,28 +268,30 @@ function EditListingForm({
             />
           </View>
 
-          <Text style={styles.sectionHeading}>Title</Text>
-          <View style={styles.field}>
-            <TitleField
-              value={form.title}
-              onChange={form.setTitle}
-              locked={scamLocked}
-              onLockedPress={handleLockedPress}
-            />
-          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Listing details</Text>
 
-          <Text style={styles.sectionHeading}>Category</Text>
-          <View style={styles.field}>
-            <CategoryDropdown
-              value={form.category}
-              onChange={form.setCategory}
-              locked={scamLocked}
-              onLockedPress={handleLockedPress}
-            />
-          </View>
+            <Text style={styles.fieldLabel}>Title</Text>
+            <View style={styles.field}>
+              <TitleField
+                value={form.title}
+                onChange={form.setTitle}
+                locked={scamLocked}
+                onLockedPress={handleLockedPress}
+              />
+            </View>
 
-          <Text style={styles.sectionHeading}>Condition</Text>
-          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Category</Text>
+            <View style={styles.field}>
+              <CategoryDropdown
+                value={form.category}
+                onChange={form.setCategory}
+                locked={scamLocked}
+                onLockedPress={handleLockedPress}
+              />
+            </View>
+
+            <Text style={styles.fieldLabel}>Condition</Text>
             <ConditionSelector
               value={form.condition}
               onChange={form.setCondition}
@@ -303,25 +300,37 @@ function EditListingForm({
             />
           </View>
 
-          <Text style={styles.sectionHeading}>Description</Text>
-          <View style={styles.field}>
-            <DescriptionField value={form.description} onChange={form.setDescription} />
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Description &amp; price</Text>
+
+            <Text style={styles.fieldLabel}>Description</Text>
+            <View style={styles.field}>
+              <DescriptionField value={form.description} onChange={form.setDescription} />
+            </View>
+
+            <Text style={styles.fieldLabel}>Price</Text>
+            <View style={styles.field}>
+              <PriceToggles
+                price={form.price}
+                onPriceChange={form.setPrice}
+                isFree={form.isFree}
+                onToggleFree={form.handleFree}
+                isTrade={form.isTrade}
+                onToggleTrade={form.handleTrade}
+              />
+            </View>
+
+            <Text style={styles.fieldLabel}>Pickup spot</Text>
+            <PickupPicker value={form.pickup} onChange={form.setPickup} />
           </View>
 
-          <Text style={styles.sectionHeading}>Price</Text>
-          <View style={styles.field}>
-            <PriceToggles
-              price={form.price}
-              onPriceChange={form.setPrice}
-              isFree={form.isFree}
-              onToggleFree={form.handleFree}
-              isTrade={form.isTrade}
-              onToggleTrade={form.handleTrade}
-            />
-          </View>
-
-          <Text style={styles.sectionHeading}>Pickup spot</Text>
-          <PickupPicker value={form.pickup} onChange={form.setPickup} />
+          <PrimaryButton
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={!canSave}
+            loading={saving}
+            style={styles.saveBtn}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -331,7 +340,7 @@ function EditListingForm({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#EDEAF6',
   },
   loadingContainer: {
     flex: 1,
@@ -344,6 +353,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
@@ -355,53 +365,77 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerSpacer: {
+    width: 38,
+    height: 38,
+  },
   headerTitle: {
     fontSize: SIZES.base,
     fontFamily: FONTS.bold,
     color: COLORS.text,
   },
-  saveHeaderBtn: {
-    minWidth: 44,
-    height: 38,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  saveText: {
-    fontSize: SIZES.base,
-    fontFamily: FONTS.semibold,
-    color: COLORS.primary,
-  },
-  saveTextDisabled: {
-    color: COLORS.textMuted,
+  pendingBannerWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   pendingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusLg,
+    padding: 14,
+    ...SHADOWS.card,
+  },
+  pendingIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.primaryTint,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pendingBannerText: {
+  pendingBannerInfo: {
     flex: 1,
-    fontSize: SIZES.xs,
-    color: COLORS.primary,
-    fontFamily: FONTS.medium,
   },
-  body: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 60,
-  },
-  sectionHeading: {
+  pendingBannerTitle: {
     fontSize: SIZES.md,
     fontFamily: FONTS.semibold,
     color: COLORS.text,
-    marginBottom: 10,
+    marginBottom: 2,
+  },
+  pendingBannerText: {
+    fontSize: SIZES.xs,
+    color: COLORS.textMuted,
+  },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadiusLg,
+    padding: 16,
+    marginBottom: 16,
+    ...SHADOWS.card,
+  },
+  cardTitle: {
+    fontSize: SIZES.lg,
+    fontFamily: FONTS.bold,
+    color: COLORS.text,
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.textSecondary,
+    marginBottom: 8,
   },
   field: {
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  saveBtn: {
+    marginTop: 4,
   },
 });

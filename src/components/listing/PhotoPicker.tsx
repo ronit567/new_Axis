@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../../constants/theme';
 import PressableScale from '../PressableScale';
+import LockedHint from './LockedHint';
 import type { EditablePhoto } from '../../hooks/useListingEdits';
 
 type Props = {
@@ -62,14 +63,12 @@ export default function PhotoPicker({
       </View>
       {locked && (
         <PressableScale
-          style={styles.lockedHint}
           onPress={onLockedPress}
           scaleTo={0.98}
           accessibilityLabel="Photos require review to change"
           accessibilityRole="button"
         >
-          <Ionicons name="lock-closed-outline" size={13} color={COLORS.textMuted} />
-          <Text style={styles.lockedHintText}>Photos require review to change</Text>
+          <LockedHint label="Photos require review to change" />
         </PressableScale>
       )}
     </View>
@@ -123,14 +122,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  lockedHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  lockedHintText: {
-    fontSize: SIZES.xs,
-    color: COLORS.textMuted,
   },
 });

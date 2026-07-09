@@ -292,13 +292,17 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         {isOwnListing && (
           <View style={styles.ownerBannerWrap}>
             <View style={styles.ownerBanner}>
-              <Ionicons name="person-circle-outline" size={18} color={COLORS.primary} />
-              <Text style={styles.ownerBannerText}>This is your listing.</Text>
-              {pendingEditRequest && (
-                <View style={styles.pendingChip}>
-                  <Text style={styles.pendingChipText}>Edits pending review</Text>
-                </View>
-              )}
+              <View style={styles.ownerBannerIcon}>
+                <Ionicons name="storefront" size={18} color={COLORS.primary} />
+              </View>
+              <View style={styles.ownerBannerInfo}>
+                <Text style={styles.ownerBannerTitle}>This is your listing</Text>
+                <Text style={styles.ownerBannerCaption}>
+                  {pendingEditRequest
+                    ? 'Edits pending review'
+                    : 'Buyers see this listing in Browse and Search.'}
+                </Text>
+              </View>
             </View>
           </View>
         )}
@@ -403,11 +407,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         </View>
       )}
 
-      {/* Owner Action Bar — replaces the buyer offer/message actions */}
+      {/* Owner Action Bar — replaces the buyer offer/message actions. Edit
+          carries the most visual weight (primary pill), Mark sold/Relist is
+          a neutral pill, and Delete is quiet danger text rather than a boxed
+          red button. */}
       {isOwnListing && (
         <View style={[styles.ownerActionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <PressableScale
-            style={styles.ownerActionBtn}
+            style={styles.ownerEditBtn}
             scaleTo={0.96}
             onPress={() => {
               haptics.tap();
@@ -416,40 +423,41 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             accessibilityLabel="Edit listing"
             accessibilityRole="button"
           >
-            <Ionicons name="create-outline" size={18} color={COLORS.text} />
-            <Text style={styles.ownerActionText}>Edit</Text>
+            <Ionicons name="create-outline" size={17} color={COLORS.white} />
+            <Text style={styles.ownerEditText}>Edit</Text>
           </PressableScale>
           {listing.status === 'sold' ? (
             <PressableScale
-              style={styles.ownerActionBtn}
+              style={styles.ownerSecondaryBtn}
               scaleTo={0.96}
               onPress={handleRelist}
               accessibilityLabel="Relist"
               accessibilityRole="button"
             >
-              <Ionicons name="repeat-outline" size={18} color={COLORS.text} />
-              <Text style={styles.ownerActionText}>Relist</Text>
+              <Ionicons name="repeat-outline" size={17} color={COLORS.text} />
+              <Text style={styles.ownerSecondaryText}>Relist</Text>
             </PressableScale>
           ) : (
             <PressableScale
-              style={styles.ownerActionBtn}
+              style={styles.ownerSecondaryBtn}
               scaleTo={0.96}
               onPress={handleMarkSold}
               accessibilityLabel="Mark as sold"
               accessibilityRole="button"
             >
-              <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.westernGreen} />
-              <Text style={[styles.ownerActionText, { color: COLORS.westernGreen }]}>Mark sold</Text>
+              <Ionicons name="checkmark-circle-outline" size={17} color={COLORS.westernGreen} />
+              <Text style={[styles.ownerSecondaryText, { color: COLORS.westernGreen }]}>Mark sold</Text>
             </PressableScale>
           )}
           <PressableScale
-            style={[styles.ownerActionBtn, styles.ownerDeleteBtn]}
+            style={styles.ownerDeleteBtn}
             scaleTo={0.92}
             onPress={handleDelete}
             accessibilityLabel="Delete listing"
             accessibilityRole="button"
           >
-            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+            <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+            <Text style={styles.ownerDeleteText}>Delete</Text>
           </PressableScale>
         </View>
       )}
@@ -700,32 +708,36 @@ const styles = StyleSheet.create({
   ownerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: COLORS.primaryTint,
+    gap: 12,
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: SIZES.borderRadiusLg,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    padding: 14,
   },
-  ownerBannerText: {
+  ownerBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerBannerInfo: {
     flex: 1,
-    fontSize: SIZES.sm,
-    fontFamily: FONTS.medium,
-    color: COLORS.primary,
   },
-  pendingChip: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusSm,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  pendingChipText: {
-    fontSize: 11,
+  ownerBannerTitle: {
+    fontSize: 14,
     fontFamily: FONTS.semibold,
-    color: COLORS.primary,
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  ownerBannerCaption: {
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
   ownerActionBar: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 20,
     paddingTop: 14,
     borderTopWidth: 1,
@@ -733,26 +745,50 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     ...SHADOWS.floating,
   },
-  ownerActionBtn: {
+  ownerEditBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     height: 50,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.brand,
+  },
+  ownerEditText: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.white,
+  },
+  ownerSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 50,
+    borderRadius: 999,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     backgroundColor: COLORS.white,
   },
-  ownerActionText: {
+  ownerSecondaryText: {
     fontSize: SIZES.sm,
     fontFamily: FONTS.semibold,
     color: COLORS.text,
   },
   ownerDeleteBtn: {
-    flex: 0,
-    width: 50,
-    borderColor: COLORS.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    height: 50,
+    paddingHorizontal: 4,
+  },
+  ownerDeleteText: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.error,
   },
 });

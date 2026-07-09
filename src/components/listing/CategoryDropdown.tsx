@@ -5,6 +5,7 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import { LISTING_CATEGORIES } from '../../constants/categories';
 import RotatingChevron from '../RotatingChevron';
 import PressableScale from '../PressableScale';
+import LockedHint from './LockedHint';
 import { haptics } from '../../lib/haptics';
 
 type Props = {
@@ -68,12 +69,7 @@ export default function CategoryDropdown({ value, onChange, locked, onLockedPres
           ))}
         </View>
       )}
-      {locked && (
-        <View style={styles.lockedHint}>
-          <Ionicons name="lock-closed-outline" size={13} color={COLORS.textMuted} />
-          <Text style={styles.lockedHintText}>Category requires review to change</Text>
-        </View>
-      )}
+      {locked && <LockedHint label="Category requires review to change" />}
     </View>
   );
 }
@@ -122,15 +118,5 @@ const styles = StyleSheet.create({
   dropdownItemTextActive: {
     color: COLORS.primary,
     fontFamily: FONTS.semibold,
-  },
-  lockedHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  lockedHintText: {
-    fontSize: SIZES.xs,
-    color: COLORS.textMuted,
   },
 });

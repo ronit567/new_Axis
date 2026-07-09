@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../../constants/theme';
 import PressableScale from '../PressableScale';
+import LockedHint from './LockedHint';
 import { haptics } from '../../lib/haptics';
 
 const CONDITIONS = ['Like new', 'Good', 'Fair'];
@@ -40,12 +40,7 @@ export default function ConditionSelector({ value, onChange, locked, onLockedPre
           </PressableScale>
         ))}
       </View>
-      {locked && (
-        <View style={styles.lockedHint}>
-          <Ionicons name="lock-closed-outline" size={13} color={COLORS.textMuted} />
-          <Text style={styles.lockedHintText}>Condition requires review to change</Text>
-        </View>
-      )}
+      {locked && <LockedHint label="Condition requires review to change" />}
     </View>
   );
 }
@@ -78,15 +73,5 @@ const styles = StyleSheet.create({
   condTextActive: {
     color: COLORS.white,
     fontFamily: FONTS.bold,
-  },
-  lockedHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  lockedHintText: {
-    fontSize: SIZES.xs,
-    color: COLORS.textMuted,
   },
 });
