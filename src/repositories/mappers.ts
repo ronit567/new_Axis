@@ -122,6 +122,7 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     pickup: row.pickup ?? '',
     isFree: row.is_free,
     isTrade: row.is_trade,
+    status: row.status === 'sold' ? 'sold' : 'active',
   };
 }
 

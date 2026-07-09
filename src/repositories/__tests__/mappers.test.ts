@@ -112,6 +112,11 @@ describe('toListing', () => {
     ).toMatchObject({ isFree: false, isTrade: true });
   });
 
+  it('maps status, defaulting anything other than sold to active', () => {
+    expect(toListing(listingRow, sellerRow, false).status).toBe('active');
+    expect(toListing({ ...listingRow, status: 'sold' }, sellerRow, false).status).toBe('sold');
+  });
+
   it('gives an empty image_urls listing a stable, deterministic imageColor', () => {
     const a = toListing(listingRow, sellerRow, false).imageColor;
     const b = toListing(listingRow, sellerRow, false).imageColor;

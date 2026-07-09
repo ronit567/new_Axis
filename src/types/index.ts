@@ -61,6 +61,10 @@ export type Listing = {
   // Free/Trade badge on ListingDetail yet).
   isFree: boolean;
   isTrade: boolean;
+  // 0021: ListingDetailScreen's owner view needs this to choose between
+  // "Mark sold" and "Relist" — MyListing already carried status, but the
+  // single-listing Listing type never had to before the owner view existed.
+  status: 'active' | 'sold';
 };
 
 export type MyListing = {
