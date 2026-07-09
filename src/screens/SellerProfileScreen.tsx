@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SIZES } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import EmptyState from '../components/EmptyState';
 import ReviewCard from '../components/ReviewCard';
@@ -217,32 +217,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {/* Action buttons — partner-only; there's no messaging or following
-            yourself. */}
+        {/* Action buttons — partner-only; no following yourself. Messaging
+            is no longer offered here: chats start from a listing page or an
+            existing conversation, not the profile itself. */}
         {!isOwnProfile && (
           <View style={styles.actionRow}>
-            <PressableScale
-              style={styles.messageBtn}
-              scaleTo={0.97}
-              onPress={() => {
-                haptics.tap();
-                // No listing context from a profile page — this opens (or
-                // continues) the general thread with this seller.
-                navigation.navigate('Chat', {
-                  listingId: null,
-                  partnerId: seller.id,
-                  partner: {
-                    id: seller.id,
-                    initials: seller.initials,
-                    name: seller.name,
-                    avatarColor: seller.avatarColor,
-                    avatarUrl: seller.avatarUrl,
-                  },
-                });
-              }}
-            >
-              <Text style={styles.messageBtnText}>Message</Text>
-            </PressableScale>
             <PressableScale
               style={[styles.followBtn, following ? styles.followBtnActive : null]}
               scaleTo={0.97}
@@ -466,20 +445,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 24,
     marginBottom: 28,
-  },
-  messageBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: SIZES.borderRadius,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.brand,
-  },
-  messageBtnText: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: '600',
   },
   followBtn: {
     flex: 1,
