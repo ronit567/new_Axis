@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NotificationRepository } from '../repositories/NotificationRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 import { Notification } from '../types'
+import type { NotificationRow } from '../types/database'
 
 export function useNotifications() {
   const { user } = useAuth()
@@ -38,10 +39,20 @@ export function useUnreadNotificationCount() {
 // UPDATEs (read flips from another device) both invalidate the list and the
 // bell count — the refetch redoes the actor/listing joins, so no cache
 // patching from the raw row.
-export function useNotificationsRealtime() {
+//
+// `onNotify` (optional) fires on each new INSERT so a caller can surface the
+// event in the foreground (e.g. the in-app banner) — the silent cache refresh
+// alone never "pops up" anything. Held in a ref so passing an inline callback
+// doesn't re-subscribe (which would churn the realtime channel) every render.
+export function useNotificationsRealtime(onNotify?: (row: NotificationRow) => void) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const userId = user?.id
+
+  const onNotifyRef = useRef(onNotify)
+  useEffect(() => {
+    onNotifyRef.current = onNotify
+  })
 
   useEffect(() => {
     if (!userId) return undefined
@@ -52,7 +63,10 @@ export function useNotificationsRealtime() {
       })
     }
     return NotificationRepository.subscribe(userId, {
-      onInsert: invalidate,
+      onInsert: (row) => {
+        invalidate()
+        onNotifyRef.current?.(row)
+      },
       onUpdate: invalidate,
     })
   }, [userId, queryClient])
