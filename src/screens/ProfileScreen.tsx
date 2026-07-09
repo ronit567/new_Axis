@@ -21,6 +21,7 @@ import { useCurrentProfile } from '../hooks/useProfile';
 import { useFollowing } from '../hooks/useFollows';
 import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
+import { getSellerBadges } from '../lib/sellerBadges';
 
 const TABS = ['Listings', 'Reviews'];
 
@@ -106,6 +107,12 @@ export default function ProfileScreen({ navigation }: Props) {
     );
   }
 
+  const badges = getSellerBadges({
+    averageRating,
+    reviewCount: myReviews.length,
+    replyTime: profile?.stats.replyTime ?? '',
+  });
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -151,6 +158,16 @@ export default function ProfileScreen({ navigation }: Props) {
                   {i > 0 && <Text style={styles.trustDot}> · </Text>}
                   {segment}
                 </React.Fragment>
+              ))}
+            </View>
+          )}
+          {badges.length > 0 && (
+            <View style={styles.badgeRow}>
+              {badges.map((badge) => (
+                <View key={badge.label} style={styles.badgeChip}>
+                  <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
+                  <Text style={styles.badgeChipText}>{badge.label}</Text>
+                </View>
               ))}
             </View>
           )}
@@ -320,6 +337,27 @@ const styles = StyleSheet.create({
   trustDot: {
     fontSize: 13,
     color: COLORS.textSecondary,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeChipText: {
+    fontSize: SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   bioText: {
     fontSize: SIZES.sm,

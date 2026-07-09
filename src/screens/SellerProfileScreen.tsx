@@ -24,6 +24,7 @@ import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
 import { useSellerReviews, useUpsertReview } from '../hooks/useReviews';
+import { getSellerBadges } from '../lib/sellerBadges';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -95,6 +96,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       </Text>,
     );
   }
+
+  const badges = getSellerBadges({
+    averageRating,
+    reviewCount: reviews.length,
+    replyTime: seller.stats.replyTime,
+  });
 
   const handleSubmitReview = async (rating: number, body: string) => {
     try {
@@ -174,6 +181,16 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           )}
           {!!seller.stats.replyTime && (
             <Text style={styles.replyTimeText}>Replies {seller.stats.replyTime}</Text>
+          )}
+          {badges.length > 0 && (
+            <View style={styles.badgeRow}>
+              {badges.map((badge) => (
+                <View key={badge.label} style={styles.badgeChip}>
+                  <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
+                  <Text style={styles.badgeChipText}>{badge.label}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </View>
 
@@ -393,6 +410,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     marginBottom: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeChipText: {
+    fontSize: SIZES.xs,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   actionRow: {
     flexDirection: 'row',
