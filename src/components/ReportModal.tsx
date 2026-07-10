@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { haptics } from '../lib/haptics';
 import { ReportReason, ReportTarget } from '../types';
 
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: SIZES.borderRadiusXl,
+    borderTopRightRadius: SIZES.borderRadiusXl,
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 12,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     height: 52,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     borderWidth: 1.5,
     borderColor: COLORS.error,
     marginBottom: 12,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   doneBtn: {
     height: 52,
-    borderRadius: 14,
+    borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',

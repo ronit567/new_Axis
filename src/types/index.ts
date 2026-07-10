@@ -68,6 +68,9 @@ export type MyListing = {
   saves: number;
   postedAgo: string;
   imageColor: string;
+  // Public storage URLs in upload order; imageUrls[0] is the card thumbnail.
+  // Empty when the listing has no photos — screens fall back to imageColor.
+  imageUrls: string[];
   soldFor?: number;
 };
 
@@ -129,6 +132,20 @@ export type Conversation = {
   unreadCount: number;
   // 'Selling' when the thread is about the current user's own listing.
   type: 'Buying' | 'Selling';
+};
+
+// A written seller review (migration 0020). Screens compute the average
+// rating / count by aggregating these — the SellerProfile.rating field stays
+// the deferred-to-AX-702 zero and is not used for display anymore.
+export type Review = {
+  id: string;
+  sellerId: string;
+  // Reviewer display info; reviewer.id is always set (needed to spot "my"
+  // review so the write modal seeds an edit instead of a duplicate).
+  reviewer: Contact;
+  rating: number; // 1–5 stars
+  body: string;
+  timeAgo: string; // relative label via timeAgo ("2d ago")
 };
 
 // AX-703: report + block. ReportTarget mirrors the ReportModal UI's three

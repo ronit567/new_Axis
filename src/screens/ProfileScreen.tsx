@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,49 +6,48 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
+import VerifiedTick from '../components/VerifiedTick';
+import ReviewCard from '../components/ReviewCard';
+import SegmentedTabs from '../components/SegmentedTabs';
+import ReviewSummary from '../components/ReviewSummary';
+import TrustStack from '../components/TrustStack';
+import EmptyState from '../components/EmptyState';
+import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
-import { useSavedListings } from '../hooks/useSavedListings';
 import { useCurrentProfile } from '../hooks/useProfile';
+import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
+import { getSellerBadges } from '../lib/sellerBadges';
+import { averageRating } from '../lib/reviewStats';
+
+const TABS = ['Listings', 'Reviews'];
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
-type IoniconsName = ComponentProps<typeof Ionicons>['name'];
-
-type MenuItem = {
-  icon: IoniconsName;
-  label: string;
-  target: 'EditProfile' | 'Settings' | null;
-};
-
 const { width } = Dimensions.get('window');
-const H_PAD = 24;
+const H_PAD = 20;
 const CARD_GAP = 8;
 const THUMB_WIDTH = (width - H_PAD * 2 - CARD_GAP * 2) / 3;
 const THUMB_HEIGHT = Math.round(THUMB_WIDTH * 0.95);
 
-function HatchedThumb({ isSold }: { isSold: boolean }) {
+function ListingThumb({ item }: { item: MyListing }) {
+  const isSold = item.status === 'sold';
   return (
-    <View
-      style={[
-        styles.thumb,
-        { backgroundColor: isSold ? '#C0BCBC' : '#C4B2E0' },
-      ]}
-    >
-      {Array.from({ length: 30 }).map((_, i) => (
-        <View key={i} style={[styles.hatchLine, { top: i * 9 - 20 }]} />
-      ))}
+    <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
+      {item.imageUrls[0] ? (
+        <RemoteImage uri={item.imageUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : null}
       {isSold && (
         <View style={styles.soldOverlay}>
           <Text style={styles.soldOverlayText}>SOLD</Text>
@@ -58,30 +57,26 @@ function HatchedThumb({ isSold }: { isSold: boolean }) {
   );
 }
 
-
-const MENU: MenuItem[] = [
-  { icon: 'create-outline', label: 'Edit profile', target: 'EditProfile' },
-  { icon: 'help-circle-outline', label: 'Help & support', target: null },
-  { icon: 'settings-outline', label: 'Settings', target: 'Settings' },
-];
-
 export default function ProfileScreen({ navigation }: Props) {
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [] } = useMyListings();
-  const { data: savedListings = [] } = useSavedListings();
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
   const { data: profile } = useCurrentProfile();
-  const listingsPreview = myListings.slice(0, 3);
+  // What others wrote about me (0020). Also feeds the trust row's rating
+  // segment — profile.rating/reviewCount are the mapper's deferred zeros,
+  // never shown.
+  const { data: myReviews = [] } = useSellerReviews(profile?.id ?? '');
+  const average = averageRating(myReviews);
+  const [activeTab, setActiveTab] = useState(0);
+  const soldCount = myListings.filter((l) => l.status === 'sold').length;
 
-  // Stats derive from the same queries as the previews so the numbers can't
-  // drift from the listings actually shown below.
-  const stats: [string, string][] = [
-    [String(myListings.filter((l) => l.status === 'active').length), 'Listings'],
-    [String(myListings.filter((l) => l.status === 'sold').length), 'Sold'],
-    [String(savedListings.length), 'Saved'],
-  ];
+  const badges = getSellerBadges({
+    averageRating: average,
+    reviewCount: myReviews.length,
+    replyTime: profile?.stats.replyTime ?? '',
+  });
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -89,8 +84,27 @@ export default function ProfileScreen({ navigation }: Props) {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Top bar (gear icon) ── */}
+        {/* ── Top bar (share + gear icons) ── */}
         <View style={styles.topBar}>
+          <PressableScale
+            style={styles.gearBtn}
+            onPress={async () => {
+              if (!profile) return;
+              try {
+                await Share.share({
+                  message: `${profile.name} is on Axis — check out their listings`,
+                });
+              } catch {
+                // Silently ignore — the user cancelling the share sheet isn't an error.
+              }
+            }}
+            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Share profile"
+          >
+            <Ionicons name="share-outline" size={18} color={COLORS.textSecondary} />
+          </PressableScale>
           <PressableScale
             style={styles.gearBtn}
             onPress={() => navigation.navigate('Settings')}
@@ -113,96 +127,101 @@ export default function ProfileScreen({ navigation }: Props) {
           />
           <View style={styles.nameRow}>
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
+            {profile?.verified && <VerifiedTick />}
           </View>
           <Text style={styles.programText}>
             {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
           </Text>
-          {/* rating/reviewCount are deferred to AX-702; the mapper returns 0
-              until then, and the convention is to hide the block rather than
-              show a "0.0 (0)" that reads as a real zero-star rating. */}
-          {(profile?.reviewCount ?? 0) > 0 && (
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color={COLORS.warning} />
-              <Text style={styles.ratingScore}> {profile!.rating.toFixed(1)} </Text>
-              <Text style={styles.ratingCount}>({profile!.reviewCount})</Text>
+          {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
+
+          <TrustStack
+            reviewCount={myReviews.length}
+            averageRating={average}
+            onPressRating={() => setActiveTab(1)}
+            soldCount={soldCount}
+            joinedDate={profile?.joinedDate}
+            badges={badges}
+          />
+
+          <PressableScale
+            style={styles.actionPill}
+            onPress={() => navigation.navigate('EditProfile')}
+            scaleTo={0.95}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile"
+          >
+            <Ionicons name="create-outline" size={15} color={COLORS.primary} />
+            <Text style={styles.actionPillText}>Edit profile</Text>
+          </PressableScale>
+        </View>
+
+        {/* ── Tabs ── */}
+        <View style={styles.tabsWrap}>
+          <SegmentedTabs tabs={TABS} activeIndex={activeTab} onChange={setActiveTab} />
+        </View>
+
+        {activeTab === 0 ? (
+          /* ── My Listings ── */
+          <View style={styles.listingsBlock}>
+            <View style={styles.listingsTopRow}>
+              <Text style={styles.listingsTitle}>My listings</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
+                <Text style={styles.manageText}>Manage</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-        {/* ── Stats bar ── */}
-        <View style={styles.statsCard}>
-          {stats.map(
-            ([n, l], i) => (
-              <React.Fragment key={l}>
-                {i > 0 && <View style={styles.statDivider} />}
-                <View style={styles.statCell}>
-                  <Text style={styles.statNum}>{n}</Text>
-                  <Text style={styles.statLabel}>{l}</Text>
-                </View>
-              </React.Fragment>
-            ),
-          )}
-        </View>
-
-        {/* ── My Listings ── */}
-        <View style={styles.listingsBlock}>
-          <View style={styles.listingsTopRow}>
-            <Text style={styles.listingsTitle}>My listings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
-              <Text style={styles.manageText}>Manage</Text>
-            </TouchableOpacity>
-          </View>
-          {listingsPreview.length > 0 ? (
-            <View style={styles.listingsRow}>
-              {listingsPreview.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.listingItem}
-                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                  activeOpacity={0.85}
-                >
-                  <HatchedThumb isSold={item.status === 'sold'} />
-                  <Text
-                    style={[
-                      styles.priceText,
-                      item.status === 'sold' ? styles.priceTextSold : null,
-                    ]}
+            {myListings.length > 0 ? (
+              <View style={styles.listingsRow}>
+                {myListings.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.listingItem}
+                    onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                    activeOpacity={0.85}
                   >
-                    ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
-                  </Text>
-                  <Text style={styles.statusText}>
-                    {item.status === 'sold' ? 'Sold' : 'Active'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.noListingsText}>No listings yet.</Text>
-          )}
-        </View>
-
-        {/* ── Menu card ── */}
-        <View style={styles.menuCard}>
-          {MENU.map((item, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[
-                styles.menuRow,
-                i < MENU.length - 1 ? styles.menuRowBorder : null,
-              ]}
-              onPress={() => item.target ? navigation.navigate(item.target) : null}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuLeft}>
-                <View style={styles.menuIconBox}>
-                  <Ionicons name={item.icon} size={16} color={COLORS.primary} />
-                </View>
-                <Text style={styles.menuLabel}>{item.label}</Text>
+                    <ListingThumb item={item} />
+                    <Text
+                      style={[
+                        styles.priceText,
+                        item.status === 'sold' ? styles.priceTextSold : null,
+                      ]}
+                    >
+                      ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
+                    </Text>
+                    <Text style={styles.statusText}>
+                      {item.status === 'sold' ? 'Sold' : 'Active'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ))}
-        </View>
+            ) : (
+              <EmptyState
+                icon="storefront-outline"
+                title="No listings yet — post your first item."
+                ctaLabel="Post a listing"
+                onCta={() => navigation.navigate('CreateListing')}
+              />
+            )}
+          </View>
+        ) : (
+          /* ── Reviews about me ── */
+          <View style={styles.reviewsBlock}>
+            <Text style={styles.listingsTitle}>Reviews ({myReviews.length})</Text>
+            {myReviews.length > 0 ? (
+              <>
+                <ReviewSummary reviews={myReviews} />
+                <View style={styles.reviewsList}>
+                  {myReviews.map((review) => (
+                    <ReviewCard key={review.id} review={review} />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.noListingsText}>
+                No reviews yet — they&apos;ll show up after your first sale.
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
 
     </SafeAreaView>
@@ -212,7 +231,7 @@ export default function ProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#EDEAF6',
+    backgroundColor: COLORS.white,
   },
   scroll: {
     paddingBottom: 20,
@@ -222,6 +241,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: 8,
     paddingHorizontal: H_PAD,
     paddingTop: 12,
     paddingBottom: 8,
@@ -230,7 +250,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.65)',
+    backgroundColor: COLORS.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -243,14 +263,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarText: {
-    fontSize: SIZES.xl,
+    color: COLORS.white,
+    fontSize: 28,
     fontWeight: '700',
-    color: COLORS.primary,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     marginBottom: 4,
   },
   nameText: {
@@ -261,51 +281,38 @@ const styles = StyleSheet.create({
   programText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
-    marginBottom: 6,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingScore: {
-    fontSize: SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  ratingCount: {
+  bioText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 40,
+    marginTop: 6,
   },
-
-  /* stats */
-  statsCard: {
+  actionPill: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: COLORS.white,
-    marginHorizontal: H_PAD,
-    borderRadius: SIZES.borderRadius,
-    paddingVertical: 16,
-    marginBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: COLORS.primaryBorder,
     ...SHADOWS.card,
   },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
+  actionPillText: {
+    fontSize: SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.divider,
-    marginVertical: 4,
-  },
-  statNum: {
-    fontSize: SIZES.xl,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: {
-    fontSize: SIZES.xs,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+
+  /* tabs */
+  tabsWrap: {
+    marginHorizontal: H_PAD,
+    marginBottom: 16,
   },
 
   /* listings */
@@ -331,6 +338,7 @@ const styles = StyleSheet.create({
   },
   listingsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: CARD_GAP,
   },
   listingItem: {
@@ -344,14 +352,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
     marginBottom: 6,
-  },
-  hatchLine: {
-    position: 'absolute',
-    width: 220,
-    height: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-    transform: [{ rotate: '-45deg' }],
-    left: -60,
   },
   soldOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -383,39 +383,13 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
 
-  /* menu */
-  menuCard: {
-    backgroundColor: COLORS.white,
+  /* reviews */
+  reviewsBlock: {
     marginHorizontal: H_PAD,
-    borderRadius: SIZES.borderRadius,
-    paddingHorizontal: 16,
-    ...SHADOWS.card,
+    marginTop: 8,
   },
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-  },
-  menuRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  menuIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: COLORS.primaryTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuLabel: {
-    fontSize: SIZES.base,
-    color: COLORS.text,
+  reviewsList: {
+    gap: 10,
+    marginTop: 12,
   },
 });

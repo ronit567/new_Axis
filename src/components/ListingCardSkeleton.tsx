@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Animated } from 'react-native';
-import { COLORS, SHADOWS } from '../constants/theme';
+import { COLORS, SHADOWS, SIZES } from '../constants/theme';
 import SkeletonLoader from './SkeletonLoader';
 
 /**
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: SIZES.borderRadius,
     overflow: 'hidden',
     ...SHADOWS.card,
   },

@@ -10,25 +10,33 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import ActivitySpinner from '../components/ActivitySpinner';
+import Avatar from '../components/Avatar';
+import PressableScale from '../components/PressableScale';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
-import { RootStackParamList, Listing } from '../types';
+import { useFollowing, useToggleFollow } from '../hooks/useFollows';
+import { formatYearOfStudy } from '../lib/formatYear';
+import { haptics } from '../lib/haptics';
+import { RootStackParamList, Listing, SellerProfile } from '../types';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
-const TABS = ['Items', 'Saved searches'];
+const TABS = ['Items', 'Saved profiles'];
 
 export default function SavedScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
   const { data, isLoading, isError, refetch } = useSavedListings();
   const toggleSavedMutation = useToggleSaved();
   const savedItems = data ?? [];
+  const { data: following, isPending: isFollowingPending } = useFollowing();
+  const toggleFollow = useToggleFollow();
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -52,6 +60,50 @@ export default function SavedScreen({ navigation }: Props) {
     />
   );
 
+  const renderProfileRow = ({ item }: { item: SellerProfile }) => (
+    <PressableScale
+      style={styles.profileRow}
+      onPress={() => navigation.navigate('SellerProfile', { seller: item })}
+      scaleTo={0.98}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${item.name}'s profile`}
+    >
+      <Avatar
+        url={item.avatarUrl}
+        initials={item.initials}
+        color={item.avatarColor}
+        size={44}
+        textStyle={styles.profileAvatarText}
+      />
+      <View style={styles.profileRowInfo}>
+        <View style={styles.profileNameRow}>
+          <Text style={styles.profileName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {item.verified && (
+            <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
+          )}
+        </View>
+        <Text style={styles.profileProgram} numberOfLines={1}>
+          {item.program} · {formatYearOfStudy(item.year)}
+        </Text>
+      </View>
+      <PressableScale
+        style={styles.unfollowBtn}
+        onPress={() => {
+          haptics.tap();
+          toggleFollow.mutate({ sellerId: item.id, next: false });
+        }}
+        scaleTo={0.94}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Unfollow ${item.name}`}
+      >
+        <Text style={styles.unfollowText}>Saved</Text>
+      </PressableScale>
+    </PressableScale>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
@@ -69,7 +121,7 @@ export default function SavedScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-              {tab === 'Items' ? `Items  ${savedItems.length}` : 'Saved searches  2'}
+              {tab === 'Items' ? `Items  ${savedItems.length}` : `Saved profiles  ${(following ?? []).length}`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -107,16 +159,24 @@ export default function SavedScreen({ navigation }: Props) {
             />
           }
         />
+      ) : isFollowingPending ? (
+        <ActivitySpinner style={styles.spinner} />
       ) : (
-        <View style={styles.savedSearches}>
-          {['calc 1000 textbook', 'IKEA desk'].map(s => (
-            <TouchableOpacity key={s} style={styles.savedSearchRow} activeOpacity={0.8}>
-              <Ionicons name="search-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.savedSearchText}>{s}</Text>
-              <Ionicons name="close" size={16} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ))}
-        </View>
+        <FlatList
+          data={following ?? []}
+          renderItem={renderProfileRow}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.profileListContent}
+          ListEmptyComponent={
+            <EmptyState
+              icon="people-outline"
+              title="No saved profiles yet. Bookmark sellers to find them again quickly."
+              ctaLabel="Browse listings"
+              onCta={() => navigation.navigate('Main')}
+            />
+          }
+        />
       )}
     </SafeAreaView>
   );
@@ -146,7 +206,7 @@ const styles = StyleSheet.create({
   tab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
@@ -175,44 +235,55 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
+  spinner: {
+    marginTop: 48,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+  profileListContent: {
+    padding: 20,
+    gap: 10,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  savedSearches: {
-    paddingHorizontal: 20,
-    gap: 2,
-  },
-  savedSearchRow: {
+  profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 8,
     gap: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius,
+    padding: 12,
+    ...SHADOWS.card,
   },
-  savedSearchText: {
-    flex: 1,
+  profileAvatarText: {
+    color: COLORS.white,
     fontSize: 14,
+    fontWeight: '700',
+  },
+  profileRowInfo: {
+    flex: 1,
+  },
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  profileName: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
     color: COLORS.text,
+    flexShrink: 1,
+  },
+  profileProgram: {
+    fontSize: SIZES.sm,
+    color: COLORS.textSecondary,
+  },
+  unfollowBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: COLORS.primarySoft,
+  },
+  unfollowText: {
+    fontSize: SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });

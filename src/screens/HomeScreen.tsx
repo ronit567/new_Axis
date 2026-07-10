@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   catChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
     backgroundColor: COLORS.white,
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
