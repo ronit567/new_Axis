@@ -191,7 +191,7 @@ create trigger trg_guard_engaged_listing_edit
 -- scope — buyers mid-conversation already see the listing snapshot resurface
 -- in chat.
 -- ---------------------------------------------------------------------------
-alter table public.notifications drop constraint notifications_type_check;
+alter table public.notifications drop constraint if exists notifications_type_check;
 alter table public.notifications
   add constraint notifications_type_check
   check (type in ('message', 'listing_saved', 'listing_edited'));

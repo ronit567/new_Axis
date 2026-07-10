@@ -19,8 +19,10 @@ export type EditablePhoto = LocalPhoto & { isLocal: boolean }
 // timestamped-filename edit path — never the index-named create path, so an
 // in-progress edit can't collide with a still-live original), and re-merges
 // into the final ordered URL array the DB expects for image_urls /
-// proposed_image_urls.
-async function resolveImageUrls(
+// proposed_image_urls. Exported so EditListingScreen can resolve photos
+// exactly once and hand the same URLs to both the direct-update and
+// edit-request paths (avoids double-uploading on the race-fallback path).
+export async function resolveImageUrls(
   sellerId: string,
   listingId: string,
   photos: EditablePhoto[],
@@ -66,11 +68,11 @@ export function usePendingEditRequest(listingId: string) {
 
 export type UpdateListingMutationInput = {
   listingId: string
-  patch: Partial<Omit<UpdateListingInput, 'image_urls'>>
-  // Present only when the photo set changed. Low-risk-only saves (price/
-  // description/is_free/is_trade) omit this entirely — the patch never gets
-  // an image_urls key unless photos actually changed.
-  photos?: EditablePhoto[]
+  // image_urls is present only when the photo set changed and is resolved
+  // (uploaded) by the caller once, up front — the patch never gets an
+  // image_urls key unless photos actually changed. Low-risk-only saves
+  // (price/description/is_free/is_trade) omit it entirely.
+  patch: Partial<UpdateListingInput>
 }
 
 // EditListingScreen's Save action for the direct-update path: either a
@@ -84,14 +86,10 @@ export function useUpdateListing() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ listingId, patch, photos }: UpdateListingMutationInput) => {
+    mutationFn: async ({ listingId, patch }: UpdateListingMutationInput) => {
       if (!user) throw new Error('Not signed in')
 
-      const fullPatch: Partial<UpdateListingInput> = photos
-        ? { ...patch, image_urls: await resolveImageUrls(user.id, listingId, photos) }
-        : patch
-
-      await ListingRepository.updateListing(listingId, user.id, fullPatch)
+      await ListingRepository.updateListing(listingId, user.id, patch)
     },
     onSuccess: (_data, { listingId }) => {
       if (!user) return
@@ -104,9 +102,11 @@ export function useUpdateListing() {
 
 export type CreateEditRequestInput = Omit<ProposedListingEdit, 'imageUrls'> & {
   listingId: string
-  // Present only when the photo set changed — the full desired ordered set,
-  // mixing kept-remote and newly-picked local photos (see EditablePhoto).
-  photos?: EditablePhoto[]
+  // Present only when the photo set changed — the final resolved (already-
+  // uploaded) ordered URL set, mixing kept-remote and newly-uploaded photos.
+  // Resolved once by the caller so the race-fallback path (direct update
+  // rejected by the server-side guard) doesn't re-upload the same photos.
+  imageUrls?: string[]
 }
 
 // EditListingScreen's Save action for an engaged listing (or the race
@@ -116,20 +116,24 @@ export function useCreateEditRequest() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ listingId, photos, ...proposed }: CreateEditRequestInput) => {
+    mutationFn: async ({ listingId, imageUrls, ...proposed }: CreateEditRequestInput) => {
       if (!user) throw new Error('Not signed in')
-
-      const resolvedImageUrls = photos
-        ? await resolveImageUrls(user.id, listingId, photos)
-        : undefined
 
       await ListingEditRequestRepository.create(user.id, listingId, {
         ...proposed,
-        imageUrls: resolvedImageUrls,
+        imageUrls,
       })
     },
     onSuccess: (_data, { listingId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pendingEditRequest(listingId) })
     },
   })
+}
+
+// A photo set changed only if the count differs or any entry is either a
+// newly-picked local photo or a kept remote photo whose URL moved position —
+// image_urls equality is order-sensitive (0021).
+export function photosChanged(photos: EditablePhoto[], original: string[]): boolean {
+  if (photos.length !== original.length) return true
+  return photos.some((p, i) => p.isLocal || p.uri !== original[i])
 }

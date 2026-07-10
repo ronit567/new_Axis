@@ -33,9 +33,11 @@ import {
   usePendingEditRequest,
   useUpdateListing,
   useCreateEditRequest,
-  type EditablePhoto,
+  resolveImageUrls,
+  photosChanged,
 } from '../hooks/useListingEdits';
 import type { UpdateListingInput } from '../repositories/ListingRepository';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditListing'>;
 
@@ -78,14 +80,6 @@ export default function EditListingScreen({ navigation, route }: Props) {
   );
 }
 
-// A photo set changed only if the count differs or any entry is either a
-// newly-picked local photo or a kept remote photo whose URL moved position —
-// image_urls equality is order-sensitive (0021).
-function photosChanged(photos: EditablePhoto[], original: string[]): boolean {
-  if (photos.length !== original.length) return true;
-  return photos.some((p, i) => p.isLocal || p.uri !== original[i]);
-}
-
 function EditListingForm({
   navigation,
   listing,
@@ -97,6 +91,7 @@ function EditListingForm({
   engaged: boolean;
   pendingRequest: ListingEditRequest | null;
 }) {
+  const { user } = useAuth();
   const updateListing = useUpdateListing();
   const createEditRequest = useCreateEditRequest();
   const [saving, setSaving] = useState(false);
@@ -134,6 +129,7 @@ function EditListingForm({
 
   const handleSave = async () => {
     if (saving || !form.detailsValid || !form.priceValid) return;
+    if (!user) return;
     haptics.impact();
     setSaving(true);
 
@@ -153,17 +149,27 @@ function EditListingForm({
     const photosDidChange = photosChanged(form.photos, listing.imageUrls);
     const scamFieldsChanged = titleChanged || categoryChanged || conditionChanged || photosDidChange;
 
+    let lowRiskSaved = false;
+
     try {
       // Low-risk fields are never guarded — write them unconditionally first,
       // independent of whatever happens with the scam-vector fields below.
       if (Object.keys(lowRiskPatch).length > 0) {
         await updateListing.mutateAsync({ listingId: listing.id, patch: lowRiskPatch });
+        lowRiskSaved = true;
       }
 
       if (!scamFieldsChanged) {
         navigation.goBack();
         return;
       }
+
+      // Resolved once, up front, so both the direct-update attempt and the
+      // race-fallback edit-request reuse the same uploaded URLs instead of
+      // uploading the photo set twice.
+      const resolvedImageUrls = photosDidChange
+        ? await resolveImageUrls(user.id, listing.id, form.photos)
+        : undefined;
 
       const scamPatch: Partial<Omit<UpdateListingInput, 'image_urls'>> = {};
       if (titleChanged) scamPatch.title = form.title.trim();
@@ -174,8 +180,10 @@ function EditListingForm({
         try {
           await updateListing.mutateAsync({
             listingId: listing.id,
-            patch: scamPatch,
-            photos: photosDidChange ? form.photos : undefined,
+            patch: {
+              ...scamPatch,
+              ...(photosDidChange ? { image_urls: resolvedImageUrls } : {}),
+            },
           });
           navigation.goBack();
           return;
@@ -194,7 +202,7 @@ function EditListingForm({
         title: titleChanged ? form.title.trim() : undefined,
         category: categoryChanged ? form.category : undefined,
         condition: conditionChanged ? form.condition : undefined,
-        photos: photosDidChange ? form.photos : undefined,
+        imageUrls: photosDidChange ? resolvedImageUrls : undefined,
       });
       Alert.alert(
         'Submitted for review',
@@ -202,10 +210,19 @@ function EditListingForm({
       );
       navigation.goBack();
     } catch (error) {
-      Alert.alert(
-        "Couldn't save changes",
-        error instanceof Error ? error.message : 'Something went wrong. Please try again.',
-      );
+      if (lowRiskSaved) {
+        Alert.alert(
+          'Some changes saved',
+          `Your price, description, and pickup changes were saved, but the changes that need review couldn't be submitted. Please try again.${
+            error instanceof Error ? ` ${error.message}` : ''
+          }`,
+        );
+      } else {
+        Alert.alert(
+          "Couldn't save changes",
+          error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+        );
+      }
     } finally {
       setSaving(false);
     }
