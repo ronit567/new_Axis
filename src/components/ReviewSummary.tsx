@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES, FONTS } from '../constants/theme';
 import { Review } from '../types';
+import { averageRating } from '../lib/reviewStats';
 
 type Props = {
   reviews: Review[];
@@ -13,7 +14,7 @@ type Props = {
 // so the breakdown can't drift between the two.
 export default function ReviewSummary({ reviews }: Props) {
   const total = reviews.length;
-  const average = total > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / total : 0;
+  const average = averageRating(reviews);
   const stars = Math.round(average);
   const counts = [5, 4, 3, 2, 1].map(
     (rating) => reviews.filter((r) => r.rating === rating).length,

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FollowRepository } from '../repositories/FollowRepository'
+import type { SellerProfile } from '../types'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
@@ -24,7 +25,10 @@ export function useIsFollowing(sellerId: string) {
 }
 
 // Follow/unfollow with an optimistic isFollowing flip so the button toggles
-// on tap instead of after the round-trip; both caches settle by invalidation.
+// on tap instead of after the round-trip. An unfollow also drops the row from
+// the Saved-profiles list immediately (a re-follow can't rebuild the row
+// without the profile, so that side settles by invalidation). Both caches are
+// reconciled on settle.
 export function useToggleFollow() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -41,6 +45,14 @@ export function useToggleFollow() {
       const key = queryKeys.isFollowing(user.id, sellerId)
       await queryClient.cancelQueries({ queryKey: key })
       queryClient.setQueryData(key, next)
+
+      if (!next) {
+        const listKey = queryKeys.following(user.id)
+        await queryClient.cancelQueries({ queryKey: listKey })
+        queryClient.setQueryData<SellerProfile[]>(listKey, (prev) =>
+          prev?.filter((p) => p.id !== sellerId),
+        )
+      }
     },
     onSettled: (_data, _error, { sellerId }) => {
       if (!user) return

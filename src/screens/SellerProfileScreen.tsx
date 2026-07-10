@@ -6,7 +6,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  TouchableOpacity,
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import ReviewSummary from '../components/ReviewSummary';
 import WriteReviewModal from '../components/WriteReviewModal';
 import SegmentedTabs from '../components/SegmentedTabs';
 import VerifiedTick from '../components/VerifiedTick';
+import TrustStack from '../components/TrustStack';
 import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
@@ -29,6 +29,7 @@ import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
 import { useHasChattedWith } from '../hooks/useMessages';
 import { useSellerReviews, useUpsertReview } from '../hooks/useReviews';
 import { getSellerBadges } from '../lib/sellerBadges';
+import { averageRating } from '../lib/reviewStats';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -65,64 +66,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   // mapper's deferred 0 and never trustworthy for display.
   const { data: reviews = [] } = useSellerReviews(seller.id);
   const upsertReview = useUpsertReview();
-  const averageRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : 0;
+  const average = averageRating(reviews);
   const myReview = reviews.find((r) => r.reviewer.id === user?.id);
 
-  // Muted trust-row segments, " · "-separated — rating (tappable, jumps to
-  // the Reviews tab), sold count, and join date. Rating always shows (as
-  // "New" pre-reviews) so it isn't mistaken for missing. seller.stats.sold
-  // is the deferred zero (AX-702) until the aggregate RPC lands, so it's
-  // omitted rather than shown as "0 sold".
-  const trustSegments: React.ReactNode[] = [];
-  trustSegments.push(
-    <TouchableOpacity
-      key="rating"
-      style={styles.trustSegmentRow}
-      onPress={() => setActiveTab(1)}
-      accessibilityRole="button"
-      accessibilityLabel={
-        reviews.length > 0
-          ? `${averageRating.toFixed(1)} stars, ${reviews.length} reviews`
-          : 'No ratings yet'
-      }
-    >
-      <Ionicons
-        name={reviews.length > 0 ? 'star' : 'star-outline'}
-        size={13}
-        color={COLORS.warning}
-      />
-      <Text style={styles.trustText}>
-        {reviews.length > 0 ? ` ${averageRating.toFixed(1)} (${reviews.length})` : ' New'}
-      </Text>
-    </TouchableOpacity>,
-  );
-  if (seller.stats.sold > 0) {
-    trustSegments.push(
-      <Text key="sold" style={styles.trustText}>
-        {seller.stats.sold} sold
-      </Text>,
-    );
-  }
-  if (seller.joinedDate) {
-    trustSegments.push(
-      <Text key="joined" style={styles.trustText}>
-        Joined {seller.joinedDate}
-      </Text>,
-    );
-  }
-  if (seller.stats.replyTime) {
-    trustSegments.push(
-      <Text key="replyTime" style={styles.trustText}>
-        Replies {seller.stats.replyTime}
-      </Text>,
-    );
-  }
-
   const badges = getSellerBadges({
-    averageRating,
+    averageRating: average,
     reviewCount: reviews.length,
     replyTime: seller.stats.replyTime,
   });
@@ -233,30 +181,15 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.joinedText}>{seller.program}</Text>
 
-          {(trustSegments.length > 0 || badges.length > 0) && (
-            <View style={styles.statsBlock}>
-              {trustSegments.length > 0 && (
-                <View style={styles.trustRow}>
-                  {trustSegments.map((segment, i) => (
-                    <React.Fragment key={i}>
-                      {i > 0 && <Text style={styles.trustDot}> · </Text>}
-                      {segment}
-                    </React.Fragment>
-                  ))}
-                </View>
-              )}
-              {badges.length > 0 && (
-                <View style={styles.badgeRow}>
-                  {badges.map((badge) => (
-                    <View key={badge.label} style={styles.badgeChip}>
-                      <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
-                      <Text style={styles.badgeChipText}>{badge.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
+          <TrustStack
+            reviewCount={reviews.length}
+            averageRating={average}
+            onPressRating={() => setActiveTab(1)}
+            soldCount={seller.stats.sold}
+            joinedDate={seller.joinedDate}
+            replyTime={seller.stats.replyTime}
+            badges={badges}
+          />
         </View>
 
         {/* Tabs */}
@@ -412,49 +345,6 @@ const styles = StyleSheet.create({
   joinedText: {
     fontSize: 13,
     color: COLORS.textMuted,
-  },
-  statsBlock: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  trustRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trustSegmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trustText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  trustDot: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  badgeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  badgeChipText: {
-    fontSize: SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   tabsWrap: {
     paddingHorizontal: 20,
