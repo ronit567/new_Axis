@@ -75,17 +75,24 @@ export default function PhotoPicker({
   if (photos.length === 0) {
     return (
       <View>
-        <PressableScale
-          style={styles.dropzone}
-          onPress={locked ? onLockedPress : onAdd}
-          scaleTo={0.98}
-          accessibilityLabel="Add up to 4 photos"
-          accessibilityRole="button"
-        >
-          <Ionicons name="camera-outline" size={32} color={COLORS.primary} />
-          <Text style={styles.dropzoneTitle}>Add up to {maxPhotos} photos</Text>
-          <Text style={styles.dropzoneHint}>The first photo is your cover</Text>
-        </PressableScale>
+        <View style={styles.paddedRow}>
+          <PressableScale
+            style={styles.dropzone}
+            onPress={locked ? onLockedPress : onAdd}
+            scaleTo={0.98}
+            accessibilityLabel="Add up to 4 photos"
+            accessibilityRole="button"
+          >
+            <View style={styles.dropzoneIconTile}>
+              <Ionicons name="camera-outline" size={22} color={COLORS.primary} />
+            </View>
+            <View style={styles.dropzoneInfo}>
+              <Text style={styles.dropzoneTitle}>Add up to {maxPhotos} photos</Text>
+              <Text style={styles.dropzoneHint}>The first photo is your cover</Text>
+            </View>
+            <Ionicons name="add-circle-outline" size={22} color={COLORS.textMuted} />
+          </PressableScale>
+        </View>
         {locked && (
           <PressableScale
             style={styles.paddedRow}
@@ -234,26 +241,37 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
   },
   dropzone: {
-    width: '100%',
-    aspectRatio: 4 / 3,
     borderWidth: 1.5,
-    borderColor: COLORS.primaryBorder,
+    borderColor: COLORS.inputBorder,
     borderStyle: 'dashed',
+    borderRadius: SIZES.borderRadiusLg,
+    backgroundColor: COLORS.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  dropzoneIconTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primaryTint,
+  },
+  dropzoneInfo: {
+    flex: 1,
   },
   dropzoneTitle: {
     fontSize: SIZES.base,
-    color: COLORS.primary,
-    marginTop: 10,
     fontFamily: FONTS.semibold,
+    color: COLORS.text,
   },
   dropzoneHint: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    fontFamily: FONTS.medium,
+    fontSize: SIZES.xs,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
   removeBtn: {
     position: 'absolute',
