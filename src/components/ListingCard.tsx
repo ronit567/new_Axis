@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, SHADOWS, FONTS } from '../constants/theme';
+import { COLORS, SHADOWS, FONTS, SIZES } from '../constants/theme';
 import { Listing } from '../types';
 import PressableScale from './PressableScale';
 import RemoteImage from './RemoteImage';
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: SIZES.borderRadius,
     overflow: 'hidden',
     ...SHADOWS.card,
   },

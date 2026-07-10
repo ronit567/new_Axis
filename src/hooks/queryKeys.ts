@@ -17,6 +17,12 @@ export const queryKeys = {
   // 'none' so the cache key stays a stable string tuple.
   messages: (listingId: string | null, partnerId: string) =>
     ['messages', listingId ?? 'none', partnerId] as const,
+  hasChattedWith: (userId: string, partnerId: string) =>
+    ['hasChattedWith', userId, partnerId] as const,
+  following: (userId: string) => ['following', userId] as const,
+  isFollowing: (userId: string, sellerId: string) =>
+    ['isFollowing', userId, sellerId] as const,
+  sellerReviews: (sellerId: string) => ['sellerReviews', sellerId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   unreadNotificationCount: (userId: string) => ['unreadNotificationCount', userId] as const,
   // 0021: UX-only "is this listing already engaged" check + "is there a

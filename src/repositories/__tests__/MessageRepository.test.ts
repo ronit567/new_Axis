@@ -336,6 +336,38 @@ describe('MessageRepository.getMessages', () => {
   });
 });
 
+describe('MessageRepository.hasChattedWith', () => {
+  // Mirrors the reviews_insert_reviewer policy gate (0020).
+  const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
+  const USER_ID = '22222222-2222-4222-8222-222222222222';
+
+  it('returns true when a message exists in either direction', async () => {
+    const messagesBuilder = makeQueryBuilder<{ id: string }[]>({
+      data: [{ id: 'm1' }],
+      error: null,
+    });
+    mockTables({ messages: messagesBuilder });
+
+    const result = await MessageRepository.hasChattedWith(USER_ID, PARTNER_ID);
+
+    expect(messagesBuilder.or).toHaveBeenCalledWith(
+      `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
+        `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
+    );
+    expect(messagesBuilder.limit).toHaveBeenCalledWith(1);
+    expect(result).toBe(true);
+  });
+
+  it('returns false when no message exists in either direction', async () => {
+    const messagesBuilder = makeQueryBuilder<{ id: string }[]>({ data: [], error: null });
+    mockTables({ messages: messagesBuilder });
+
+    const result = await MessageRepository.hasChattedWith(USER_ID, PARTNER_ID);
+
+    expect(result).toBe(false);
+  });
+});
+
 describe('MessageRepository.send', () => {
   it('inserts the client-generated id plus listing/sender/receiver/body and returns the mapped domain Message', async () => {
     const insertedRow = makeMessageRow({

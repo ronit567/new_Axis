@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     gap: 7,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.28)',
-    borderRadius: 30,
+    borderRadius: 999,
     paddingHorizontal: 18,
     paddingVertical: 9,
     marginBottom: 6,
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   createBtn: {
     backgroundColor: COLORS.white,
-    borderRadius: 30,
+    borderRadius: SIZES.borderRadius,
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   signInBtn: {
-    borderRadius: 30,
+    borderRadius: SIZES.borderRadius,
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',

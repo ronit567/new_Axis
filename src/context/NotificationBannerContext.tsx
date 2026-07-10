@@ -11,7 +11,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PressableScale from '../components/PressableScale';
-import { COLORS, FONTS, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: SIZES.borderRadius,
     paddingVertical: 12,
     paddingHorizontal: 14,
     ...SHADOWS.floating,

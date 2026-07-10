@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     // Less right padding — the X sits in its own tinted disc there.
     paddingLeft: 13,
     paddingRight: 6,
-    borderRadius: 15,
+    borderRadius: 999,
     backgroundColor: COLORS.white,
   },
   appliedChipText: {

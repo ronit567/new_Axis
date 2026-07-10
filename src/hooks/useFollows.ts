@@ -1,0 +1,65 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FollowRepository } from '../repositories/FollowRepository'
+import type { SellerProfile } from '../types'
+import { useAuth } from '../context/AuthContext'
+import { queryKeys } from './queryKeys'
+
+// Who the current user follows (the Saved screen's profiles tab).
+export function useFollowing() {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.following(user?.id ?? ''),
+    queryFn: () => FollowRepository.listFollowing(user!.id),
+    enabled: !!user,
+  })
+}
+
+export function useIsFollowing(sellerId: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.isFollowing(user?.id ?? '', sellerId),
+    queryFn: () => FollowRepository.isFollowing(user!.id, sellerId),
+    // Own profile has no follow button, so don't bother querying self-follow.
+    enabled: !!user && !!sellerId && sellerId !== user.id,
+  })
+}
+
+// Follow/unfollow with an optimistic isFollowing flip so the button toggles
+// on tap instead of after the round-trip. An unfollow also drops the row from
+// the Saved-profiles list immediately (a re-follow can't rebuild the row
+// without the profile, so that side settles by invalidation). Both caches are
+// reconciled on settle.
+export function useToggleFollow() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ sellerId, next }: { sellerId: string; next: boolean }) => {
+      if (!user) throw new Error('Not signed in')
+      return next
+        ? FollowRepository.follow(user.id, sellerId)
+        : FollowRepository.unfollow(user.id, sellerId)
+    },
+    onMutate: async ({ sellerId, next }) => {
+      if (!user) return
+      const key = queryKeys.isFollowing(user.id, sellerId)
+      await queryClient.cancelQueries({ queryKey: key })
+      queryClient.setQueryData(key, next)
+
+      if (!next) {
+        const listKey = queryKeys.following(user.id)
+        await queryClient.cancelQueries({ queryKey: listKey })
+        queryClient.setQueryData<SellerProfile[]>(listKey, (prev) =>
+          prev?.filter((p) => p.id !== sellerId),
+        )
+      }
+    },
+    onSettled: (_data, _error, { sellerId }) => {
+      if (!user) return
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.isFollowing(user.id, sellerId),
+      })
+      queryClient.invalidateQueries({ queryKey: queryKeys.following(user.id) })
+    },
+  })
+}
