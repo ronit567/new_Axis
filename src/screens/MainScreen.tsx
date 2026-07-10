@@ -79,9 +79,7 @@ export default function MainScreen({ navigation }: Props) {
       case 'Messages':
         return <MessagesScreen navigation={navigation} />;
       case 'Profile':
-        return (
-          <ProfileScreen navigation={navigation} />
-        );
+        return <ProfileScreen navigation={navigation} />;
       default:
         return <HomeScreen navigation={navigation} />;
     }

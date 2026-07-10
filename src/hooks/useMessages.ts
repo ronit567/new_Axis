@@ -40,7 +40,8 @@ export function useHasChattedWith(partnerId: string) {
   return useQuery({
     queryKey: queryKeys.hasChattedWith(user?.id ?? '', partnerId),
     queryFn: () => MessageRepository.hasChattedWith(user!.id, partnerId),
-    enabled: !!user && !!partnerId,
+    // No self-chat gate needed on your own profile; skip the query there.
+    enabled: !!user && !!partnerId && partnerId !== user.id,
   })
 }
 
