@@ -103,7 +103,19 @@ export default function ManageListingsScreen({ navigation }: Props) {
         <View style={styles.actions}>
           {!isSold ? (
             <>
-              {/* Edit (prefilled CreateListing) is a follow-up ticket */}
+              <PressableScale
+                style={styles.actionBtn}
+                scaleTo={0.96}
+                onPress={() => {
+                  haptics.tap();
+                  navigation.navigate('EditListing', { listingId: item.id });
+                }}
+                accessibilityLabel={`Edit ${item.title}`}
+                accessibilityRole="button"
+              >
+                <Ionicons name="create-outline" size={16} color={COLORS.text} />
+                <Text style={styles.actionText}>Edit</Text>
+              </PressableScale>
               <PressableScale
                 style={styles.actionBtn}
                 scaleTo={0.96}

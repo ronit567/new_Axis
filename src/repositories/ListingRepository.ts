@@ -15,6 +15,11 @@ export type CreateListingInput = {
   image_urls: string[]
 }
 
+// 0021/pickup picker: pickup is a low-risk field (never review-gated, same as
+// price/description/is_free/is_trade) — both CreateListingScreen and
+// EditListingScreen can set it directly.
+export type UpdateListingInput = CreateListingInput
+
 export type GetAllListingsOptions = {
   category?: string
   limit?: number
@@ -425,5 +430,35 @@ export const ListingRepository = {
       .eq('id', listingId)
       .eq('seller_id', sellerId)
     if (error) throw error
+  },
+  // 0021: low-risk edits (price/description/is_free/is_trade) go straight
+  // through here regardless of engagement — those fields are never guarded.
+  // A patch that also touches a scam-vector field (title/category/condition/
+  // image_urls) only reaches here when the caller has already confirmed the
+  // listing isn't engaged; guard_engaged_listing_edit (0021) is the real
+  // authority and rejects the write server-side if that turns out to be
+  // stale, surfacing as a thrown 'listing_edit_requires_review' error.
+  async updateListing(
+    listingId: string,
+    sellerId: string,
+    patch: Partial<UpdateListingInput>,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('listings')
+      .update(patch)
+      .eq('id', listingId)
+      .eq('seller_id', sellerId)
+    if (error) throw error
+  },
+  // 0021: UX-only client check — is the caller's listing already engaged
+  // (saved or messaged about by someone else)? Determines whether
+  // EditListingScreen offers a direct save or files a review request. The
+  // guard_engaged_listing_edit trigger, not this call, is the real authority.
+  async isEngaged(listingId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('is_listing_engaged', {
+      p_listing_id: listingId,
+    })
+    if (error) throw error
+    return !!data
   },
 }

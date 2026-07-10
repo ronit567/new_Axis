@@ -40,6 +40,7 @@ import SearchScreen from './src/screens/SearchScreen';
 import ListingDetailScreen from './src/screens/ListingDetailScreen';
 import SellerProfileScreen from './src/screens/SellerProfileScreen';
 import CreateListingScreen from './src/screens/CreateListingScreen';
+import EditListingScreen from './src/screens/EditListingScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
@@ -124,6 +125,11 @@ function RootNavigator() {
           <Stack.Screen
             name="CreateListing"
             component={CreateListingScreen}
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="EditListing"
+            component={EditListingScreen}
             options={{ animation: 'slide_from_bottom' }}
           />
           <Stack.Screen name="Messages" component={MessagesScreen} />

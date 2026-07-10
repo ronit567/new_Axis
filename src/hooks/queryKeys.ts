@@ -25,4 +25,8 @@ export const queryKeys = {
   sellerReviews: (sellerId: string) => ['sellerReviews', sellerId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   unreadNotificationCount: (userId: string) => ['unreadNotificationCount', userId] as const,
+  // 0021: UX-only "is this listing already engaged" check + "is there a
+  // pending edit request" check, both keyed per listing.
+  listingEngagement: (id: string) => ['listingEngagement', id] as const,
+  pendingEditRequest: (id: string) => ['pendingEditRequest', id] as const,
 }

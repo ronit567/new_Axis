@@ -9,6 +9,7 @@ import type {
   Contact,
   Conversation,
   Listing,
+  ListingEditRequest,
   Message,
   MyListing,
   Notification,
@@ -18,6 +19,7 @@ import type {
   SellerProfile,
 } from '../types';
 import type {
+  ListingEditRequestRow,
   ListingRow,
   MessageRow,
   NotificationRow,
@@ -120,6 +122,9 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     views: row.views,
     postedAgo: timeAgo(row.created_at),
     pickup: row.pickup ?? '',
+    isFree: row.is_free,
+    isTrade: row.is_trade,
+    status: row.status === 'sold' ? 'sold' : 'active',
   };
 }
 
@@ -140,6 +145,21 @@ export function toMyListing(row: ListingRow, saves: number): MyListing {
     imageUrls: row.image_urls,
     // No separate "sale price" column — a sold listing keeps its list price.
     soldFor: row.status === 'sold' ? row.price : undefined,
+  };
+}
+
+// 0021: a proposed change to the scam-vector fields of an engaged listing.
+// status is always one of the three DB-checked values, so the cast is safe.
+export function toListingEditRequest(row: ListingEditRequestRow): ListingEditRequest {
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    status: row.status as ListingEditRequest['status'],
+    proposedTitle: row.proposed_title,
+    proposedCategory: row.proposed_category,
+    proposedCondition: row.proposed_condition,
+    proposedImageUrls: row.proposed_image_urls,
+    createdAt: row.created_at,
   };
 }
 
@@ -271,9 +291,13 @@ export function toNotification(parts: NotificationParts): Notification {
       ? title
         ? `${actorName} sent you a message about "${title}"`
         : `${actorName} sent you a message`
-      : title
-        ? `${actorName} saved your listing "${title}"`
-        : `${actorName} saved your listing`;
+      : row.type === 'listing_edited'
+        ? title
+          ? `${actorName} updated "${title}"`
+          : `${actorName} updated a listing you saved`
+        : title
+          ? `${actorName} saved your listing "${title}"`
+          : `${actorName} saved your listing`;
   return {
     id: row.id,
     type: row.type as NotificationType,

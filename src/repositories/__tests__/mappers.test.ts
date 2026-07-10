@@ -3,12 +3,19 @@ import {
   toContact,
   toConversation,
   toListing,
+  toListingEditRequest,
   toMessage,
   toNotification,
   toSeller,
   toSellerProfile,
 } from '../mappers';
-import type { ListingRow, MessageRow, NotificationRow, ProfileRow } from '../../types/database';
+import type {
+  ListingEditRequestRow,
+  ListingRow,
+  MessageRow,
+  NotificationRow,
+  ProfileRow,
+} from '../../types/database';
 import type { Seller } from '../../types';
 
 const sellerRow: ProfileRow = {
@@ -95,6 +102,21 @@ describe('toListing', () => {
     expect(toListing(listingRow, sellerRow, false).saved).toBe(false);
   });
 
+  it('passes is_free/is_trade through unchanged', () => {
+    expect(toListing(listingRow, sellerRow, false)).toMatchObject({ isFree: false, isTrade: false });
+    expect(
+      toListing({ ...listingRow, is_free: true, is_trade: false }, sellerRow, false),
+    ).toMatchObject({ isFree: true, isTrade: false });
+    expect(
+      toListing({ ...listingRow, is_free: false, is_trade: true }, sellerRow, false),
+    ).toMatchObject({ isFree: false, isTrade: true });
+  });
+
+  it('maps status, defaulting anything other than sold to active', () => {
+    expect(toListing(listingRow, sellerRow, false).status).toBe('active');
+    expect(toListing({ ...listingRow, status: 'sold' }, sellerRow, false).status).toBe('sold');
+  });
+
   it('gives an empty image_urls listing a stable, deterministic imageColor', () => {
     const a = toListing(listingRow, sellerRow, false).imageColor;
     const b = toListing(listingRow, sellerRow, false).imageColor;
@@ -124,6 +146,49 @@ describe('toListing', () => {
     expect(listing.category).toBe('Other');
     expect(listing.description).toBe('');
     expect(listing.pickup).toBe('');
+  });
+});
+
+// --- Listing edit requests (0021) --------------------------------------------
+
+const listingEditRequestRow: ListingEditRequestRow = {
+  id: 'ler1',
+  listing_id: 'l1',
+  requester_id: 's1',
+  proposed_title: 'New title',
+  proposed_category: null,
+  proposed_condition: null,
+  proposed_image_urls: null,
+  status: 'pending',
+  created_at: '2026-07-01T10:00:00.000Z',
+  reviewed_at: null,
+};
+
+describe('toListingEditRequest', () => {
+  it('maps a row to the domain ListingEditRequest (snake_case -> camelCase)', () => {
+    expect(toListingEditRequest(listingEditRequestRow)).toEqual({
+      id: 'ler1',
+      listingId: 'l1',
+      status: 'pending',
+      proposedTitle: 'New title',
+      proposedCategory: null,
+      proposedCondition: null,
+      proposedImageUrls: null,
+      createdAt: '2026-07-01T10:00:00.000Z',
+    });
+  });
+
+  it('passes through a non-pending status and a full proposed_image_urls array', () => {
+    const request = toListingEditRequest({
+      ...listingEditRequestRow,
+      status: 'approved',
+      proposed_image_urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+    });
+    expect(request.status).toBe('approved');
+    expect(request.proposedImageUrls).toEqual([
+      'https://example.com/a.jpg',
+      'https://example.com/b.jpg',
+    ]);
   });
 });
 
@@ -355,6 +420,25 @@ describe('toNotification', () => {
       'Aria K. saved your listing "Organic Chem 2 textbook"',
     );
     expect(notification.type).toBe('listing_saved');
+  });
+
+  it('composes listing_edited copy with the listing title', () => {
+    const notification = toNotification({
+      row: { ...notificationRow, type: 'listing_edited' },
+      actor: sellerRow,
+      listing: listingRow,
+    });
+    expect(notification.message).toBe('Aria K. updated "Organic Chem 2 textbook"');
+    expect(notification.type).toBe('listing_edited');
+  });
+
+  it('composes listing_edited copy without a listing title when the listing is missing', () => {
+    const notification = toNotification({
+      row: { ...notificationRow, type: 'listing_edited', listing_id: null },
+      actor: sellerRow,
+      listing: null,
+    });
+    expect(notification.message).toBe('Aria K. updated a listing you saved');
   });
 
   it("falls back to 'Someone' and a null actor when the actor profile is missing", () => {

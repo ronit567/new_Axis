@@ -85,6 +85,49 @@ export const StorageRepository = {
     }
   },
 
+  // Edit-flow uploads (0021): a listing already has live objects named by
+  // index (0.jpg, 1.jpg, ...) at this same {seller_id}/{listing_id}/ prefix.
+  // Reusing index-based names here would silently overwrite one of those
+  // live objects mid-edit — before the listings row (or edit request) that's
+  // supposed to point at the new photo has actually been written. Timestamped
+  // filenames guarantee an addition never collides with an existing object,
+  // whether the edit lands immediately (direct update) or sits in review (an
+  // edit request whose proposed_image_urls references it).
+  async uploadListingImageAdditions(
+    sellerId: string,
+    listingId: string,
+    photos: LocalPhoto[],
+  ): Promise<UploadedListingImages> {
+    const paths: string[] = []
+    const urls: string[] = []
+
+    try {
+      for (let i = 0; i < photos.length; i += 1) {
+        const photo = photos[i]
+        const contentType = contentTypeFor(photo)
+        const path = `${sellerId}/${listingId}/${Date.now()}-${i}.${extensionFor(contentType)}`
+
+        const response = await fetch(photo.uri)
+        const arraybuffer = await response.arrayBuffer()
+
+        const { error } = await supabase.storage
+          .from(LISTING_IMAGES_BUCKET)
+          .upload(path, arraybuffer, { contentType })
+        if (error) throw error
+
+        paths.push(path)
+        const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
+        urls.push(data.publicUrl)
+      }
+
+      return { urls, paths }
+    } catch (error) {
+      await StorageRepository.deleteListingImages(paths)
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new Error(`Couldn't upload photo ${paths.length + 1} of ${photos.length}: ${reason}`)
+    }
+  },
+
   async deleteListingImages(paths: string[]): Promise<void> {
     if (paths.length === 0) return
     // Best-effort: if cleanup itself fails (e.g. network dropped), don't mask

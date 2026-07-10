@@ -10,6 +10,7 @@ import {
   NativeScrollEvent,
   useWindowDimensions,
   Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,8 +26,9 @@ import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import { haptics } from '../lib/haptics';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { useAuth } from '../context/AuthContext';
-import { useListing } from '../hooks/useListings';
+import { useListing, useMarkListingSold, useRelistListing, useDeleteListing } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
+import { usePendingEditRequest } from '../hooks/useListingEdits';
 import { useProfile } from '../hooks/useProfile';
 import { useCreateReport } from '../hooks/useReports';
 import { deriveInitials, sellerToContact } from '../repositories/mappers';
@@ -42,6 +44,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
+  const markSold = useMarkListingSold();
+  const relist = useRelistListing();
+  const deleteListing = useDeleteListing();
 
   const [saved, setSaved] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
@@ -50,6 +55,13 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const galleryRef = useRef<ScrollView>(null);
+
+  const isOwnListing = !!listing && user?.id === listing.seller.id;
+  // Owner-guarded: a viewer browsing someone else's listing has no edit
+  // requests of their own to see for it (listing_edit_requests_select_own
+  // scopes rows to the requester, always the seller), so skip the query
+  // entirely rather than fire a request that would just resolve to null.
+  const { data: pendingEditRequest } = usePendingEditRequest(isOwnListing ? listingId : '');
 
   // `saved` is optimistic local state: flip immediately, roll back on failure.
   // The mutation takes the full listing with the pre-tap saved flag — local
@@ -113,7 +125,33 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   }
 
   const sellerInitials = deriveInitials(listing.seller.name);
-  const isOwnListing = user?.id === listing.seller.id;
+
+  const surface = (title: string) => (e: unknown) =>
+    Alert.alert(title, e instanceof Error ? e.message : 'Please try again.');
+
+  const handleMarkSold = () => {
+    haptics.impact();
+    markSold.mutate(listing.id, { onError: surface("Couldn't mark as sold") });
+  };
+  const handleRelist = () => {
+    haptics.impact();
+    relist.mutate(listing.id, { onError: surface("Couldn't relist") });
+  };
+  const handleDelete = () => {
+    haptics.tap();
+    Alert.alert('Delete listing?', 'This can’t be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () =>
+          deleteListing.mutate(listing.id, {
+            onSuccess: () => navigation.goBack(),
+            onError: surface("Couldn't delete"),
+          }),
+      },
+    ]);
+  };
 
   // Both bottom-bar actions open the same thread; the offer shortcut just seeds
   // the composer with a template so negotiating happens over chat.
@@ -164,37 +202,42 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           >
             <Ionicons name="share-outline" size={20} color={COLORS.text} />
           </PressableScale>
-          <PressableScale
-            style={styles.iconBtn}
-            onPress={handleToggleSave}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel={saved ? 'Remove from saved' : 'Save listing'}
-            accessibilityState={{ selected: saved }}
-          >
-            <AnimatedIconToggle
-              active={saved}
-              activeName="heart"
-              inactiveName="heart-outline"
-              activeColor={COLORS.like}
-              inactiveColor={COLORS.text}
-              size={20}
-            />
-          </PressableScale>
-          <PressableScale
-            style={styles.iconBtn}
-            onPress={() => {
-              haptics.tap();
-              setReportVisible(true);
-            }}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Report listing"
-          >
-            <Ionicons name="flag-outline" size={20} color={COLORS.text} />
-          </PressableScale>
+          {/* Save/Report don't apply to your own listing — Share stays either way. */}
+          {!isOwnListing && (
+            <>
+              <PressableScale
+                style={styles.iconBtn}
+                onPress={handleToggleSave}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                scaleTo={0.9}
+                accessibilityRole="button"
+                accessibilityLabel={saved ? 'Remove from saved' : 'Save listing'}
+                accessibilityState={{ selected: saved }}
+              >
+                <AnimatedIconToggle
+                  active={saved}
+                  activeName="heart"
+                  inactiveName="heart-outline"
+                  activeColor={COLORS.like}
+                  inactiveColor={COLORS.text}
+                  size={20}
+                />
+              </PressableScale>
+              <PressableScale
+                style={styles.iconBtn}
+                onPress={() => {
+                  haptics.tap();
+                  setReportVisible(true);
+                }}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                scaleTo={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="Report listing"
+              >
+                <Ionicons name="flag-outline" size={20} color={COLORS.text} />
+              </PressableScale>
+            </>
+          )}
         </View>
       </View>
 
@@ -243,6 +286,24 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                 <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
               </TouchableOpacity>
             ))}
+          </View>
+        )}
+
+        {isOwnListing && (
+          <View style={styles.ownerBannerWrap}>
+            <View style={styles.ownerBanner}>
+              <View style={styles.ownerBannerIcon}>
+                <Ionicons name="storefront" size={18} color={COLORS.primary} />
+              </View>
+              <View style={styles.ownerBannerInfo}>
+                <Text style={styles.ownerBannerTitle}>This is your listing</Text>
+                <Text style={styles.ownerBannerCaption}>
+                  {pendingEditRequest
+                    ? 'Edits pending review'
+                    : 'Buyers see this listing in Browse and Search.'}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -301,16 +362,19 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
           <View style={styles.divider} />
 
-          {/* Location */}
-          <View style={styles.locationCard}>
-            <View style={styles.locationIcon}>
-              <Ionicons name="location" size={18} color={COLORS.primary} />
+          {/* Location — hidden entirely when the seller never set one, rather
+              than rendering a card with a blank address. */}
+          {!!listing.pickup && (
+            <View style={styles.locationCard}>
+              <View style={styles.locationIcon}>
+                <Ionicons name="location" size={18} color={COLORS.primary} />
+              </View>
+              <View>
+                <Text style={styles.locationTitle}>Campus pickup</Text>
+                <Text style={styles.locationAddress}>{listing.pickup}</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.locationTitle}>Campus pickup</Text>
-              <Text style={styles.locationAddress}>{listing.pickup}</Text>
-            </View>
-          </View>
+          )}
         </View>
       </ScrollView>
 
@@ -339,6 +403,61 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           >
             <Ionicons name="chatbubble-outline" size={17} color={COLORS.white} />
             <Text style={styles.messageText}>Message</Text>
+          </PressableScale>
+        </View>
+      )}
+
+      {/* Owner Action Bar — replaces the buyer offer/message actions. Edit
+          carries the most visual weight (primary pill), Mark sold/Relist is
+          a neutral pill, and Delete is quiet danger text rather than a boxed
+          red button. */}
+      {isOwnListing && (
+        <View style={[styles.ownerActionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <PressableScale
+            style={styles.ownerEditBtn}
+            scaleTo={0.96}
+            onPress={() => {
+              haptics.tap();
+              navigation.navigate('EditListing', { listingId: listing.id });
+            }}
+            accessibilityLabel="Edit listing"
+            accessibilityRole="button"
+          >
+            <Ionicons name="create-outline" size={17} color={COLORS.white} />
+            <Text style={styles.ownerEditText}>Edit</Text>
+          </PressableScale>
+          {listing.status === 'sold' ? (
+            <PressableScale
+              style={styles.ownerSecondaryBtn}
+              scaleTo={0.96}
+              onPress={handleRelist}
+              accessibilityLabel="Relist"
+              accessibilityRole="button"
+            >
+              <Ionicons name="repeat-outline" size={17} color={COLORS.text} />
+              <Text style={styles.ownerSecondaryText}>Relist</Text>
+            </PressableScale>
+          ) : (
+            <PressableScale
+              style={styles.ownerSecondaryBtn}
+              scaleTo={0.96}
+              onPress={handleMarkSold}
+              accessibilityLabel="Mark as sold"
+              accessibilityRole="button"
+            >
+              <Ionicons name="checkmark-circle-outline" size={17} color={COLORS.westernGreen} />
+              <Text style={[styles.ownerSecondaryText, { color: COLORS.westernGreen }]}>Mark sold</Text>
+            </PressableScale>
+          )}
+          <PressableScale
+            style={styles.ownerDeleteBtn}
+            scaleTo={0.92}
+            onPress={handleDelete}
+            accessibilityLabel="Delete listing"
+            accessibilityRole="button"
+          >
+            <Ionicons name="trash-outline" size={16} color={COLORS.error} />
+            <Text style={styles.ownerDeleteText}>Delete</Text>
           </PressableScale>
         </View>
       )}
@@ -581,5 +700,95 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 15,
     fontFamily: FONTS.semibold,
+  },
+  ownerBannerWrap: {
+    paddingHorizontal: 20,
+    marginTop: 12,
+  },
+  ownerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: SIZES.borderRadiusLg,
+    padding: 14,
+  },
+  ownerBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownerBannerInfo: {
+    flex: 1,
+  },
+  ownerBannerTitle: {
+    fontSize: 14,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  ownerBannerCaption: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  ownerActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    backgroundColor: COLORS.white,
+    ...SHADOWS.floating,
+  },
+  ownerEditBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 50,
+    borderRadius: 999,
+    backgroundColor: COLORS.primary,
+    ...SHADOWS.brand,
+  },
+  ownerEditText: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.white,
+  },
+  ownerSecondaryBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 50,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: COLORS.inputBorder,
+    backgroundColor: COLORS.white,
+  },
+  ownerSecondaryText: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
+  },
+  ownerDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    height: 50,
+    paddingHorizontal: 4,
+  },
+  ownerDeleteText: {
+    fontSize: SIZES.sm,
+    fontFamily: FONTS.semibold,
+    color: COLORS.error,
   },
 });

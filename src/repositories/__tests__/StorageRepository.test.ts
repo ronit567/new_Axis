@@ -156,6 +156,60 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 });
 
+describe('StorageRepository.uploadListingImageAdditions', () => {
+  it('uploads under {sellerId}/{listingId}/{timestamp}-{index}, never colliding with index-named live objects', async () => {
+    mockFetchResolving();
+    mockUpload.mockResolvedValue({ data: {}, error: null });
+    mockGetPublicUrl.mockImplementation((path: string) => ({
+      data: { publicUrl: `https://cdn.test/${path}` },
+    }));
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+
+    const result = await StorageRepository.uploadListingImageAdditions('seller-1', 'listing-1', [
+      photo('file:///a.jpg'),
+      photo('file:///b.png'),
+    ]);
+
+    expect(mockUpload).toHaveBeenNthCalledWith(
+      1,
+      'seller-1/listing-1/1700000000000-0.jpg',
+      expect.any(ArrayBuffer),
+      { contentType: 'image/jpeg' },
+    );
+    expect(mockUpload).toHaveBeenNthCalledWith(
+      2,
+      'seller-1/listing-1/1700000000000-1.png',
+      expect.any(ArrayBuffer),
+      { contentType: 'image/png' },
+    );
+    expect(result.paths).toEqual([
+      'seller-1/listing-1/1700000000000-0.jpg',
+      'seller-1/listing-1/1700000000000-1.png',
+    ]);
+
+    (Date.now as jest.Mock).mockRestore();
+  });
+
+  it('rolls back already-uploaded photos and throws an actionable error when a later upload fails', async () => {
+    mockFetchResolving();
+    mockUpload
+      .mockResolvedValueOnce({ data: {}, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('mime type not allowed') });
+    mockGetPublicUrl.mockImplementation((path: string) => ({
+      data: { publicUrl: `https://cdn.test/${path}` },
+    }));
+
+    await expect(
+      StorageRepository.uploadListingImageAdditions('seller-1', 'listing-1', [
+        photo('file:///a.jpg'),
+        photo('file:///b.jpg'),
+      ]),
+    ).rejects.toThrow('mime type not allowed');
+
+    expect(mockRemove).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('StorageRepository.deleteListingImages', () => {
   it('does nothing when given no paths', async () => {
     await StorageRepository.deleteListingImages([]);

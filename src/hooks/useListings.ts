@@ -183,7 +183,9 @@ export function useSellerListings(sellerId: string) {
 // storefronts all filter status='active', so a sold/deleted row must drop (and a
 // relisted row reappear); the owner's saved list drops it if they saved their own
 // listing; the detail cache flips status or becomes null after delete.
-function invalidateAfterListingMutation(
+// Exported so useUpdateListing (useListingEdits.ts) can reuse it for the same
+// invalidation surface a direct listing update affects.
+export function invalidateAfterListingMutation(
   queryClient: QueryClient,
   userId: string,
   listingId: string,
