@@ -15,6 +15,7 @@ import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
+import VerifiedTick from '../components/VerifiedTick';
 import ReviewCard from '../components/ReviewCard';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ReviewSummary from '../components/ReviewSummary';
@@ -22,7 +23,6 @@ import EmptyState from '../components/EmptyState';
 import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
-import { useFollowing } from '../hooks/useFollows';
 import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { getSellerBadges } from '../lib/sellerBadges';
@@ -62,7 +62,6 @@ export default function ProfileScreen({ navigation }: Props) {
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
   const { data: profile } = useCurrentProfile();
-  const { data: followingList = [] } = useFollowing();
   // What others wrote about me (0020). Also feeds the trust row's rating
   // segment — profile.rating/reviewCount are the mapper's deferred zeros,
   // never shown.
@@ -75,23 +74,32 @@ export default function ProfileScreen({ navigation }: Props) {
   const soldCount = myListings.filter((l) => l.status === 'sold').length;
 
   // Muted trust-row segments, " · "-separated — rating (tappable, jumps to
-  // the Reviews tab), sold count, and join date. Each is omitted when not
-  // applicable rather than showing a hollow "0 sold".
+  // the Reviews tab), sold count, and join date. Rating always shows (as
+  // "New" pre-reviews) so it isn't mistaken for missing; sold/joined are
+  // still omitted when not applicable rather than showing a hollow "0 sold".
   const trustSegments: React.ReactNode[] = [];
-  if (myReviews.length > 0) {
-    trustSegments.push(
-      <TouchableOpacity
-        key="rating"
-        style={styles.trustSegmentRow}
-        onPress={() => setActiveTab(1)}
-        accessibilityRole="button"
-        accessibilityLabel={`${averageRating.toFixed(1)} stars, ${myReviews.length} reviews`}
-      >
-        <Ionicons name="star" size={13} color={COLORS.warning} />
-        <Text style={styles.trustText}> {averageRating.toFixed(1)} ({myReviews.length})</Text>
-      </TouchableOpacity>,
-    );
-  }
+  trustSegments.push(
+    <TouchableOpacity
+      key="rating"
+      style={styles.trustSegmentRow}
+      onPress={() => setActiveTab(1)}
+      accessibilityRole="button"
+      accessibilityLabel={
+        myReviews.length > 0
+          ? `${averageRating.toFixed(1)} stars, ${myReviews.length} reviews`
+          : 'No ratings yet'
+      }
+    >
+      <Ionicons
+        name={myReviews.length > 0 ? 'star' : 'star-outline'}
+        size={13}
+        color={COLORS.warning}
+      />
+      <Text style={styles.trustText}>
+        {myReviews.length > 0 ? ` ${averageRating.toFixed(1)} (${myReviews.length})` : ' New'}
+      </Text>
+    </TouchableOpacity>,
+  );
   if (soldCount > 0) {
     trustSegments.push(
       <Text key="sold" style={styles.trustText}>
@@ -160,56 +168,49 @@ export default function ProfileScreen({ navigation }: Props) {
             style={styles.avatar}
             textStyle={styles.avatarText}
           />
-          <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
-          {profile?.verified && (
-            <View style={styles.verifiedPill}>
-              <Ionicons name="checkmark-circle" size={13} color={COLORS.primary} />
-              <Text style={styles.verifiedPillText}>Verified student</Text>
-            </View>
-          )}
+          <View style={styles.nameRow}>
+            <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
+            {profile?.verified && <VerifiedTick />}
+          </View>
           <Text style={styles.programText}>
             {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
           </Text>
-          {trustSegments.length > 0 && (
-            <View style={styles.trustRow}>
-              {trustSegments.map((segment, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <Text style={styles.trustDot}> · </Text>}
-                  {segment}
-                </React.Fragment>
-              ))}
-            </View>
-          )}
-          {badges.length > 0 && (
-            <View style={styles.badgeRow}>
-              {badges.map((badge) => (
-                <View key={badge.label} style={styles.badgeChip}>
-                  <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
-                  <Text style={styles.badgeChipText}>{badge.label}</Text>
-                </View>
-              ))}
-            </View>
-          )}
           {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
-          <TouchableOpacity
-            style={styles.followingLink}
-            onPress={() => navigation.navigate('Following')}
-            accessibilityRole="button"
-            accessibilityLabel={`${followingList.length} saved ${followingList.length === 1 ? 'profile' : 'profiles'}`}
-          >
-            <Text style={styles.followingLinkText}>
-              {followingList.length} Saved {followingList.length === 1 ? 'profile' : 'profiles'}
-            </Text>
-          </TouchableOpacity>
+
+          {(trustSegments.length > 0 || badges.length > 0) && (
+            <View style={styles.statsBlock}>
+              {trustSegments.length > 0 && (
+                <View style={styles.trustRow}>
+                  {trustSegments.map((segment, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <Text style={styles.trustDot}> · </Text>}
+                      {segment}
+                    </React.Fragment>
+                  ))}
+                </View>
+              )}
+              {badges.length > 0 && (
+                <View style={styles.badgeRow}>
+                  {badges.map((badge) => (
+                    <View key={badge.label} style={styles.badgeChip}>
+                      <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
+                      <Text style={styles.badgeChipText}>{badge.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           <PressableScale
-            style={styles.editPill}
+            style={styles.actionPill}
             onPress={() => navigation.navigate('EditProfile')}
             scaleTo={0.95}
             accessibilityRole="button"
             accessibilityLabel="Edit profile"
           >
             <Ionicons name="create-outline" size={15} color={COLORS.primary} />
-            <Text style={styles.editPillText}>Edit profile</Text>
+            <Text style={styles.actionPillText}>Edit profile</Text>
           </PressableScale>
         </View>
 
@@ -325,36 +326,38 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   nameText: {
     fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 4,
-  },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    marginBottom: 6,
-  },
-  verifiedPillText: {
-    fontSize: SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   programText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
-    marginBottom: 6,
+  },
+  bioText: {
+    fontSize: SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 40,
+    marginTop: 6,
+  },
+  statsBlock: {
+    alignItems: 'center',
+    marginTop: 12,
   },
   trustRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
   },
   trustSegmentRow: {
     flexDirection: 'row',
@@ -373,7 +376,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 6,
-    marginBottom: 6,
+    marginTop: 8,
   },
   badgeChip: {
     flexDirection: 'row',
@@ -389,23 +392,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-  bioText: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 40,
-    marginBottom: 6,
-  },
-  followingLink: {
-    marginBottom: 10,
-  },
-  followingLinkText: {
-    fontSize: SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  editPill: {
+  actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -413,12 +400,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 8,
     borderRadius: 999,
-    marginTop: 12,
+    marginTop: 14,
     borderWidth: 1,
     borderColor: COLORS.primaryBorder,
     ...SHADOWS.card,
   },
-  editPillText: {
+  actionPillText: {
     fontSize: SIZES.sm,
     fontWeight: '600',
     color: COLORS.primary,

@@ -3,7 +3,7 @@ import { FollowRepository } from '../repositories/FollowRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
-// Who the current user follows (FollowingScreen + the Profile tab's count).
+// Who the current user follows (the Saved screen's profiles tab).
 export function useFollowing() {
   const { user } = useAuth()
   return useQuery({

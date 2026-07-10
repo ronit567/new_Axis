@@ -163,8 +163,6 @@ export type RootStackParamList = {
   SetupProfile: undefined;
   Profile: undefined;
   EditProfile: undefined;
-  // Who the current user follows (reached from the Profile tab's stats bar).
-  Following: undefined;
   ManageListings: undefined;
   Settings: undefined;
   Main: undefined;

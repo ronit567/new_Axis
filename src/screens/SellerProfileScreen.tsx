@@ -20,6 +20,7 @@ import ReviewCard from '../components/ReviewCard';
 import ReviewSummary from '../components/ReviewSummary';
 import WriteReviewModal from '../components/WriteReviewModal';
 import SegmentedTabs from '../components/SegmentedTabs';
+import VerifiedTick from '../components/VerifiedTick';
 import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
@@ -71,24 +72,33 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const myReview = reviews.find((r) => r.reviewer.id === user?.id);
 
   // Muted trust-row segments, " · "-separated — rating (tappable, jumps to
-  // the Reviews tab), sold count, and join date. seller.stats.sold is the
-  // deferred zero (AX-702) until the aggregate RPC lands, so it's omitted
-  // rather than shown as "0 sold".
+  // the Reviews tab), sold count, and join date. Rating always shows (as
+  // "New" pre-reviews) so it isn't mistaken for missing. seller.stats.sold
+  // is the deferred zero (AX-702) until the aggregate RPC lands, so it's
+  // omitted rather than shown as "0 sold".
   const trustSegments: React.ReactNode[] = [];
-  if (reviews.length > 0) {
-    trustSegments.push(
-      <TouchableOpacity
-        key="rating"
-        style={styles.trustSegmentRow}
-        onPress={() => setActiveTab(1)}
-        accessibilityRole="button"
-        accessibilityLabel={`${averageRating.toFixed(1)} stars, ${reviews.length} reviews`}
-      >
-        <Ionicons name="star" size={13} color={COLORS.warning} />
-        <Text style={styles.trustText}> {averageRating.toFixed(1)} ({reviews.length})</Text>
-      </TouchableOpacity>,
-    );
-  }
+  trustSegments.push(
+    <TouchableOpacity
+      key="rating"
+      style={styles.trustSegmentRow}
+      onPress={() => setActiveTab(1)}
+      accessibilityRole="button"
+      accessibilityLabel={
+        reviews.length > 0
+          ? `${averageRating.toFixed(1)} stars, ${reviews.length} reviews`
+          : 'No ratings yet'
+      }
+    >
+      <Ionicons
+        name={reviews.length > 0 ? 'star' : 'star-outline'}
+        size={13}
+        color={COLORS.warning}
+      />
+      <Text style={styles.trustText}>
+        {reviews.length > 0 ? ` ${averageRating.toFixed(1)} (${reviews.length})` : ' New'}
+      </Text>
+    </TouchableOpacity>,
+  );
   if (seller.stats.sold > 0) {
     trustSegments.push(
       <Text key="sold" style={styles.trustText}>
@@ -100,6 +110,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     trustSegments.push(
       <Text key="joined" style={styles.trustText}>
         Joined {seller.joinedDate}
+      </Text>,
+    );
+  }
+  if (seller.stats.replyTime) {
+    trustSegments.push(
+      <Text key="replyTime" style={styles.trustText}>
+        Replies {seller.stats.replyTime}
       </Text>,
     );
   }
@@ -210,35 +227,34 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             style={styles.avatar}
             textStyle={styles.avatarText}
           />
-          <Text style={styles.sellerName}>{seller.name}</Text>
-          {seller.verified && (
-            <View style={styles.verifiedPill}>
-              <Ionicons name="checkmark-circle" size={13} color={COLORS.primary} />
-              <Text style={styles.verifiedPillText}>Verified student</Text>
-            </View>
-          )}
+          <View style={styles.nameRow}>
+            <Text style={styles.sellerName}>{seller.name}</Text>
+            {seller.verified && <VerifiedTick />}
+          </View>
           <Text style={styles.joinedText}>{seller.program}</Text>
-          {trustSegments.length > 0 && (
-            <View style={styles.trustRow}>
-              {trustSegments.map((segment, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <Text style={styles.trustDot}> · </Text>}
-                  {segment}
-                </React.Fragment>
-              ))}
-            </View>
-          )}
-          {!!seller.stats.replyTime && (
-            <Text style={styles.replyTimeText}>Replies {seller.stats.replyTime}</Text>
-          )}
-          {badges.length > 0 && (
-            <View style={styles.badgeRow}>
-              {badges.map((badge) => (
-                <View key={badge.label} style={styles.badgeChip}>
-                  <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
-                  <Text style={styles.badgeChipText}>{badge.label}</Text>
+
+          {(trustSegments.length > 0 || badges.length > 0) && (
+            <View style={styles.statsBlock}>
+              {trustSegments.length > 0 && (
+                <View style={styles.trustRow}>
+                  {trustSegments.map((segment, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <Text style={styles.trustDot}> · </Text>}
+                      {segment}
+                    </React.Fragment>
+                  ))}
                 </View>
-              ))}
+              )}
+              {badges.length > 0 && (
+                <View style={styles.badgeRow}>
+                  {badges.map((badge) => (
+                    <View key={badge.label} style={styles.badgeChip}>
+                      <Ionicons name={badge.icon} size={12} color={COLORS.primary} />
+                      <Text style={styles.badgeChipText}>{badge.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -382,36 +398,30 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
   sellerName: {
     fontSize: 22,
     fontFamily: FONTS.bold,
     color: COLORS.text,
-    marginBottom: 6,
-  },
-  verifiedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    marginBottom: 8,
-  },
-  verifiedPillText: {
-    fontSize: SIZES.xs,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
   joinedText: {
     fontSize: 13,
     color: COLORS.textMuted,
-    marginBottom: 8,
+  },
+  statsBlock: {
+    alignItems: 'center',
+    marginTop: 10,
   },
   trustRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
   trustSegmentRow: {
     flexDirection: 'row',
@@ -425,16 +435,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
   },
-  replyTimeText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginBottom: 8,
-  },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 6,
+    marginTop: 8,
   },
   badgeChip: {
     flexDirection: 'row',

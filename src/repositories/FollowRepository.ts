@@ -6,7 +6,8 @@ import { toSellerProfile } from './mappers'
 export const FollowRepository = {
   // Who the current user follows, most recently followed first. Returns full
   // SellerProfiles (zero stats — same deferral as ProfileRepository.toProfile)
-  // so FollowingScreen can hand a row straight to the SellerProfile route.
+  // so the Saved screen's profiles tab can hand a row straight to the
+  // SellerProfile route.
   // Batch-joins profiles manually (NotificationRepository shape); a profile
   // missing from the join is RLS-hidden (blocked since the follow) and its
   // follow is dropped from the list rather than rendered blank.
