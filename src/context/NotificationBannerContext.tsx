@@ -7,11 +7,12 @@ import React, {
   useState,
   type ComponentProps,
 } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import PressableScale from '../components/PressableScale';
-import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SHADOWS } from '../constants/theme';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -99,7 +100,7 @@ export function NotificationBannerProvider({ children }: { children: React.React
             pointerEvents="box-none"
           >
             <PressableScale
-              style={styles.banner}
+              style={styles.bannerShadowWrap}
               scaleTo={0.98}
               onPress={() => {
                 content.onPress?.();
@@ -108,19 +109,27 @@ export function NotificationBannerProvider({ children }: { children: React.React
               accessibilityRole="button"
               accessibilityLabel={`${content.title}${content.body ? `. ${content.body}` : ''}`}
             >
-              <View style={styles.iconCircle}>
-                <Ionicons name={content.icon ?? 'notifications'} size={18} color={COLORS.white} />
-              </View>
-              <View style={styles.textCol}>
-                <Text style={styles.title} numberOfLines={1}>
-                  {content.title}
-                </Text>
-                {content.body ? (
-                  <Text style={styles.body} numberOfLines={2}>
-                    {content.body}
+              <BlurView
+                intensity={70}
+                tint="systemChromeMaterialLight"
+                style={styles.banner}
+                experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+              >
+                <View style={styles.bannerTint} />
+                <View style={styles.iconCircle}>
+                  <Ionicons name={content.icon ?? 'notifications'} size={18} color={COLORS.white} />
+                </View>
+                <View style={styles.textCol}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {content.title}
                   </Text>
-                ) : null}
-              </View>
+                  {content.body ? (
+                    <Text style={styles.body} numberOfLines={2}>
+                      {content.body}
+                    </Text>
+                  ) : null}
+                </View>
+              </BlurView>
             </PressableScale>
           </Animated.View>
         )}
@@ -150,15 +159,26 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     elevation: 1000,
   },
+  bannerShadowWrap: {
+    ...SHADOWS.floating,
+  },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 22,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    ...SHADOWS.floating,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(20, 12, 36, 0.08)',
+  },
+  bannerTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Platform.select({
+      android: 'rgba(255,255,255,0.96)',
+      default: 'rgba(255,255,255,0.55)',
+    }),
   },
   iconCircle: {
     width: 36,
