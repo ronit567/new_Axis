@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
   row: {
     flexDirection: 'row',

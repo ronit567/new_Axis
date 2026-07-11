@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
 import Avatar from '../components/Avatar';
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
   },
   scroll: {
-    paddingBottom: 20,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
 
   /* top bar */

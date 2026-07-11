@@ -93,6 +93,8 @@ export default function MainScreen({ navigation }: Props) {
     setActiveTab(tab);
   };
 
+  // BottomTabBar renders its own absolutely-positioned overlay, so it floats
+  // above `content` instead of taking flow space beneath it.
   return (
     <View style={styles.container}>
       <View style={styles.content}>{renderContent()}</View>

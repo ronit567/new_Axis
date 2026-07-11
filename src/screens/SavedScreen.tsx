@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
   row: {
     gap: 12,
@@ -240,6 +241,7 @@ const styles = StyleSheet.create({
   },
   profileListContent: {
     padding: 20,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
     gap: 10,
   },
   profileRow: {

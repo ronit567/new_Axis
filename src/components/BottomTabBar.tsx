@@ -1,7 +1,8 @@
 import React, { ComponentProps } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, GRADIENTS, SHADOWS } from '../constants/theme';
 import { haptics } from '../lib/haptics';
@@ -33,43 +34,70 @@ type Props = {
   messagesBadge?: number;
 };
 
+// Pill height (62) + bottom offset (~14) + a little breathing room above the
+// home indicator (~24) — screens under the floating bar pad their scroll
+// content by at least this much so the last item clears the glass.
+export const FLOATING_TAB_BAR_CLEARANCE = 100;
+
 export default function BottomTabBar({ activeTab, onTabPress, messagesBadge = 0 }: Props) {
   const insets = useSafeAreaInsets();
 
-  // Split the home-indicator inset evenly above and below the row so the
-  // icons sit centered in the bar instead of being shoved up by bottom padding.
-  const verticalPad = Math.max(insets.bottom - 12, 10);
-
   return (
-    <View style={[styles.container, { paddingTop: verticalPad, paddingBottom: verticalPad }]}>
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.name;
-        const isCreate = tab.name === 'Create';
+    <View
+      style={[styles.container, { paddingBottom: Math.max(insets.bottom - 6, 12) }]}
+      pointerEvents="box-none"
+    >
+      {/* Floating pill: frosted-glass capsule holding the primary tabs and the create button. */}
+      <View style={styles.pillShadowWrap}>
+        <BlurView
+          intensity={70}
+          tint="systemChromeMaterialLight"
+          style={styles.pill}
+          experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+        >
+          <View style={styles.pillTint} />
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.name;
+            const isCreate = tab.name === 'Create';
 
-        return (
-          <PressableScale
-            key={tab.name}
-            style={styles.tabItem}
-            onPress={() => {
-              if (!isActive) haptics.tap();
-              onTabPress(tab.name);
-            }}
-            scaleTo={isCreate ? 0.93 : 0.9}
-            accessibilityRole={isCreate ? 'button' : 'tab'}
-            accessibilityLabel={isCreate ? 'Create listing' : tab.label}
-            accessibilityState={isCreate ? undefined : { selected: isActive }}
-          >
-            {isCreate ? (
-              <LinearGradient
-                colors={GRADIENTS.primary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.createBtn}
+            if (isCreate) {
+              return (
+                <PressableScale
+                  key={tab.name}
+                  style={styles.tabItem}
+                  onPress={() => {
+                    haptics.tap();
+                    onTabPress('Create');
+                  }}
+                  scaleTo={0.93}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create listing"
+                >
+                  <LinearGradient
+                    colors={GRADIENTS.primary}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.createBtn}
+                  >
+                    <Ionicons name="add" size={24} color={COLORS.white} />
+                  </LinearGradient>
+                </PressableScale>
+              );
+            }
+
+            return (
+              <PressableScale
+                key={tab.name}
+                style={styles.tabItem}
+                onPress={() => {
+                  if (!isActive) haptics.tap();
+                  onTabPress(tab.name);
+                }}
+                scaleTo={0.9}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: isActive }}
               >
-                <Ionicons name="add" size={28} color={COLORS.white} />
-              </LinearGradient>
-            ) : (
-              <>
                 <View>
                   <Ionicons
                     name={isActive ? tab.activeIcon : tab.icon}
@@ -87,26 +115,44 @@ export default function BottomTabBar({ activeTab, onTabPress, messagesBadge = 0 
                 <Text style={[styles.label, isActive ? styles.labelActive : null]}>
                   {tab.label}
                 </Text>
-              </>
-            )}
-          </PressableScale>
-        );
-      })}
+              </PressableScale>
+            );
+          })}
+        </BlurView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    shadowColor: '#150A2E',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 8,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  pillShadowWrap: {
+    flex: 1,
+    ...SHADOWS.floating,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 62,
+    borderRadius: 31,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(20, 12, 36, 0.08)',
+  },
+  pillTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Platform.select({
+      android: 'rgba(255,255,255,0.94)',
+      default: 'rgba(255,255,255,0.5)',
+    }),
   },
   tabItem: {
     flex: 1,
@@ -127,12 +173,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   createBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -18,
     ...SHADOWS.brand,
   },
   badge: {
