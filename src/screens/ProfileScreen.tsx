@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   Dimensions,
   Share,
 } from 'react-native';
@@ -22,6 +23,8 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import ReviewSummary from '../components/ReviewSummary';
 import TrustStack from '../components/TrustStack';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
@@ -61,10 +64,14 @@ function ListingThumb({ item }: { item: MyListing }) {
 export default function ProfileScreen({ navigation }: Props) {
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
-  const { data: myListings = [] } = useMyListings();
+  const { data: myListings = [], refetch: refetchListings } = useMyListings();
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
-  const { data: profile } = useCurrentProfile();
+  const {
+    data: profile,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useCurrentProfile();
   // What others wrote about me (0020). Also feeds the trust row's rating
   // segment — profile.rating/reviewCount are the mapper's deferred zeros,
   // never shown.
@@ -79,11 +86,44 @@ export default function ProfileScreen({ navigation }: Props) {
     replyTime: profile?.stats.replyTime ?? '',
   });
 
+  // Spinner only for user-initiated pulls — refresh both the profile and the
+  // own-listings preview together.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchProfile(), refetchListings()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchProfile, refetchListings]);
+
+  // A cold refetch can fail before the cached profile lands — show a retry
+  // instead of a screen of blank fallbacks.
+  if (profileError && !profile) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ErrorState
+          message="Couldn't load your profile. Please try again."
+          onRetry={() => refetchProfile()}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
         {/* ── Top bar (share + gear icons) ── */}
         <View style={styles.topBar}>
@@ -130,9 +170,13 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
             {profile?.verified && <VerifiedTick />}
           </View>
-          <Text style={styles.programText}>
-            {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
-          </Text>
+          {profile ? (
+            <Text style={styles.programText}>
+              {`${profile.program} · ${formatYearOfStudy(profile.year)}`}
+            </Text>
+          ) : (
+            <SkeletonLoader width={160} height={13} borderRadius={6} style={styles.programSkeleton} />
+          )}
           {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
 
           <TrustStack
@@ -282,6 +326,10 @@ const styles = StyleSheet.create({
   programText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
+  },
+  programSkeleton: {
+    marginTop: 3,
+    borderCurve: 'continuous',
   },
   bioText: {
     fontSize: SIZES.sm,

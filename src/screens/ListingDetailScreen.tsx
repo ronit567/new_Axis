@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  RefreshControl,
   NativeSyntheticEvent,
   NativeScrollEvent,
   useWindowDimensions,
@@ -23,6 +25,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
+import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +37,10 @@ import { useCreateReport } from '../hooks/useReports';
 import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
+
+// Hero height drives both the parallax math and the scroll offset at which the
+// solid top bar cross-fades in. Matches the imagePlaceholder height.
+const HERO_HEIGHT = 260;
 
 export default function ListingDetailScreen({ navigation, route }: Props) {
   const { listingId } = route.params;
@@ -55,6 +62,22 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const galleryRef = useRef<ScrollView>(null);
+
+  // Native-driven scroll position feeds the parallax hero and the scroll-in
+  // top bar. Kept in a ref so the Animated.Value survives re-renders.
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Spinner only for user-initiated pulls — a background refetch (cache
+  // invalidation after a save/edit) must not replay the pull animation.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const isOwnListing = !!listing && user?.id === listing.seller.id;
   // Owner-guarded: a viewer browsing someone else's listing has no edit
@@ -170,21 +193,226 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
     });
   };
 
+  // Parallax: the hero lags at half scroll speed, and on downward overscroll it
+  // rubber-band zooms. translateY = scrollY * 0.5 across the whole range keeps
+  // the scaled image's top edge anchored, so no background gap opens on pull.
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [-HERO_HEIGHT, 0, HERO_HEIGHT],
+    outputRange: [-HERO_HEIGHT / 2, 0, HERO_HEIGHT / 2],
+    extrapolateLeft: 'extend',
+    extrapolateRight: 'clamp',
+  });
+  const heroScale = scrollY.interpolate({
+    inputRange: [-HERO_HEIGHT, 0],
+    outputRange: [2, 1],
+    extrapolateLeft: 'extend',
+    extrapolateRight: 'clamp',
+  });
+  // Solid top bar fades in as the hero scrolls away; the title trails it slightly.
+  const barBgOpacity = scrollY.interpolate({
+    inputRange: [HERO_HEIGHT - 100, HERO_HEIGHT - 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const barTitleOpacity = scrollY.interpolate({
+    inputRange: [HERO_HEIGHT - 60, HERO_HEIGHT - 10],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Top controls */}
-      <View style={styles.topBar}>
-        <PressableScale
-          style={styles.iconBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
+    <View style={styles.safe}>
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+            progressViewOffset={insets.top}
+          />
+        }
+      >
+        {/* Parallax hero. Image gallery: swipeable when the listing has photos,
+            otherwise the imageColor placeholder is all there is to show. */}
+        <Animated.View
+          style={[styles.heroWrap, { transform: [{ translateY: heroTranslateY }, { scale: heroScale }] }]}
         >
-          <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </PressableScale>
-        <View style={styles.topRight}>
+          {listing.imageUrls.length > 0 ? (
+            <ScrollView
+              ref={galleryRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleGalleryScrollEnd}
+            >
+              {listing.imageUrls.map((uri, i) => (
+                <RemoteImage
+                  key={uri + i}
+                  uri={uri}
+                  style={[
+                    styles.imagePlaceholder,
+                    { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
+                  ]}
+                  contentFit="cover"
+                  transition={150}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
+              <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Opaque sheet below the hero so the parallax lag never bleeds through. */}
+        <View style={styles.belowHero}>
+          {/* Carousel Dots */}
+          {listing.imageUrls.length > 1 && (
+            <View style={styles.dotsRow}>
+              {listing.imageUrls.map((uri, i) => (
+                <TouchableOpacity
+                  key={uri + i}
+                  onPress={() => scrollToImage(i)}
+                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View image ${i + 1}`}
+                  accessibilityState={{ selected: activeDot === i }}
+                >
+                  <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {isOwnListing && (
+            <View style={styles.ownerBannerWrap}>
+              <View style={styles.ownerBanner}>
+                <View style={styles.ownerBannerIcon}>
+                  <Ionicons name="storefront" size={18} color={COLORS.primary} />
+                </View>
+                <View style={styles.ownerBannerInfo}>
+                  <Text style={styles.ownerBannerTitle}>This is your listing</Text>
+                  <Text style={styles.ownerBannerCaption}>
+                    {pendingEditRequest
+                      ? 'Edits pending review'
+                      : 'Buyers see this listing in Browse and Search.'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.content}>
+            {/* Price + condition */}
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>${listing.price}</Text>
+              <View style={styles.conditionBadge}>
+                <Text style={styles.conditionText}>{listing.condition}</Text>
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.title}>{listing.title}</Text>
+
+            {/* Meta */}
+            <Text style={styles.meta}>
+              {listing.category} · Posted {listing.postedAgo} · {listing.views} views
+            </Text>
+
+            <View style={styles.divider} />
+
+            {/* Description */}
+            <Text style={styles.description}>{listing.description}</Text>
+
+            <View style={styles.divider} />
+
+            {/* Seller Card — disabled (and dimmed) until the full profile has
+                loaded, so a tap never silently does nothing mid-fetch. */}
+            <PressableScale
+              style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
+              onPress={() => {
+                haptics.tap();
+                if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
+              }}
+              disabled={!sellerProfile}
+              scaleTo={0.98}
+              accessibilityRole="button"
+              accessibilityLabel={`View seller ${listing.seller.name}`}
+              accessibilityState={{ disabled: !sellerProfile }}
+            >
+              <Avatar
+                url={listing.seller.avatarUrl}
+                initials={sellerInitials}
+                color={sellerProfile?.avatarColor ?? COLORS.primary}
+                size={44}
+                textStyle={styles.sellerInitials}
+              />
+              <View style={styles.sellerInfo}>
+                <View style={styles.sellerNameRow}>
+                  <Text style={styles.sellerName}>{listing.seller.name}</Text>
+                  <View style={styles.sellerVerified}>
+                    <View style={[styles.onlineDot, { backgroundColor: listing.seller.dotColor }]} />
+                  </View>
+                </View>
+                <Text style={styles.sellerMeta}>{listing.seller.program} · {formatYearOfStudy(listing.seller.year)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </PressableScale>
+
+            <View style={styles.divider} />
+
+            {/* Location — hidden entirely when the seller never set one, rather
+                than rendering a card with a blank address. */}
+            {!!listing.pickup && (
+              <View style={styles.locationCard}>
+                <View style={styles.locationIcon}>
+                  <Ionicons name="location" size={18} color={COLORS.primary} />
+                </View>
+                <View>
+                  <Text style={styles.locationTitle}>Campus pickup</Text>
+                  <Text style={styles.locationAddress}>{listing.pickup}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Animated.ScrollView>
+
+      {/* Scroll-driven top bar: the back/share/save controls float over the hero
+          at rest; a solid surface bar with a hairline border and the listing
+          title cross-fades in as the hero scrolls away. */}
+      <Animated.View
+        style={[styles.topBar, { paddingTop: insets.top + 4 }]}
+        pointerEvents="box-none"
+      >
+        <Animated.View style={[styles.topBarBg, { opacity: barBgOpacity }]} pointerEvents="none" />
+        <View style={styles.topBarRow}>
+          <PressableScale
+            style={styles.iconBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={20} color={COLORS.text} />
+          </PressableScale>
+          <Animated.Text
+            style={[styles.topBarTitle, { opacity: barTitleOpacity }]}
+            numberOfLines={1}
+          >
+            {listing.title}
+          </Animated.Text>
+          <View style={styles.topRight}>
           <PressableScale
             style={styles.iconBtn}
             onPress={async () => {
@@ -238,145 +466,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               </PressableScale>
             </>
           )}
+          </View>
         </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Image gallery: swipeable when the listing has photos, otherwise the
-            imageColor placeholder is all there is to show. */}
-        {listing.imageUrls.length > 0 ? (
-          <ScrollView
-            ref={galleryRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleGalleryScrollEnd}
-          >
-            {listing.imageUrls.map((uri, i) => (
-              <RemoteImage
-                key={uri + i}
-                uri={uri}
-                style={[
-                  styles.imagePlaceholder,
-                  { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
-                ]}
-                contentFit="cover"
-                transition={150}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
-            <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
-          </View>
-        )}
-
-        {/* Carousel Dots */}
-        {listing.imageUrls.length > 1 && (
-          <View style={styles.dotsRow}>
-            {listing.imageUrls.map((uri, i) => (
-              <TouchableOpacity
-                key={uri + i}
-                onPress={() => scrollToImage(i)}
-                hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={`View image ${i + 1}`}
-                accessibilityState={{ selected: activeDot === i }}
-              >
-                <View style={[styles.dot, activeDot === i ? styles.dotActive : null]} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {isOwnListing && (
-          <View style={styles.ownerBannerWrap}>
-            <View style={styles.ownerBanner}>
-              <View style={styles.ownerBannerIcon}>
-                <Ionicons name="storefront" size={18} color={COLORS.primary} />
-              </View>
-              <View style={styles.ownerBannerInfo}>
-                <Text style={styles.ownerBannerTitle}>This is your listing</Text>
-                <Text style={styles.ownerBannerCaption}>
-                  {pendingEditRequest
-                    ? 'Edits pending review'
-                    : 'Buyers see this listing in Browse and Search.'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.content}>
-          {/* Price + condition */}
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>${listing.price}</Text>
-            <View style={styles.conditionBadge}>
-              <Text style={styles.conditionText}>{listing.condition}</Text>
-            </View>
-          </View>
-
-          {/* Title */}
-          <Text style={styles.title}>{listing.title}</Text>
-
-          {/* Meta */}
-          <Text style={styles.meta}>
-            {listing.category} · Posted {listing.postedAgo} · {listing.views} views
-          </Text>
-
-          <View style={styles.divider} />
-
-          {/* Description */}
-          <Text style={styles.description}>{listing.description}</Text>
-
-          <View style={styles.divider} />
-
-          {/* Seller Card — disabled (and dimmed) until the full profile has
-              loaded, so a tap never silently does nothing mid-fetch. */}
-          <PressableScale
-            style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
-            onPress={() => {
-              haptics.tap();
-              if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
-            }}
-            disabled={!sellerProfile}
-            scaleTo={0.98}
-            accessibilityRole="button"
-            accessibilityLabel={`View seller ${listing.seller.name}`}
-            accessibilityState={{ disabled: !sellerProfile }}
-          >
-            <View style={styles.sellerAvatar}>
-              <Text style={styles.sellerInitials}>{sellerInitials}</Text>
-            </View>
-            <View style={styles.sellerInfo}>
-              <View style={styles.sellerNameRow}>
-                <Text style={styles.sellerName}>{listing.seller.name}</Text>
-                <View style={styles.sellerVerified}>
-                  <View style={[styles.onlineDot, { backgroundColor: listing.seller.dotColor }]} />
-                </View>
-              </View>
-              <Text style={styles.sellerMeta}>{listing.seller.program} · {formatYearOfStudy(listing.seller.year)}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </PressableScale>
-
-          <View style={styles.divider} />
-
-          {/* Location — hidden entirely when the seller never set one, rather
-              than rendering a card with a blank address. */}
-          {!!listing.pickup && (
-            <View style={styles.locationCard}>
-              <View style={styles.locationIcon}>
-                <Ionicons name="location" size={18} color={COLORS.primary} />
-              </View>
-              <View>
-                <Text style={styles.locationTitle}>Campus pickup</Text>
-                <Text style={styles.locationAddress}>{listing.pickup}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+      </Animated.View>
 
       {/* Bottom Action Bar */}
       {!isOwnListing && (
@@ -475,7 +567,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           })
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -490,11 +582,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  topBarBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.divider,
+  },
+  topBarRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  topBarTitle: {
+    flex: 1,
+    marginHorizontal: 10,
+    textAlign: 'center',
+    fontSize: 16,
+    fontFamily: FONTS.semibold,
+    color: COLORS.text,
   },
   topRight: {
     flexDirection: 'row',
@@ -510,6 +621,14 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: 20,
+  },
+  heroWrap: {
+    // Don't clip the pull-to-zoom scale.
+    overflow: 'visible',
+  },
+  belowHero: {
+    // Opaque so the parallax lag never shows through as the sheet slides up.
+    backgroundColor: COLORS.white,
   },
   imagePlaceholder: {
     width: '100%',
@@ -590,18 +709,11 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: COLORS.surfaceAlt,
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 14,
   },
   sellerCardLoading: {
     opacity: 0.6,
-  },
-  sellerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sellerInitials: {
     color: COLORS.white,
