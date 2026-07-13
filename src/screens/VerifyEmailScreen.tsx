@@ -20,6 +20,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
@@ -72,6 +73,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   // the signed-in stack automatically, so there is no manual navigation here.
   const handleVerify = async () => {
     if (!isFilled || submitting) return;
+    haptics.impact();
     setSubmitting(true);
     try {
       await verifyOtp(email, code.join(''));
@@ -241,6 +243,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     fontSize: SIZES.xl,
     fontWeight: '700',
     color: COLORS.text,
@@ -248,7 +251,7 @@ const styles = StyleSheet.create({
   },
   codeBoxFilled: {
     borderColor: COLORS.primary,
-    backgroundColor: '#F8F3FF',
+    backgroundColor: COLORS.primaryTint,
   },
   resendRow: {
     marginBottom: 32,

@@ -18,6 +18,7 @@ import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
@@ -29,6 +30,7 @@ export default function SignInScreen({ navigation }: Props) {
 
   const handleSignIn = async () => {
     if (submitting) return;
+    haptics.impact();
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
@@ -57,7 +59,7 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
+          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </PressableScale>
 
@@ -184,6 +186,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     height: SIZES.buttonHeight,
     gap: 10,
   },

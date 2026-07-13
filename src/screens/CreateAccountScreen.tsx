@@ -19,6 +19,7 @@ import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { isWesternEmail } from '../lib/email';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
 
@@ -35,6 +36,7 @@ export default function CreateAccountScreen({ navigation }: Props) {
 
   const handleContinue = async () => {
     if (!canContinue || submitting) return;
+    haptics.impact();
     const trimmedEmail = email.trim();
     setSubmitting(true);
     try {

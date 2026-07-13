@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -18,10 +17,12 @@ import PrimaryButton from '../components/PrimaryButton';
 import InputField from '../components/InputField';
 import StepHeader from '../components/StepHeader';
 import RotatingChevron from '../components/RotatingChevron';
+import PressableScale from '../components/PressableScale';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useUpsertProfile } from '../hooks/useProfile';
 import { deriveInitials } from '../repositories/mappers';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupProfile'>;
 
@@ -37,6 +38,8 @@ const PROGRAMS = [
 ];
 
 const YEARS = [1, 2, 3, 4, 'Grad'];
+
+const BIO_MAX = 150;
 
 function initialFullName(fullName: unknown): string {
   return typeof fullName === 'string' ? fullName : '';
@@ -63,6 +66,7 @@ export default function SetupProfileScreen(_props: Props) {
   // a trust badge it hasn't earned by just sending `verified: true`.
   const handleFinish = async () => {
     if (!canFinish) return;
+    haptics.impact();
     try {
       await upsertProfile.mutateAsync({
         name: name.trim(),
@@ -119,30 +123,35 @@ export default function SetupProfileScreen(_props: Props) {
           />
 
           <Text style={styles.sectionLabel}>Program</Text>
-          <TouchableOpacity
+          <PressableScale
             style={styles.dropdownBtn}
-            onPress={() => setShowProgramPicker(!showProgramPicker)}
-            activeOpacity={0.8}
+            onPress={() => {
+              haptics.tap();
+              setShowProgramPicker(!showProgramPicker);
+            }}
+            scaleTo={0.98}
           >
             <Text style={styles.dropdownText}>{program}</Text>
             <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          </PressableScale>
 
           {showProgramPicker && (
             <View style={styles.dropdownList}>
               {PROGRAMS.map(p => (
-                <TouchableOpacity
+                <PressableScale
                   key={p}
                   style={[styles.dropdownItem, p === program ? styles.dropdownItemSelected : null]}
                   onPress={() => {
+                    haptics.tap();
                     setProgram(p);
                     setShowProgramPicker(false);
                   }}
+                  scaleTo={0.98}
                 >
                   <Text style={[styles.dropdownItemText, p === program ? styles.dropdownItemTextSelected : null]}>
                     {p}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               ))}
             </View>
           )}
@@ -150,26 +159,32 @@ export default function SetupProfileScreen(_props: Props) {
           <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Year of study</Text>
           <View style={styles.yearsRow}>
             {YEARS.map(y => (
-              <TouchableOpacity
+              <PressableScale
                 key={y}
                 style={[styles.yearBtn, year === y ? styles.yearBtnActive : null]}
-                onPress={() => setYear(y)}
-                activeOpacity={0.8}
+                onPress={() => {
+                  haptics.tap();
+                  setYear(y);
+                }}
+                scaleTo={0.94}
               >
                 <Text style={[styles.yearBtnText, year === y ? styles.yearBtnTextActive : null]}>
                   {y}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
-          <Text style={[styles.sectionLabel, { marginTop: 16 }]}>
-            About you <Text style={styles.optional}>(optional)</Text>
-          </Text>
+          <View style={styles.descHeader}>
+            <Text style={[styles.sectionLabel, { marginTop: 16, marginBottom: 0 }]}>
+              About you <Text style={styles.optional}>(optional)</Text>
+            </Text>
+            <Text style={[styles.charCount, { marginTop: 16 }]}>{aboutYou.length}/{BIO_MAX}</Text>
+          </View>
           <TextInput
             style={styles.aboutInput}
             value={aboutYou}
-            onChangeText={setAboutYou}
+            onChangeText={t => setAboutYou(t.slice(0, BIO_MAX))}
             placeholder="2nd-year Ivey student, mostly selling textbooks & dorm stuff."
             placeholderTextColor={COLORS.textMuted}
             multiline
@@ -264,6 +279,16 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontWeight: '400',
   },
+  descHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  charCount: {
+    fontSize: SIZES.xs,
+    color: COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
   dropdownBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,6 +296,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     height: SIZES.inputHeight,
     paddingHorizontal: 14,
     backgroundColor: COLORS.white,
@@ -283,6 +309,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     backgroundColor: COLORS.white,
     marginTop: 4,
     overflow: 'hidden',
@@ -313,6 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     alignItems: 'center',
@@ -336,6 +364,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingTop: 14,
     paddingBottom: 14,

@@ -318,6 +318,7 @@ export default function ChatScreen({ navigation, route }: Props) {
               keyExtractor={item => item.message.id}
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
+              keyboardDismissMode="interactive"
               // The gutter times sit past each row's right edge; Android's
               // default clipping would cut them off mid-swipe.
               removeClippedSubviews={false}
@@ -405,13 +406,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerAvatarText: {
     color: COLORS.white,
     fontSize: 13,
@@ -429,6 +423,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
@@ -456,6 +451,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     backgroundColor: COLORS.primarySoft,
   },
   listingInfo: {
@@ -476,6 +472,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
@@ -526,6 +523,7 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: '75%',
     borderRadius: 18,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -568,6 +566,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: 22,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 8,
     fontSize: SIZES.base,

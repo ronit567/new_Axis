@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     backgroundColor: COLORS.inputBackground,
     height: SIZES.inputHeight,
     paddingHorizontal: 14,
