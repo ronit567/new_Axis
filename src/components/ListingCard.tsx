@@ -13,7 +13,7 @@ type Props = {
   style?: ViewStyle;
 };
 
-export default function ListingCard({ item, onPress, onSave, style }: Props) {
+function ListingCard({ item, onPress, onSave, style }: Props) {
   return (
     <PressableScale style={[styles.card, style]} onPress={onPress} scaleTo={0.98}>
       <View style={[styles.imageArea, { backgroundColor: item.imageColor || '#EEE8F8' }]}>
@@ -59,11 +59,16 @@ export default function ListingCard({ item, onPress, onSave, style }: Props) {
   );
 }
 
+// Memoized so a parent re-render (e.g. Home category switch) doesn't re-render
+// every card — relies on the screens passing stable onPress/onSave callbacks.
+export default React.memo(ListingCard);
+
 const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     overflow: 'hidden',
     ...SHADOWS.card,
   },
@@ -79,6 +84,7 @@ const styles = StyleSheet.create({
     left: 8,
     backgroundColor: COLORS.like,
     borderRadius: 5,
+    borderCurve: 'continuous',
     paddingHorizontal: 6,
     paddingVertical: 2,
   },

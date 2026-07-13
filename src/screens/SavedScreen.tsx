@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,6 +38,19 @@ export default function SavedScreen({ navigation }: Props) {
   const toggleFollow = useToggleFollow();
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
+  // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
+  // header stays flush at rest and gains definition as content passes under it.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
+
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
@@ -52,13 +63,18 @@ export default function SavedScreen({ navigation }: Props) {
     return () => anim.stop();
   }, [isLoading, pulseAnim]);
 
-  const renderItem = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={item}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-      onSave={() => toggleSavedMutation.mutate(item)}
-      style={styles.card}
-    />
+  // Stable so the memoized ListingCard cells skip re-rendering on tab switches.
+  const keyExtractor = useCallback((item: { id: string }) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: Listing }) => (
+      <ListingCard
+        item={item}
+        onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+        onSave={() => toggleSavedMutation.mutate(item)}
+        style={styles.card}
+      />
+    ),
+    [navigation, toggleSavedMutation],
   );
 
   const renderProfileRow = ({ item }: { item: SellerProfile }) => (
@@ -107,25 +123,42 @@ export default function SavedScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Saved</Text>
-      </View>
+      {/* Fixed header block (title + tabs) with a scroll hairline pinned to
+          its bottom edge. */}
+      <View style={styles.headerBlock}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Saved</Text>
+        </View>
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
-            onPress={() => setActiveTab(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-              {tab === 'Items' ? `Items  ${savedItems.length}` : `Saved profiles  ${(following ?? []).length}`}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {/* Tabs */}
+        <View style={styles.tabRow}>
+          {TABS.map(tab => {
+            const isActive = activeTab === tab;
+            return (
+              <PressableScale
+                key={tab}
+                style={[styles.tab, isActive ? styles.tabActive : null]}
+                onPress={() => {
+                  haptics.tap();
+                  setActiveTab(tab);
+                }}
+                scaleTo={0.96}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+              >
+                <Text style={[styles.tabText, isActive ? styles.tabTextActive : null]}>
+                  {tab === 'Items' ? `Items  ${savedItems.length}` : `Saved profiles  ${(following ?? []).length}`}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </View>
+
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
+        />
       </View>
 
       {isLoading && activeTab === 'Items' ? (
@@ -143,13 +176,15 @@ export default function SavedScreen({ navigation }: Props) {
           onRetry={() => refetch()}
         />
       ) : activeTab === 'Items' ? (
-        <FlatList
+        <Animated.FlatList
           data={savedItems}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           numColumns={2}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
@@ -163,11 +198,13 @@ export default function SavedScreen({ navigation }: Props) {
       ) : isFollowingPending ? (
         <ActivitySpinner style={styles.spinner} />
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={following ?? []}
           renderItem={renderProfileRow}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.profileListContent}
           ListEmptyComponent={
             <EmptyState
@@ -187,6 +224,19 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.surfaceAlt,
+  },
+  headerBlock: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  scrollHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
   },
   header: {
     paddingHorizontal: 20,
@@ -250,6 +300,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     padding: 12,
     ...SHADOWS.card,
   },

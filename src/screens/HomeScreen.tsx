@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Animated,
   ScrollView,
@@ -24,6 +23,7 @@ import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import FadeInItem from '../components/FadeInItem';
 import GreetingRow from '../components/GreetingRow';
+import { haptics } from '../lib/haptics';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
@@ -41,6 +41,20 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
+
+  // Hairline + shadow under the fixed header/chips that fades in as the list
+  // scrolls beneath it, so the header gains definition on scroll and stays
+  // flush (looking exactly like today) at rest.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
 
   // Hand-rolled search transition (the Search route uses animation: 'none').
   // Home navigates immediately and Search mounts with the exact same header
@@ -86,15 +100,22 @@ export default function HomeScreen({ navigation }: Props) {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   };
 
-  const renderItem = ({ item, index }: { item: Listing; index: number }) => (
-    <FadeInItem index={index} style={styles.card}>
-      <ListingCard
-        item={item}
-        onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-        onSave={() => toggleSavedMutation.mutate(item)}
-      />
-    </FadeInItem>
+  // Stable across re-renders so the memoized ListingCard cells don't re-render
+  // when unrelated parent state changes (e.g. a category switch).
+  const renderItem = useCallback(
+    ({ item, index }: { item: Listing; index: number }) => (
+      <FadeInItem index={index} style={styles.card}>
+        <ListingCard
+          item={item}
+          onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+          onSave={() => toggleSavedMutation.mutate(item)}
+        />
+      </FadeInItem>
+    ),
+    [navigation, toggleSavedMutation],
   );
+
+  const keyExtractor = useCallback((item: Listing) => item.id, []);
 
   const ListHeader = (
     <View style={styles.sectionHeader}>
@@ -115,6 +136,10 @@ export default function HomeScreen({ navigation }: Props) {
     <View style={styles.safe}>
       <StatusBar style="light" />
 
+      {/* Fixed header block (purple header + category chips). The scroll
+          hairline pins to its bottom edge so list content gains a defining
+          line as it slides under. */}
+      <View style={styles.headerBlock}>
       {/* Purple curved header */}
       <LinearGradient
         colors={GRADIENTS.primaryRadiant}
@@ -157,7 +182,10 @@ export default function HomeScreen({ navigation }: Props) {
               styles.catChip,
               activeCategory === cat ? styles.catChipActive : null,
             ]}
-            onPress={() => setActiveCategory(cat)}
+            onPress={() => {
+              haptics.tap();
+              setActiveCategory(cat);
+            }}
             scaleTo={0.94}
           >
             <Text
@@ -171,6 +199,12 @@ export default function HomeScreen({ navigation }: Props) {
           </PressableScale>
         ))}
       </ScrollView>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
+      />
+      </View>
 
       {/* Content: loading skeleton / error / listing grid */}
       {isLoading ? (
@@ -189,14 +223,16 @@ export default function HomeScreen({ navigation }: Props) {
           onRetry={() => refetch()}
         />
       ) : (
-        <FlatList
+        <Animated.FlatList
           style={styles.contentArea}
           data={listings}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           numColumns={2}
           columnWrapperStyle={styles.row}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={listings.length > 0 ? ListHeader : null}
           ListFooterComponent={ListFooter}
@@ -229,9 +265,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.surfaceAlt,
   },
+  headerBlock: {
+    // Relative anchor for the absolutely-positioned scroll hairline; adds no
+    // padding/margin so the header geometry is unchanged.
+    position: 'relative',
+    zIndex: 1,
+  },
+  scrollHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
+  },
   purpleHeader: {
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    borderCurve: 'continuous',
     paddingBottom: 18,
     ...SHADOWS.floating,
   },
@@ -247,6 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.white,
     borderRadius: 24,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     height: 48,
     gap: 8,

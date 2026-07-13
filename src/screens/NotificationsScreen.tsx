@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -89,6 +90,20 @@ export default function NotificationsScreen({ navigation }: Props) {
   const markAll = useMarkAllNotificationsRead();
   const createTest = useCreateTestNotification();
 
+  // Shadow under the header, faded in on scroll. The header keeps its static
+  // hairline border at rest (unchanged) and gains a soft shadow as content
+  // slides beneath it.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
+
   // Spinner only for user-initiated pulls — background refetches from realtime
   // invalidation must not replay the pull-to-refresh animation.
   const [refreshing, setRefreshing] = useState(false);
@@ -145,6 +160,10 @@ export default function NotificationsScreen({ navigation }: Props) {
         >
           <Text style={styles.markAll}>Mark all read</Text>
         </PressableScale>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrollShadow, { opacity: headerBorderOpacity }]}
+        />
       </View>
 
       {isLoading ? (
@@ -183,9 +202,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           onCta={() => navigation.goBack()}
         />
       ) : (
-        <ScrollView
+        <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.body}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -216,7 +237,7 @@ export default function NotificationsScreen({ navigation }: Props) {
               ))}
             </>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       )}
 
       {__DEV__ && (
@@ -254,6 +275,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    position: 'relative',
+    zIndex: 1,
+  },
+  scrollShadow: {
+    // Sits on the header's existing hairline border (same divider color, so no
+    // visible change at rest) and layers a soft shadow in on scroll.
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
   },
   backBtn: {
     width: 38,
@@ -293,6 +327,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     marginBottom: 4,
     gap: 12,
   },
