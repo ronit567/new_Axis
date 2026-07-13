@@ -122,15 +122,18 @@ function RootNavigator() {
           />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
+          {/* 250ms (vs the platform default) keeps the compose slide snappy —
+              CreateListing's is timed to play right after the circle-expand
+              reveal MainScreen runs from the + button. */}
           <Stack.Screen
             name="CreateListing"
             component={CreateListingScreen}
-            options={{ animation: 'slide_from_bottom' }}
+            options={{ animation: 'slide_from_bottom', animationDuration: 250 }}
           />
           <Stack.Screen
             name="EditListing"
             component={EditListingScreen}
-            options={{ animation: 'slide_from_bottom' }}
+            options={{ animation: 'slide_from_bottom', animationDuration: 250 }}
           />
           <Stack.Screen name="Messages" component={MessagesScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
