@@ -14,6 +14,7 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
+import RemoteImage from '../components/RemoteImage';
 import { haptics } from '../lib/haptics';
 import {
   useMyListings,
@@ -67,6 +68,9 @@ export default function ManageListingsScreen({ navigation }: Props) {
       <View style={styles.card}>
         <View style={styles.cardTop}>
           <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
+            {item.imageUrls[0] ? (
+              <RemoteImage uri={item.imageUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
+            ) : null}
             {isSold && (
               <View style={styles.soldOverlay}>
                 <Text style={styles.soldOverlayText}>SOLD</Text>
