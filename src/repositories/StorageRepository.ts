@@ -1,7 +1,18 @@
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { supabase } from '../lib/supabase'
 
 const LISTING_IMAGES_BUCKET = 'listing-images'
 const AVATARS_BUCKET = 'avatars'
+
+// On-device resize targets (0023). Cameras produce 3–6MB ~4000px photos; the
+// detail gallery renders at screen width and the grid card at ~180pt, so
+// uploading originals wastes both storage and every buyer's bandwidth.
+// 1600px covers the gallery at 3x density (~200–400KB); 480px covers the
+// grid card at 3x (~20–40KB).
+const DETAIL_LONG_EDGE = 1600
+const DETAIL_COMPRESS = 0.7
+const THUMB_LONG_EDGE = 480
+const THUMB_COMPRESS = 0.6
 
 // Must stay in sync with the bucket's allowed_mime_types (0014_storage_buckets.sql).
 const EXTENSION_CONTENT_TYPES: Record<string, string> = {
@@ -18,9 +29,42 @@ const ALLOWED_CONTENT_TYPES = new Set(Object.values(EXTENSION_CONTENT_TYPES))
 // file bytes. Extension-sniffing the uri is only a fallback: Android content
 // picker uris (content://...) routinely have no file extension at all, so
 // relying on the uri alone would silently mislabel real PNGs/WebPs as jpeg.
+// width/height (when the picker reports them) let prepareListingPhoto pick
+// the long edge without decoding the image first.
 export type LocalPhoto = {
   uri: string
   mimeType: string | null
+  width?: number
+  height?: number
+}
+
+// Resize a picked photo to `longEdge` (never upscaling) and re-encode as
+// JPEG at `compress`. Returns a local file uri for the resized copy. Lives
+// here — not in the form hook — so upload code paths can't forget it and
+// tests can mock it alongside the storage client.
+async function prepareListingPhoto(
+  photo: LocalPhoto,
+  longEdge: number,
+  compress: number,
+): Promise<string> {
+  const context = ImageManipulator.manipulate(photo.uri)
+
+  let { width, height } = photo
+  if (!width || !height) {
+    // Rare: some Android content:// assets come back without dimensions.
+    // Decode once to measure; the context stays usable for the resize below.
+    const probe = await context.renderAsync()
+    width = probe.width
+    height = probe.height
+  }
+
+  if (Math.max(width, height) > longEdge) {
+    context.resize(width >= height ? { width: longEdge } : { height: longEdge })
+  }
+
+  const rendered = await context.renderAsync()
+  const saved = await rendered.saveAsync({ compress, format: SaveFormat.JPEG })
+  return saved.uri
 }
 
 function contentTypeFor(photo: LocalPhoto): string {
@@ -36,9 +80,61 @@ function extensionFor(contentType: string): string {
 export type UploadedListingImages = {
   // Public URLs, in selection order, to persist as listings.image_urls.
   urls: string[]
-  // Storage object paths (same order) — kept so a caller can roll back this
-  // upload batch (e.g. the listing row insert that follows fails).
+  // Public URLs of the grid-sized variants (same order) — listings.thumb_urls.
+  thumbUrls: string[]
+  // Every storage object path this batch created (detail + thumb) — kept so a
+  // caller can roll back the whole upload (e.g. the listing row insert that
+  // follows fails).
   paths: string[]
+}
+
+// Shared loop for both listing upload paths (create + edit additions): per
+// photo, resize to the detail and thumb variants and upload both, naming
+// objects via `pathFor` so the two paths keep their distinct (index-named vs
+// timestamped) conventions. Both variants are JPEG after manipulation, so
+// the picker mimeType no longer decides the uploaded content type.
+async function uploadListingPhotoSet(
+  photos: LocalPhoto[],
+  pathFor: (index: number, suffix: '' | '_thumb') => string,
+): Promise<UploadedListingImages> {
+  const paths: string[] = []
+  const urls: string[] = []
+  const thumbUrls: string[] = []
+
+  const uploadVariant = async (localUri: string, path: string): Promise<string> => {
+    const response = await fetch(localUri)
+    const arraybuffer = await response.arrayBuffer()
+
+    const { error } = await supabase.storage
+      .from(LISTING_IMAGES_BUCKET)
+      .upload(path, arraybuffer, { contentType: 'image/jpeg' })
+    if (error) throw error
+
+    paths.push(path)
+    const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  try {
+    for (let i = 0; i < photos.length; i += 1) {
+      const photo = photos[i]
+      const detailUri = await prepareListingPhoto(photo, DETAIL_LONG_EDGE, DETAIL_COMPRESS)
+      const thumbUri = await prepareListingPhoto(photo, THUMB_LONG_EDGE, THUMB_COMPRESS)
+
+      urls.push(await uploadVariant(detailUri, pathFor(i, '')))
+      thumbUrls.push(await uploadVariant(thumbUri, pathFor(i, '_thumb')))
+    }
+
+    return { urls, thumbUrls, paths }
+  } catch (error) {
+    // Partial failure: clean up whatever this attempt did upload rather than
+    // leaving orphaned objects, then surface an actionable message instead
+    // of a raw storage error. thumbUrls counts fully-finished photos, so the
+    // failing photo is the next one regardless of which variant died.
+    await StorageRepository.deleteListingImages(paths)
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(`Couldn't upload photo ${thumbUrls.length + 1} of ${photos.length}: ${reason}`)
+  }
 }
 
 export const StorageRepository = {
@@ -52,37 +148,7 @@ export const StorageRepository = {
     listingId: string,
     photos: LocalPhoto[],
   ): Promise<UploadedListingImages> {
-    const paths: string[] = []
-    const urls: string[] = []
-
-    try {
-      for (let i = 0; i < photos.length; i += 1) {
-        const photo = photos[i]
-        const contentType = contentTypeFor(photo)
-        const path = `${sellerId}/${listingId}/${i}.${extensionFor(contentType)}`
-
-        const response = await fetch(photo.uri)
-        const arraybuffer = await response.arrayBuffer()
-
-        const { error } = await supabase.storage
-          .from(LISTING_IMAGES_BUCKET)
-          .upload(path, arraybuffer, { contentType })
-        if (error) throw error
-
-        paths.push(path)
-        const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
-        urls.push(data.publicUrl)
-      }
-
-      return { urls, paths }
-    } catch (error) {
-      // Partial failure: clean up whatever this attempt did upload rather than
-      // leaving orphaned objects, then surface an actionable message instead
-      // of a raw storage error.
-      await StorageRepository.deleteListingImages(paths)
-      const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`Couldn't upload photo ${paths.length + 1} of ${photos.length}: ${reason}`)
-    }
+    return uploadListingPhotoSet(photos, (i, suffix) => `${sellerId}/${listingId}/${i}${suffix}.jpg`)
   },
 
   // Edit-flow uploads (0021): a listing already has live objects named by
@@ -98,34 +164,11 @@ export const StorageRepository = {
     listingId: string,
     photos: LocalPhoto[],
   ): Promise<UploadedListingImages> {
-    const paths: string[] = []
-    const urls: string[] = []
-
-    try {
-      for (let i = 0; i < photos.length; i += 1) {
-        const photo = photos[i]
-        const contentType = contentTypeFor(photo)
-        const path = `${sellerId}/${listingId}/${Date.now()}-${i}.${extensionFor(contentType)}`
-
-        const response = await fetch(photo.uri)
-        const arraybuffer = await response.arrayBuffer()
-
-        const { error } = await supabase.storage
-          .from(LISTING_IMAGES_BUCKET)
-          .upload(path, arraybuffer, { contentType })
-        if (error) throw error
-
-        paths.push(path)
-        const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
-        urls.push(data.publicUrl)
-      }
-
-      return { urls, paths }
-    } catch (error) {
-      await StorageRepository.deleteListingImages(paths)
-      const reason = error instanceof Error ? error.message : String(error)
-      throw new Error(`Couldn't upload photo ${paths.length + 1} of ${photos.length}: ${reason}`)
-    }
+    const batch = Date.now()
+    return uploadListingPhotoSet(
+      photos,
+      (i, suffix) => `${sellerId}/${listingId}/${batch}-${i}${suffix}.jpg`,
+    )
   },
 
   async deleteListingImages(paths: string[]): Promise<void> {

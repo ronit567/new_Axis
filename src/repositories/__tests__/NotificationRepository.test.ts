@@ -81,6 +81,7 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
     category: 'Textbooks',
     pickup: 'UCC, Room 110',
     image_urls: [],
+    thumb_urls: [],
     status: 'active',
     views: 22,
     created_at: '2026-06-29T12:00:00.000Z',

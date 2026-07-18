@@ -207,6 +207,7 @@ export type Database = {
           price: number
           seller_id: string
           status: string
+          thumb_urls: string[]
           title: string
           views: number
         }
@@ -223,6 +224,7 @@ export type Database = {
           price?: number
           seller_id: string
           status?: string
+          thumb_urls?: string[]
           title: string
           views?: number
         }
@@ -239,6 +241,7 @@ export type Database = {
           price?: number
           seller_id?: string
           status?: string
+          thumb_urls?: string[]
           title?: string
           views?: number
         }

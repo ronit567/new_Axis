@@ -45,6 +45,7 @@ const listingRow: ListingRow = {
   category: 'Textbooks',
   pickup: 'UCC, Room 110',
   image_urls: [],
+  thumb_urls: [],
   status: 'active',
   views: 22,
   created_at: '2026-06-29T12:00:00.000Z',
@@ -134,6 +135,22 @@ describe('toListing', () => {
       'https://example.com/a.jpg',
       'https://example.com/b.jpg',
     ]);
+  });
+
+  it('falls back to the detail image per-index when thumb_urls is missing entries (0023)', () => {
+    const row = {
+      ...listingRow,
+      image_urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'],
+      thumb_urls: ['https://example.com/a_thumb.jpg'],
+    };
+    expect(toListing(row, sellerRow, false).thumbUrls).toEqual([
+      'https://example.com/a_thumb.jpg',
+      'https://example.com/b.jpg',
+    ]);
+    // A cleared thumb_urls (review-applied photo edit) degrades wholesale.
+    expect(toListing({ ...row, thumb_urls: [] }, sellerRow, false).thumbUrls).toEqual(
+      row.image_urls,
+    );
   });
 
   it('applies fallbacks for nullable DB columns', () => {

@@ -48,9 +48,12 @@ export type Listing = {
   seller: Seller;
   saved: boolean;
   imageColor: string;
-  // Public storage URLs in upload order; imageUrls[0] is the card thumbnail.
+  // Public storage URLs in upload order (the ~1600px detail variants).
   // Empty when the listing has no photos — screens fall back to imageColor.
   imageUrls: string[];
+  // Grid-sized variants, index-parallel to imageUrls. The mapper guarantees
+  // thumbUrls[i] falls back to imageUrls[i] for rows without thumbs (0023).
+  thumbUrls: string[];
   badge: string | null;
   description: string;
   views: number;
@@ -77,9 +80,11 @@ export type MyListing = {
   saves: number;
   postedAgo: string;
   imageColor: string;
-  // Public storage URLs in upload order; imageUrls[0] is the card thumbnail.
+  // Public storage URLs in upload order (the ~1600px detail variants).
   // Empty when the listing has no photos — screens fall back to imageColor.
   imageUrls: string[];
+  // Grid-sized variants, index-parallel to imageUrls (0023 fallback applies).
+  thumbUrls: string[];
   soldFor?: number;
 };
 

@@ -65,10 +65,16 @@ export function useListingForm(initial?: ListingFormInitial) {
           if (!result.canceled) {
             const asset = result.assets[0];
             setPhotos(prev =>
-              [...prev, { uri: asset.uri, mimeType: asset.mimeType ?? null, isLocal: true }].slice(
-                0,
-                MAX_PHOTOS,
-              ),
+              [
+                ...prev,
+                {
+                  uri: asset.uri,
+                  mimeType: asset.mimeType ?? null,
+                  width: asset.width,
+                  height: asset.height,
+                  isLocal: true,
+                },
+              ].slice(0, MAX_PHOTOS),
             );
           }
         },
@@ -94,6 +100,8 @@ export function useListingForm(initial?: ListingFormInitial) {
                 ...result.assets.map(a => ({
                   uri: a.uri,
                   mimeType: a.mimeType ?? null,
+                  width: a.width,
+                  height: a.height,
                   isLocal: true,
                 })),
               ].slice(0, MAX_PHOTOS),

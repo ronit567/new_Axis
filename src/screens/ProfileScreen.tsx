@@ -45,8 +45,8 @@ function ListingThumb({ item }: { item: MyListing }) {
   const isSold = item.status === 'sold';
   return (
     <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
-      {item.imageUrls[0] ? (
-        <RemoteImage uri={item.imageUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
+      {item.thumbUrls[0] ? (
+        <RemoteImage uri={item.thumbUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : null}
       {isSold && (
         <View style={styles.soldOverlay}>

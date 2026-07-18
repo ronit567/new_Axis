@@ -13,6 +13,9 @@ export type CreateListingInput = {
   category: string
   pickup: string
   image_urls: string[]
+  // Grid variants, index-parallel to image_urls (0023). Always written
+  // together with image_urls — a photo change updates both arrays.
+  thumb_urls: string[]
 }
 
 // 0021/pickup picker: pickup is a low-risk field (never review-gated, same as

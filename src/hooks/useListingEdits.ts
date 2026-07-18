@@ -12,29 +12,47 @@ import { invalidateAfterListingMutation } from './useListings'
 // 0021: EditListingScreen's photo grid mixes photos already live in storage
 // (isLocal: false, uri is the public URL) with newly-picked device photos
 // (isLocal: true, uri is a local file:// / content:// uri) in one ordered
-// list — the same shape PhotoPicker renders either kind from.
-export type EditablePhoto = LocalPhoto & { isLocal: boolean }
+// list — the same shape PhotoPicker renders either kind from. Remote photos
+// also carry their existing thumb URL (0023) so a reorder/remove keeps
+// image_urls and thumb_urls index-aligned without re-uploading anything.
+export type EditablePhoto = LocalPhoto & { isLocal: boolean; thumbUri?: string }
+
+export type ResolvedListingPhotos = { imageUrls: string[]; thumbUrls: string[] }
 
 // Splits a mixed photo list, uploads only the local entries (via the
 // timestamped-filename edit path — never the index-named create path, so an
 // in-progress edit can't collide with a still-live original), and re-merges
-// into the final ordered URL array the DB expects for image_urls /
-// proposed_image_urls. Exported so EditListingScreen can resolve photos
+// into the final ordered URL arrays the DB expects for image_urls/thumb_urls
+// (or proposed_image_urls). Exported so EditListingScreen can resolve photos
 // exactly once and hand the same URLs to both the direct-update and
 // edit-request paths (avoids double-uploading on the race-fallback path).
-export async function resolveImageUrls(
+export async function resolveListingPhotos(
   sellerId: string,
   listingId: string,
   photos: EditablePhoto[],
-): Promise<string[]> {
+): Promise<ResolvedListingPhotos> {
   const localPhotos = photos.filter((p) => p.isLocal)
   const uploaded =
     localPhotos.length > 0
       ? await StorageRepository.uploadListingImageAdditions(sellerId, listingId, localPhotos)
-      : { urls: [], paths: [] }
+      : { urls: [], thumbUrls: [], paths: [] }
 
+  const imageUrls: string[] = []
+  const thumbUrls: string[] = []
   let i = 0
-  return photos.map((p) => (p.isLocal ? uploaded.urls[i++] : p.uri))
+  for (const p of photos) {
+    if (p.isLocal) {
+      imageUrls.push(uploaded.urls[i])
+      thumbUrls.push(uploaded.thumbUrls[i])
+      i += 1
+    } else {
+      imageUrls.push(p.uri)
+      // A kept remote photo without a thumb (pre-0023 row) persists its
+      // detail URL as the thumb — same degradation the mapper applies.
+      thumbUrls.push(p.thumbUri ?? p.uri)
+    }
+  }
+  return { imageUrls, thumbUrls }
 }
 
 // EditListingScreen's UX-only "has this listing already got outside
