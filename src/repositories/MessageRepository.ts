@@ -23,6 +23,11 @@ export type MessageEventHandlers = {
   onUpdate: (message: Message) => void
 }
 
+// Newest messages a thread loads in one fetch (see getMessages). Generous for
+// a two-person conversation about one listing; exported so a future cursor
+// implementation and tests key off the same number.
+export const MESSAGE_PAGE_LIMIT = 200
+
 // getMessages embeds these ids into PostgREST's `.or()` filter grammar, which —
 // unlike `.eq()`/`.insert()`/`.update()` — is not parameterized: a value
 // carrying `,`, `(`, or `)` could restructure the filter. partnerId in
@@ -109,6 +114,13 @@ export const MessageRepository = {
 
   // The two directions are filtered explicitly (not left to RLS) so the thread
   // is exactly me<->partner about this listing even if policies loosen later.
+  //
+  // Capped to the newest MESSAGE_PAGE_LIMIT rows (fetched newest-first, then
+  // reversed back to ascending for the chat view) so an unusually long thread
+  // can't grow the query without bound. Older history is simply not loaded;
+  // cursor pagination is deliberately deferred until a real thread hits the
+  // cap — the flat Message[] cache shape must stay untouched because realtime
+  // dedup, optimistic sends, and read receipts all setQueryData against it.
   async getMessages(
     listingId: string | null,
     partnerId: string,
@@ -123,12 +135,13 @@ export const MessageRepository = {
         `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),` +
           `and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`,
       )
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(MESSAGE_PAGE_LIMIT)
     query = listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
 
     const { data, error } = await query
     if (error) throw error
-    return ((data ?? []) as MessageRow[]).map(toMessage)
+    return ((data ?? []) as MessageRow[]).map(toMessage).reverse()
   },
 
   // Mirrors the reviews_insert_reviewer policy gate (0020): a review can only
