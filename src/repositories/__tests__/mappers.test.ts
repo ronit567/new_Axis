@@ -176,6 +176,7 @@ const listingEditRequestRow: ListingEditRequestRow = {
   proposed_category: null,
   proposed_condition: null,
   proposed_image_urls: null,
+  proposed_thumb_urls: null,
   status: 'pending',
   created_at: '2026-07-01T10:00:00.000Z',
   reviewed_at: null,

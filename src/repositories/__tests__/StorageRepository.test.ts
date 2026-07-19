@@ -139,6 +139,15 @@ describe('StorageRepository.uploadListingImages', () => {
     expect(contexts[1].resize).toHaveBeenCalledWith({ width: 480 });
     expect(contexts[2].resize).toHaveBeenCalledWith({ height: 1600 });
     expect(contexts[3].resize).toHaveBeenCalledWith({ height: 480 });
+
+    // Each thumb pass starts from the detail pass's saved output (the mock
+    // saveAsync uri encodes source + compress), not the full-res original.
+    expect(mockManipulate.mock.calls.map((call) => call[0])).toEqual([
+      'file:///landscape.jpg',
+      'file:///landscape.jpg#jpeg-0.7',
+      'file:///portrait.jpg',
+      'file:///portrait.jpg#jpeg-0.7',
+    ]);
   });
 
   it('never upscales a photo already smaller than the target size', async () => {
@@ -163,10 +172,14 @@ describe('StorageRepository.uploadListingImages', () => {
       { uri: 'content://media/12345', mimeType: null },
     ]);
 
-    // Probe render + final render for each variant. The mocked probe reports
-    // 4000x3000, so the resize decision still lands on the long edge (width).
+    // Probe render + final render for the detail pass. The mocked probe
+    // reports 4000x3000, so the resize decision still lands on the long edge
+    // (width). The thumb pass inherits the detail's computed dimensions, so
+    // it never needs its own probe — one render only.
     expect(contexts[0].renderAsync).toHaveBeenCalledTimes(2);
     expect(contexts[0].resize).toHaveBeenCalledWith({ width: 1600 });
+    expect(contexts[1].renderAsync).toHaveBeenCalledTimes(1);
+    expect(contexts[1].resize).toHaveBeenCalledWith({ width: 480 });
   });
 
   it('rolls back every uploaded variant and reports the failing photo number when a detail upload fails', async () => {
