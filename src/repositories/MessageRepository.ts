@@ -53,11 +53,12 @@ function assertUuid(value: string, label: string): void {
 let channelSeq = 0
 
 export const MessageRepository = {
-  // getConversations reads the conversation_list view (migration 0009): one
-  // row per (listing, partner) thread — the thread's last message columns plus
-  // its unread count, bucketed server-side under the caller's RLS. Partner and
-  // listing hydration stays a client-side manual join, same style as
-  // ListingRepository.getAll.
+  // getConversations reads the conversation_list view (0009, regrouped per
+  // partner in 0026): one row per person — that person's newest message
+  // columns (whose listing_id supplies the row's listing context) plus the
+  // unread count across all their messages, bucketed server-side under the
+  // caller's RLS. Partner and listing hydration stays a client-side manual
+  // join, same style as ListingRepository.getAll.
   async getConversations(userId: string): Promise<Conversation[]> {
     const { data, error } = await supabase
       .from('conversation_list')
@@ -116,7 +117,10 @@ export const MessageRepository = {
   },
 
   // The two directions are filtered explicitly (not left to RLS) so the thread
-  // is exactly me<->partner about this listing even if policies loosen later.
+  // is exactly me<->partner even if policies loosen later. The thread is the
+  // person (0026): every message with this partner, regardless of which
+  // listing each one was about — listing_id stays on the individual messages
+  // as per-message context.
   //
   // Capped to the newest MESSAGE_PAGE_LIMIT rows (fetched newest-first, then
   // reversed back to ascending for the chat view) so an unusually long thread
@@ -124,14 +128,10 @@ export const MessageRepository = {
   // cursor pagination is deliberately deferred until a real thread hits the
   // cap — the flat Message[] cache shape must stay untouched because realtime
   // dedup, optimistic sends, and read receipts all setQueryData against it.
-  async getMessages(
-    listingId: string | null,
-    partnerId: string,
-    userId: string,
-  ): Promise<Message[]> {
+  async getMessages(partnerId: string, userId: string): Promise<Message[]> {
     assertUuid(userId, 'userId')
     assertUuid(partnerId, 'partnerId')
-    let query = supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .or(
@@ -144,9 +144,6 @@ export const MessageRepository = {
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(MESSAGE_PAGE_LIMIT)
-    query = listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
-
-    const { data, error } = await query
     if (error) throw error
     return ((data ?? []) as MessageRow[]).map(toMessage).reverse()
   },
@@ -193,23 +190,16 @@ export const MessageRepository = {
     return toMessage(row as MessageRow)
   },
 
-  // Receiver-side read receipt: stamps every unread incoming message in the
-  // thread. RLS + the column grant from migration 0008 keep this receiver-only
-  // and read_at-only.
-  async markConversationRead(
-    listingId: string | null,
-    partnerId: string,
-    userId: string,
-  ): Promise<void> {
-    let query = supabase
+  // Receiver-side read receipt: stamps every unread incoming message from this
+  // partner (the whole per-person thread, 0025). RLS + the column grant from
+  // migration 0008 keep this receiver-only and read_at-only.
+  async markConversationRead(partnerId: string, userId: string): Promise<void> {
+    const { error } = await supabase
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('receiver_id', userId)
       .eq('sender_id', partnerId)
       .is('read_at', null)
-    query = listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
-
-    const { error } = await query
     if (error) throw error
   },
 
