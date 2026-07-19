@@ -39,14 +39,18 @@ export type LocalPhoto = {
 }
 
 // Resize a picked photo to `longEdge` (never upscaling) and re-encode as
-// JPEG at `compress`. Returns a local file uri for the resized copy. Lives
-// here — not in the form hook — so upload code paths can't forget it and
-// tests can mock it alongside the storage client.
+// JPEG at `compress`. Returns a local file uri for the resized copy plus its
+// output dimensions — computed here rather than read back from saveAsync, so
+// a follow-up pass over the result (the thumb) never needs a probe decode.
+// Lives here — not in the form hook — so upload code paths can't forget it
+// and tests can mock it alongside the storage client.
+type PreparedPhoto = { uri: string; width: number; height: number }
+
 async function prepareListingPhoto(
   photo: LocalPhoto,
   longEdge: number,
   compress: number,
-): Promise<string> {
+): Promise<PreparedPhoto> {
   const context = ImageManipulator.manipulate(photo.uri)
 
   let { width, height } = photo
@@ -64,7 +68,9 @@ async function prepareListingPhoto(
 
   const rendered = await context.renderAsync()
   const saved = await rendered.saveAsync({ compress, format: SaveFormat.JPEG })
-  return saved.uri
+
+  const scale = Math.min(1, longEdge / Math.max(width, height))
+  return { uri: saved.uri, width: Math.round(width * scale), height: Math.round(height * scale) }
 }
 
 function contentTypeFor(photo: LocalPhoto): string {
@@ -101,7 +107,10 @@ async function uploadListingPhotoSet(
   const urls: string[] = []
   const thumbUrls: string[] = []
 
-  const uploadVariant = async (localUri: string, path: string): Promise<string> => {
+  const uploadVariant = async (
+    localUri: string,
+    path: string,
+  ): Promise<{ url: string; path: string }> => {
     const response = await fetch(localUri)
     const arraybuffer = await response.arrayBuffer()
 
@@ -110,19 +119,39 @@ async function uploadListingPhotoSet(
       .upload(path, arraybuffer, { contentType: 'image/jpeg' })
     if (error) throw error
 
-    paths.push(path)
     const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
-    return data.publicUrl
+    return { url: data.publicUrl, path }
   }
 
   try {
     for (let i = 0; i < photos.length; i += 1) {
       const photo = photos[i]
-      const detailUri = await prepareListingPhoto(photo, DETAIL_LONG_EDGE, DETAIL_COMPRESS)
-      const thumbUri = await prepareListingPhoto(photo, THUMB_LONG_EDGE, THUMB_COMPRESS)
+      const detail = await prepareListingPhoto(photo, DETAIL_LONG_EDGE, DETAIL_COMPRESS)
+      // The thumb derives from the already-resized detail output (dimensions
+      // known, already JPEG) instead of re-decoding the full-resolution source.
+      const thumb = await prepareListingPhoto(
+        { uri: detail.uri, mimeType: 'image/jpeg', width: detail.width, height: detail.height },
+        THUMB_LONG_EDGE,
+        THUMB_COMPRESS,
+      )
 
-      urls.push(await uploadVariant(detailUri, pathFor(i, '')))
-      thumbUrls.push(await uploadVariant(thumbUri, pathFor(i, '_thumb')))
+      // The pair uploads concurrently; allSettled (not all) so a failed
+      // variant can't leave its sibling still in-flight while the catch
+      // below deletes the batch.
+      const results = await Promise.allSettled([
+        uploadVariant(detail.uri, pathFor(i, '')),
+        uploadVariant(thumb.uri, pathFor(i, '_thumb')),
+      ])
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') paths.push(result.value.path)
+      }
+      const [detailResult, thumbResult] = results
+      if (detailResult.status === 'rejected') throw detailResult.reason
+      if (thumbResult.status === 'rejected') throw thumbResult.reason
+
+      urls.push(detailResult.value.url)
+      thumbUrls.push(thumbResult.value.url)
     }
 
     return { urls, thumbUrls, paths }
