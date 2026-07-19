@@ -135,7 +135,11 @@ export const MessageRepository = {
         `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),` +
           `and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`,
       )
+      // id tiebreak: rapid sends can share a created_at, and Postgres
+      // guarantees nothing within equal sort keys — without it both the
+      // cap boundary and the rendered order can shift between refetches.
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(MESSAGE_PAGE_LIMIT)
     query = listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
 

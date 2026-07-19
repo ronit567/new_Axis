@@ -312,7 +312,10 @@ describe('MessageRepository.getMessages', () => {
       `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
         `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
     );
-    expect(messagesBuilder.order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false });
+    // id tiebreak keeps the cap boundary and chat order stable when rapid
+    // sends share a created_at.
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(2, 'id', { ascending: false });
     expect(messagesBuilder.limit).toHaveBeenCalledWith(MESSAGE_PAGE_LIMIT);
     expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
     expect(messagesBuilder.is).not.toHaveBeenCalled();
