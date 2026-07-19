@@ -56,6 +56,10 @@ export default function RemoteImage({ uri, onError, ...rest }: Props) {
 
   return (
     <Image
+      // Default before the spread so callers can still override: cache
+      // fetched images on disk as well as memory, so listing photos survive
+      // app relaunches without a refetch.
+      cachePolicy="memory-disk"
       {...rest}
       source={source}
       // Lets expo-image reset per-item state when the row is recycled to a new

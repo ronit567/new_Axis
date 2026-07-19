@@ -195,6 +195,9 @@ export default function HomeScreen({ navigation }: Props) {
           keyExtractor={item => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={listings.length > 0 ? ListHeader : null}
