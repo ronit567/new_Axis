@@ -103,9 +103,14 @@ export const ListingRepository = {
     // *other* people are selling; a seller manages their own listings from
     // Profile/ManageListings. Filtered server-side (not in the reduce below) so
     // it happens before range()/rawCount and pagination stays correct.
+    //
+    // Sellers ride along as a PostgREST embedded join (same shape as search):
+    // one round trip instead of a second profiles query. RLS still applies to
+    // the embedded row — a hidden (e.g. blocked) seller comes back null and
+    // the row is dropped by the same missing-seller guard below.
     let query = supabase
       .from('listings')
-      .select('*')
+      .select('*, seller:profiles!listings_seller_id_fkey(*)')
       .eq('status', 'active')
       .neq('seller_id', userId)
       .order('created_at', { ascending: false })
@@ -115,34 +120,17 @@ export const ListingRepository = {
       query = query.eq('category', category)
     }
 
-    const { data: rows, error } = await query
+    const { data, error } = await query
     if (error) throw error
-    if (!rows || rows.length === 0) return { items: [], rawCount: 0 }
+    if (!data || data.length === 0) return { items: [], rawCount: 0 }
 
-    const sellerIds = [...new Set(rows.map((row) => row.seller_id))]
-    const [{ data: sellers, error: sellersError }, { data: savedRows, error: savedError }] =
-      await Promise.all([
-        supabase.from('profiles').select('*').in('id', sellerIds),
-        supabase
-          .from('saved_listings')
-          .select('listing_id')
-          .eq('user_id', userId)
-          .in(
-            'listing_id',
-            rows.map((row) => row.id),
-          ),
-      ])
-    if (sellersError) throw sellersError
-    if (savedError) throw savedError
-
-    const sellerById = new Map((sellers ?? []).map((seller) => [seller.id, seller]))
-    const savedIds = new Set((savedRows ?? []).map((row) => row.listing_id))
+    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
+    const savedIds = await getSavedIds(userId, rows.map((row) => row.id))
 
     // seller_id is a NOT NULL FK, so a missing seller would mean a broken
     // reference — skip rather than crash the whole feed over one bad row.
     // rawCount still reflects rows.length so pagination isn't thrown off by it.
-    const items = rows.reduce<Listing[]>((acc, row) => {
-      const seller = sellerById.get(row.seller_id)
+    const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
       if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
       return acc
     }, [])
@@ -241,36 +229,25 @@ export const ListingRepository = {
   // only (unlike getBySeller, which is the owner's own manage view), with the
   // viewer's saved flags folded in. Same join/skip rules as getAll.
   async getActiveBySeller(sellerId: string, viewerId: string): Promise<Listing[]> {
-    const { data: rows, error } = await supabase
+    // Seller embedded like getAll/search — one round trip for rows + profile.
+    const { data, error } = await supabase
       .from('listings')
-      .select('*')
+      .select('*, seller:profiles!listings_seller_id_fkey(*)')
       .eq('seller_id', sellerId)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
     if (error) throw error
-    if (!rows || rows.length === 0) return []
+    if (!data || data.length === 0) return []
 
-    const [{ data: sellerRow, error: sellerError }, { data: savedRows, error: savedError }] =
-      await Promise.all([
-        supabase.from('profiles').select('*').eq('id', sellerId).maybeSingle(),
-        supabase
-          .from('saved_listings')
-          .select('listing_id')
-          .eq('user_id', viewerId)
-          .in(
-            'listing_id',
-            rows.map((row) => row.id),
-          ),
-      ])
-    if (sellerError) throw sellerError
-    if (savedError) throw savedError
+    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
+    const savedIds = await getSavedIds(viewerId, rows.map((row) => row.id))
 
-    // seller_id is a NOT NULL FK, so a missing profile means a broken
-    // reference — treat the storefront as empty rather than crash it.
-    if (!sellerRow) return []
-
-    const savedIds = new Set((savedRows ?? []).map((row) => row.listing_id))
-    return rows.map((row) => toListing(row, sellerRow, savedIds.has(row.id)))
+    // seller_id is a NOT NULL FK, so a missing (or RLS-hidden) profile means
+    // there's no storefront to show — treat it as empty rather than crash it.
+    return rows.reduce<Listing[]>((acc, { seller, ...row }) => {
+      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
+      return acc
+    }, [])
   },
   // AX-201 follow-up: real toggle. Try deleting the save first; if a row was
   // actually removed we're done (now unsaved), otherwise insert it (now saved).
