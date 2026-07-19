@@ -35,7 +35,7 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { MessageRepository } from '../MessageRepository';
+import { MessageRepository, MESSAGE_PAGE_LIMIT } from '../MessageRepository';
 
 function makeMessageRow(overrides: Partial<MessageRow> = {}): MessageRow {
   return {
@@ -96,6 +96,7 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
     category: 'Textbooks',
     pickup: 'UCC, Room 110',
     image_urls: [],
+    thumb_urls: [],
     status: 'active',
     views: 22,
     created_at: '2026-06-29T12:00:00.000Z',
@@ -281,16 +282,28 @@ describe('MessageRepository.getMessages', () => {
   const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
   const USER_ID = '22222222-2222-4222-8222-222222222222';
 
-  it('queries both message directions ordered oldest-first, filtered by listing_id, and maps rows to domain Messages', async () => {
-    const row = makeMessageRow({
+  it('queries both directions capped to the newest rows, filtered by listing_id, and returns them oldest-first', async () => {
+    // The query fetches newest-first (so limit() keeps the most recent rows)
+    // and getMessages reverses back to the ascending order the chat renders.
+    const older = makeMessageRow({
       id: 'm1',
       listing_id: 'lst1',
       sender_id: PARTNER_ID,
       receiver_id: USER_ID,
       body: 'Hi',
       read_at: null,
+      created_at: '2026-07-01T12:00:00.000Z',
     });
-    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [row], error: null });
+    const newer = makeMessageRow({
+      id: 'm2',
+      listing_id: 'lst1',
+      sender_id: USER_ID,
+      receiver_id: PARTNER_ID,
+      body: 'Hello!',
+      read_at: null,
+      created_at: '2026-07-01T12:01:00.000Z',
+    });
+    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [newer, older], error: null });
     mockTables({ messages: messagesBuilder });
 
     const result = await MessageRepository.getMessages('lst1', PARTNER_ID, USER_ID);
@@ -299,20 +312,23 @@ describe('MessageRepository.getMessages', () => {
       `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
         `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
     );
-    expect(messagesBuilder.order).toHaveBeenCalledWith('created_at', { ascending: true });
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false });
+    // id tiebreak keeps the cap boundary and chat order stable when rapid
+    // sends share a created_at.
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(2, 'id', { ascending: false });
+    expect(messagesBuilder.limit).toHaveBeenCalledWith(MESSAGE_PAGE_LIMIT);
     expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
     expect(messagesBuilder.is).not.toHaveBeenCalled();
-    expect(result).toEqual([
-      {
-        id: 'm1',
-        listingId: 'lst1',
-        senderId: PARTNER_ID,
-        receiverId: USER_ID,
-        body: 'Hi',
-        createdAt: row.created_at,
-        readAt: null,
-      },
-    ]);
+    expect(result.map((m) => m.id)).toEqual(['m1', 'm2']);
+    expect(result[0]).toEqual({
+      id: 'm1',
+      listingId: 'lst1',
+      senderId: PARTNER_ID,
+      receiverId: USER_ID,
+      body: 'Hi',
+      createdAt: older.created_at,
+      readAt: null,
+    });
   });
 
   it('filters by .is(listing_id, null) instead of .eq() when listingId is null', async () => {

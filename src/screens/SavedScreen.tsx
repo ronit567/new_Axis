@@ -148,6 +148,9 @@ export default function SavedScreen({ navigation }: Props) {
           keyExtractor={item => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={

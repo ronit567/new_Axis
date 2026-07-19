@@ -8,6 +8,10 @@ export type ProposedListingEdit = {
   category?: string
   condition?: string
   imageUrls?: string[]
+  // Grid variants for the proposed photo set, index-parallel to imageUrls
+  // (0024) — only meaningful when imageUrls is present. apply_listing_edit
+  // promotes both together so a reviewed photo change keeps its thumbs.
+  thumbUrls?: string[]
 }
 
 export const ListingEditRequestRepository = {
@@ -28,6 +32,7 @@ export const ListingEditRequestRepository = {
       proposed_category: proposed.category ?? null,
       proposed_condition: proposed.condition ?? null,
       proposed_image_urls: proposed.imageUrls ?? null,
+      proposed_thumb_urls: proposed.thumbUrls ?? null,
     })
     if (error) throw error
   },
