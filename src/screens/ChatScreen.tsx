@@ -54,7 +54,11 @@ export default function ChatScreen({ navigation, route }: Props) {
   const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage, draftNonce } = route.params;
   const { user } = useAuth();
 
-  const { data, isPending, isError, refetch } = useMessages(listingId, partnerId);
+  // The thread is the person (0026): all messages with this partner, whatever
+  // listing each was about. listingId/listingTitle/listingPrice are only the
+  // context this chat was opened with — they drive the banner and get stamped
+  // onto new sends, not the fetch.
+  const { data, isPending, isError, refetch } = useMessages(partnerId);
   // Full profile for the header's tap-through to the partner's SellerProfile
   // page (the route needs a whole SellerProfile, not just the Contact we have).
   const { data: partnerProfile } = useProfile(partnerId);
@@ -104,8 +108,8 @@ export default function ChatScreen({ navigation, route }: Props) {
     const newestUnreadId = unread[unread.length - 1].id;
     if (lastMarkedUnreadId.current === newestUnreadId) return;
     lastMarkedUnreadId.current = newestUnreadId;
-    markRead.mutate({ listingId, partnerId });
-  }, [messages, user?.id, listingId, partnerId, markRead]);
+    markRead.mutate({ partnerId });
+  }, [messages, user?.id, partnerId, markRead]);
 
   const handleSend = () => {
     const text = inputText.trim();

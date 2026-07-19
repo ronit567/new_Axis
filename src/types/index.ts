@@ -91,7 +91,7 @@ export type MyListing = {
 export type Contact = {
   // The conversation partner's user id. Optional while screens still run on mock
   // data; the real getConversations() populates it so a Contact can round-trip
-  // into getMessages(listingId, partnerId) / a reply to a specific person.
+  // into getMessages(partnerId) / a reply to a specific person.
   id?: string;
   initials: string;
   avatarColor: string;
@@ -131,8 +131,10 @@ export type Message = {
   readAt: string | null; // null = the receiver hasn't opened it yet
 };
 
-// One row in the Messages inbox. Identity is (listingId, partnerId) — the same
-// two people can have separate threads about different listings.
+// One row in the Messages inbox. Identity is the partner (0026) — all
+// messages with the same person share one thread. listingId/title/price are
+// the *newest* message's listing context, feeding the row subtitle and the
+// banner the chat opens with.
 export type Conversation = {
   partnerId: string;
   partner: Contact;
