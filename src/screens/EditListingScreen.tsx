@@ -210,6 +210,7 @@ function EditListingForm({
         category: categoryChanged ? form.category : undefined,
         condition: conditionChanged ? form.condition : undefined,
         imageUrls: resolvedPhotos?.imageUrls,
+        thumbUrls: resolvedPhotos?.thumbUrls,
       });
       Alert.alert(
         'Submitted for review',

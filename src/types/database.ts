@@ -147,6 +147,7 @@ export type Database = {
           proposed_category: string | null
           proposed_condition: string | null
           proposed_image_urls: string[] | null
+          proposed_thumb_urls: string[] | null
           proposed_title: string | null
           requester_id: string
           reviewed_at: string | null
@@ -159,6 +160,7 @@ export type Database = {
           proposed_category?: string | null
           proposed_condition?: string | null
           proposed_image_urls?: string[] | null
+          proposed_thumb_urls?: string[] | null
           proposed_title?: string | null
           requester_id: string
           reviewed_at?: string | null
@@ -171,6 +173,7 @@ export type Database = {
           proposed_category?: string | null
           proposed_condition?: string | null
           proposed_image_urls?: string[] | null
+          proposed_thumb_urls?: string[] | null
           proposed_title?: string | null
           requester_id?: string
           reviewed_at?: string | null

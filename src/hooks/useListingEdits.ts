@@ -118,13 +118,16 @@ export function useUpdateListing() {
   })
 }
 
-export type CreateEditRequestInput = Omit<ProposedListingEdit, 'imageUrls'> & {
+export type CreateEditRequestInput = Omit<ProposedListingEdit, 'imageUrls' | 'thumbUrls'> & {
   listingId: string
   // Present only when the photo set changed — the final resolved (already-
-  // uploaded) ordered URL set, mixing kept-remote and newly-uploaded photos.
+  // uploaded) ordered URL sets, mixing kept-remote and newly-uploaded photos.
   // Resolved once by the caller so the race-fallback path (direct update
   // rejected by the server-side guard) doesn't re-upload the same photos.
+  // thumbUrls travels with imageUrls so the already-uploaded _thumb objects
+  // aren't orphaned when the review is applied (0024).
   imageUrls?: string[]
+  thumbUrls?: string[]
 }
 
 // EditListingScreen's Save action for an engaged listing (or the race
@@ -134,12 +137,13 @@ export function useCreateEditRequest() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ listingId, imageUrls, ...proposed }: CreateEditRequestInput) => {
+    mutationFn: async ({ listingId, imageUrls, thumbUrls, ...proposed }: CreateEditRequestInput) => {
       if (!user) throw new Error('Not signed in')
 
       await ListingEditRequestRepository.create(user.id, listingId, {
         ...proposed,
         imageUrls,
+        thumbUrls,
       })
     },
     onSuccess: (_data, { listingId }) => {
