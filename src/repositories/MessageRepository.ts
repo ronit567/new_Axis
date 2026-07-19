@@ -95,8 +95,11 @@ export const MessageRepository = {
     // A missing partner profile means the counterpart is RLS-hidden (blocked in
     // either direction) — drop the whole thread from the inbox, per AX-703's
     // "filter blocked users out of messages". A missing listing row is fine:
-    // the thread renders without the listing banner.
+    // the thread renders without the listing banner. A self-thread (partner is
+    // the caller — possible only via rows that predate messages_no_self, 0025)
+    // is dropped too so it can't be reopened from the inbox.
     return rows.reduce<Conversation[]>((acc, row) => {
+      if (row.partner_id === userId) return acc
       const partner = partnerById.get(row.partner_id)
       if (!partner) return acc
       acc.push(
@@ -167,6 +170,12 @@ export const MessageRepository = {
   },
 
   async send(senderId: string, data: SendMessageInput): Promise<Message> {
+    // Screens hide the message actions on your own listing, but a deep link or
+    // stale route params can still target yourself — reject before the insert
+    // (the DB's messages_no_self constraint + insert policy are the backstop).
+    if (senderId === data.receiverId) {
+      throw new Error('MessageRepository: cannot send a message to yourself')
+    }
     // Across a block the insert policy rejects the row — surfaces here as an
     // error for the UI to show, which is the intended behavior.
     const { data: row, error } = await supabase
