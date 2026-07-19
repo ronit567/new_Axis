@@ -148,6 +148,26 @@ describe('MessageRepository.getConversations', () => {
     expect(result[0].unreadCount).toBe(2);
   });
 
+  it('drops a self-thread (partner is the caller) so pre-0025 rows cannot reopen a chat with yourself', async () => {
+    const rows = [
+      makeConversationListRow({ id: 'm1', sender_id: 'me', receiver_id: 'me', partner_id: 'me' }),
+      makeConversationListRow({ id: 'm2', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+    ];
+    mockTables({
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
+      profiles: makeQueryBuilder<ProfileRow[]>({
+        data: [makeProfileRow({ id: 'me' }), makeProfileRow({ id: 'p1' })],
+        error: null,
+      }),
+      listings: makeQueryBuilder<ListingRow[]>({ data: [makeListingRow({ id: 'lst1' })], error: null }),
+    });
+
+    const result = await MessageRepository.getConversations('me');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].partnerId).toBe('p1');
+  });
+
   it('treats the same partner across two different listings as two separate conversations', async () => {
     const rows = [
       makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
@@ -443,6 +463,18 @@ describe('MessageRepository.send', () => {
     expect(messagesBuilder.insert).toHaveBeenCalledWith(
       expect.objectContaining({ listing_id: null }),
     );
+  });
+
+  it('rejects a self-send (receiverId = senderId) before issuing any query', async () => {
+    await expect(
+      MessageRepository.send('me', {
+        id: 'm-new',
+        listingId: 'lst1',
+        receiverId: 'me',
+        body: 'talking to myself',
+      }),
+    ).rejects.toThrow('cannot send a message to yourself');
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
 
