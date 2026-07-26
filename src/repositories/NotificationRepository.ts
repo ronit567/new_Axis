@@ -1,7 +1,13 @@
 import { supabase } from '../lib/supabase'
-import { toNotification } from './mappers'
+import {
+  CONTACT_COLUMNS,
+  LISTING_SUMMARY_COLUMNS,
+  toNotification,
+  type ContactRow,
+  type ListingSummaryRow,
+} from './mappers'
 import type { Notification } from '../types'
-import type { ListingRow, NotificationRow, ProfileRow } from '../types/database'
+import type { NotificationRow } from '../types/database'
 
 export type NotificationEventHandlers = {
   onInsert: (row: NotificationRow) => void
@@ -49,20 +55,20 @@ export const NotificationRepository = {
       // every notification is actorless (e.g. the dev test-notification rows),
       // which otherwise 400s the whole list fetch.
       actorIds.length > 0
-        ? supabase.from('profiles').select('*').in('id', actorIds)
-        : Promise.resolve({ data: [] as ProfileRow[], error: null }),
+        ? supabase.from('profiles').select(CONTACT_COLUMNS).in('id', actorIds)
+        : Promise.resolve({ data: [] as ContactRow[], error: null }),
       listingIds.length > 0
-        ? supabase.from('listings').select('*').in('id', listingIds)
-        : Promise.resolve({ data: [] as ListingRow[], error: null }),
+        ? supabase.from('listings').select(LISTING_SUMMARY_COLUMNS).in('id', listingIds)
+        : Promise.resolve({ data: [] as ListingSummaryRow[], error: null }),
     ])
     if (actorsResult.error) throw actorsResult.error
     if (listingsResult.error) throw listingsResult.error
 
     const actorById = new Map(
-      ((actorsResult.data ?? []) as ProfileRow[]).map((p) => [p.id, p]),
+      ((actorsResult.data ?? []) as ContactRow[]).map((p) => [p.id, p]),
     )
     const listingById = new Map(
-      ((listingsResult.data ?? []) as ListingRow[]).map((l) => [l.id, l]),
+      ((listingsResult.data ?? []) as ListingSummaryRow[]).map((l) => [l.id, l]),
     )
 
     // A missing actor profile means they're RLS-hidden (blocked in either

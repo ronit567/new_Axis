@@ -208,8 +208,17 @@ export function toMessage(row: MessageRow): Message {
   };
 }
 
-// Chat-header display info from a full profile row (conversations list path).
-export function toContact(row: ProfileRow): Contact {
+// The columns a Contact and an inbox/notification row are built from. The
+// hydration queries select exactly these (CONTACT_COLUMNS / LISTING_SUMMARY_COLUMNS)
+// instead of '*': a listings row is mostly its description and two URL arrays,
+// none of which these surfaces show, and the inbox pulls one per conversation.
+export type ContactRow = Pick<ProfileRow, 'id' | 'name' | 'initials' | 'avatar_color' | 'avatar_url'>;
+export type ListingSummaryRow = Pick<ListingRow, 'id' | 'title' | 'price' | 'seller_id'>;
+export const CONTACT_COLUMNS = 'id, name, initials, avatar_color, avatar_url';
+export const LISTING_SUMMARY_COLUMNS = 'id, title, price, seller_id';
+
+// Chat-header display info from a profile row (conversations list path).
+export function toContact(row: ContactRow): Contact {
   return {
     id: row.id,
     name: row.name,
@@ -246,9 +255,9 @@ export function toBlockedUser(row: BlockedUserRow): BlockedUser {
 }
 
 type ConversationParts = {
-  partner: ProfileRow;
+  partner: ContactRow;
   // Null when the listing row is gone or RLS-hidden; the thread still renders.
-  listing: ListingRow | null;
+  listing: ListingSummaryRow | null;
   lastMessage: MessageRow;
   unreadCount: number;
   currentUserId: string;
@@ -277,8 +286,8 @@ type NotificationParts = {
   row: NotificationRow;
   // null => actor RLS-hidden (blocked); the repository drops these rows before
   // they reach this mapper.
-  actor: ProfileRow | null;
-  listing: ListingRow | null;
+  actor: ContactRow | null;
+  listing: ListingSummaryRow | null;
 };
 
 export function toNotification(parts: NotificationParts): Notification {

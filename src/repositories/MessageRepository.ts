@@ -1,12 +1,14 @@
 import { supabase } from '../lib/supabase'
-import { toConversation, toMessage } from './mappers'
+import {
+  CONTACT_COLUMNS,
+  LISTING_SUMMARY_COLUMNS,
+  toConversation,
+  toMessage,
+  type ContactRow,
+  type ListingSummaryRow,
+} from './mappers'
 import type { Conversation, Message } from '../types'
-import type {
-  ConversationListRow,
-  ListingRow,
-  MessageRow,
-  ProfileRow,
-} from '../types/database'
+import type { ConversationListRow, MessageRow } from '../types/database'
 
 export type SendMessageInput = {
   // Client-generated UUID (the row's actual id). The optimistic cache entry,
@@ -59,11 +61,16 @@ export const MessageRepository = {
   // unread count across all their messages, bucketed server-side under the
   // caller's RLS. Partner and listing hydration stays a client-side manual
   // join, same style as ListingRepository.getAll.
-  async getConversations(userId: string): Promise<Conversation[]> {
-    const { data, error } = await supabase
+  //
+  // `signal` aborts all three requests. The inbox is rebuilt in response to
+  // events, so a rebuild is often superseded while still in flight; without the
+  // signal the abandoned one still runs to completion on the server.
+  async getConversations(userId: string, signal?: AbortSignal): Promise<Conversation[]> {
+    const listQuery = supabase
       .from('conversation_list')
       .select('*')
       .order('created_at', { ascending: false })
+    const { data, error } = await (signal ? listQuery.abortSignal(signal) : listQuery)
     if (error) throw error
     const rows = (data ?? []) as ConversationListRow[]
     if (rows.length === 0) return []
@@ -77,20 +84,30 @@ export const MessageRepository = {
       ),
     ]
 
+    // Built only when needed: `.in('id', [])` is a malformed PostgREST filter,
+    // not an empty result.
+    const fetchPartners = () => {
+      const query = supabase.from('profiles').select(CONTACT_COLUMNS).in('id', partnerIds)
+      return signal ? query.abortSignal(signal) : query
+    }
+    const fetchListings = () => {
+      const query = supabase.from('listings').select(LISTING_SUMMARY_COLUMNS).in('id', listingIds)
+      return signal ? query.abortSignal(signal) : query
+    }
     const [partnersResult, listingsResult] = await Promise.all([
-      supabase.from('profiles').select('*').in('id', partnerIds),
+      fetchPartners(),
       listingIds.length > 0
-        ? supabase.from('listings').select('*').in('id', listingIds)
-        : Promise.resolve({ data: [] as ListingRow[], error: null }),
+        ? fetchListings()
+        : Promise.resolve({ data: [] as ListingSummaryRow[], error: null }),
     ])
     if (partnersResult.error) throw partnersResult.error
     if (listingsResult.error) throw listingsResult.error
 
     const partnerById = new Map(
-      ((partnersResult.data ?? []) as ProfileRow[]).map((p) => [p.id, p]),
+      ((partnersResult.data ?? []) as ContactRow[]).map((p) => [p.id, p]),
     )
     const listingById = new Map(
-      ((listingsResult.data ?? []) as ListingRow[]).map((l) => [l.id, l]),
+      ((listingsResult.data ?? []) as ListingSummaryRow[]).map((l) => [l.id, l]),
     )
 
     // A missing partner profile means the counterpart is RLS-hidden (blocked in
