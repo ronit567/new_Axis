@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import EmptyState from '../components/EmptyState';
 import ActivitySpinner from '../components/ActivitySpinner';
 import Avatar from '../components/Avatar';
 import PressableScale from '../components/PressableScale';
+import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { useFollowing, useToggleFollow } from '../hooks/useFollows';
 import { formatYearOfStudy } from '../lib/formatYear';
@@ -36,7 +37,7 @@ export default function SavedScreen({ navigation }: Props) {
   const savedItems = data ?? [];
   const { data: following, isPending: isFollowingPending } = useFollowing();
   const toggleFollow = useToggleFollow();
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+  const pulseAnim = useSkeletonPulse(isLoading);
 
   // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
   // header stays flush at rest and gains definition as content passes under it.
@@ -50,18 +51,6 @@ export default function SavedScreen({ navigation }: Props) {
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: true },
   );
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    if (isLoading) anim.start();
-    else { anim.stop(); pulseAnim.setValue(0.4); }
-    return () => anim.stop();
-  }, [isLoading, pulseAnim]);
 
   // Stable so the memoized ListingCard cells skip re-rendering on tab switches.
   const keyExtractor = useCallback((item: { id: string }) => item.id, []);

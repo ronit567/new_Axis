@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import CategoryChip from '../components/CategoryChip';
 import FadeInItem from '../components/FadeInItem';
 import GreetingRow from '../components/GreetingRow';
 import { haptics } from '../lib/haptics';
+import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
@@ -40,7 +41,6 @@ const CATEGORIES = BROWSE_CATEGORIES;
 export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
   // Hairline + shadow under the fixed header/chips that fades in as the list
   // scrolls beneath it, so the header gains definition on scroll and stays
@@ -84,17 +84,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const listings = data?.pages.flatMap(page => page.items) ?? [];
 
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    if (isLoading) anim.start();
-    else { anim.stop(); pulseAnim.setValue(0.4); }
-    return () => anim.stop();
-  }, [isLoading, pulseAnim]);
+  const pulseAnim = useSkeletonPulse(isLoading);
 
   const loadMore = () => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
