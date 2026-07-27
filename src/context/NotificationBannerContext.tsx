@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import PressableScale from '../components/PressableScale';
 import { COLORS, FONTS, SHADOWS } from '../constants/theme';
+import { CURVE, DURATION, SPRING, timing } from '../constants/motion';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -59,8 +60,9 @@ export function NotificationBannerProvider({ children }: { children: React.React
     clearTimer();
     Animated.timing(translateY, {
       toValue: OFFSCREEN,
-      duration: 220,
-      useNativeDriver: true,
+      // Accelerating out: a dismissal should commit quickly rather than
+      // linger over the content it's uncovering.
+      ...timing(DURATION.base, CURVE.exit),
     }).start(({ finished }) => {
       // Only unmount if this animation completed — a new show() interrupts it
       // and will manage its own content.
@@ -77,11 +79,12 @@ export function NotificationBannerProvider({ children }: { children: React.React
   useEffect(() => {
     if (!content) return undefined;
     translateY.setValue(OFFSCREEN);
+    // Drops in on a gentle spring — a large surface travelling a real
+    // distance, so a stiffer spring would look nervous rather than weighty.
     Animated.spring(translateY, {
       toValue: 0,
+      ...SPRING.gentle,
       useNativeDriver: true,
-      bounciness: 7,
-      speed: 13,
     }).start();
     hideTimer.current = setTimeout(hide, VISIBLE_MS);
     return clearTimer;
