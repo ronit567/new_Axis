@@ -275,6 +275,9 @@ function EditListingForm({
         >
           <View style={styles.photoSection}>
             <Text style={[styles.sectionHeading, styles.photoSectionHeading]}>Photos</Text>
+            {/* Sellers can remove photos in an edit but adding new ones is
+                reserved for listing creation (photos are a scam-vector field),
+                and at least one photo must remain. */}
             <PhotoPicker
               photos={form.photos}
               onAdd={form.handleAddPhoto}
@@ -282,6 +285,8 @@ function EditListingForm({
               maxPhotos={MAX_PHOTOS}
               locked={scamLocked}
               onLockedPress={handleLockedPress}
+              allowAdd={false}
+              minPhotos={1}
             />
           </View>
 

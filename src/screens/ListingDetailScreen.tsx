@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import RemoteImage from '../components/RemoteImage';
+import ImageViewerModal from '../components/ImageViewerModal';
 import ReportModal from '../components/ReportModal';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -58,6 +59,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [saved, setSaved] = useState(false);
   const [activeDot, setActiveDot] = useState(0);
   const [reportVisible, setReportVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
@@ -254,16 +256,28 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               onMomentumScrollEnd={handleGalleryScrollEnd}
             >
               {listing.imageUrls.map((uri, i) => (
-                <RemoteImage
+                // The hero stays a cropped cover preview for the gallery swipe;
+                // tapping opens the full, uncropped image in ImageViewerModal.
+                <TouchableOpacity
                   key={uri + i}
-                  uri={uri}
-                  style={[
-                    styles.imagePlaceholder,
-                    { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
-                  ]}
-                  contentFit="cover"
-                  transition={150}
-                />
+                  activeOpacity={0.95}
+                  onPress={() => {
+                    haptics.tap();
+                    setViewerIndex(i);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View image ${i + 1} full screen`}
+                >
+                  <RemoteImage
+                    uri={uri}
+                    style={[
+                      styles.imagePlaceholder,
+                      { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
+                    ]}
+                    contentFit="cover"
+                    transition={150}
+                  />
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : (
@@ -566,6 +580,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             reason,
           })
         }
+      />
+      <ImageViewerModal
+        visible={viewerIndex !== null}
+        imageUrls={listing.imageUrls}
+        initialIndex={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
       />
     </View>
   );

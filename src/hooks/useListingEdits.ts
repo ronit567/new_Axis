@@ -13,7 +13,13 @@ import { invalidateAfterListingMutation } from './useListings'
 // (isLocal: false, uri is the public URL) with newly-picked device photos
 // (isLocal: true, uri is a local file:// / content:// uri) in one ordered
 // list — the same shape PhotoPicker renders either kind from.
-export type EditablePhoto = LocalPhoto & { isLocal: boolean }
+export type EditablePhoto = LocalPhoto & {
+  isLocal: boolean
+  // Present only on freshly-picked create-flow photos: the uncropped source
+  // the optional crop step always starts from, so re-crops never compound
+  // quality loss. Absent on remote photos prefilled into the edit flow.
+  original?: { uri: string; width: number; height: number }
+}
 
 // Splits a mixed photo list, uploads only the local entries (via the
 // timestamped-filename edit path — never the index-named create path, so an

@@ -16,6 +16,7 @@ import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
 import PhotoPicker from '../components/listing/PhotoPicker';
+import PhotoCropModal from '../components/listing/PhotoCropModal';
 import TitleField from '../components/listing/TitleField';
 import CategoryDropdown from '../components/listing/CategoryDropdown';
 import ConditionSelector from '../components/listing/ConditionSelector';
@@ -92,6 +93,7 @@ export default function CreateListingScreen({ navigation }: Props) {
               photos={form.photos}
               onAdd={form.handleAddPhoto}
               onRemove={form.handleRemovePhoto}
+              onCrop={form.handleCropPhoto}
               maxPhotos={MAX_PHOTOS}
             />
           </View>
@@ -138,6 +140,13 @@ export default function CreateListingScreen({ navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <PhotoCropModal
+        visible={form.cropPhoto !== null}
+        photo={form.cropPhoto}
+        onDone={form.handleCropDone}
+        onCancel={form.handleCropCancel}
+      />
 
       <View style={styles.footer}>
         <PressableScale
