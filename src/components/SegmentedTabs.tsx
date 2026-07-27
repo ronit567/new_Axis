@@ -10,6 +10,8 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
+import { SPRING } from '../constants/motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { haptics } from '../lib/haptics';
 
 type Props = {
@@ -28,6 +30,7 @@ type Props = {
 export default function SegmentedTabs({ tabs, activeIndex, onChange, style }: Props) {
   const [containerWidth, setContainerWidth] = useState(0);
   const translateX = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
 
   const thumbWidth = containerWidth > 0 ? (containerWidth - 4) / tabs.length : 0;
 
@@ -37,13 +40,21 @@ export default function SegmentedTabs({ tabs, activeIndex, onChange, style }: Pr
 
   useEffect(() => {
     if (thumbWidth === 0) return;
+    const toValue = activeIndex * thumbWidth;
+    // The thumb is the only thing that moves, so it carries the whole
+    // interaction — a spring that settles without ringing keeps a fast
+    // back-and-forth between segments from looking nervous. Under Reduce
+    // Motion it jumps straight to the segment instead of travelling.
+    if (reducedMotion) {
+      translateX.setValue(toValue);
+      return;
+    }
     Animated.spring(translateX, {
-      toValue: activeIndex * thumbWidth,
+      toValue,
+      ...SPRING.snap,
       useNativeDriver: true,
-      speed: 20,
-      bounciness: 4,
     }).start();
-  }, [activeIndex, thumbWidth, translateX]);
+  }, [activeIndex, thumbWidth, translateX, reducedMotion]);
 
   return (
     <View style={[styles.container, style]} onLayout={handleLayout}>

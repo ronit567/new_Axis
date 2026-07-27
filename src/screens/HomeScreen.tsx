@@ -20,7 +20,7 @@ import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import PressableScale from '../components/PressableScale';
+import CategoryChip from '../components/CategoryChip';
 import FadeInItem from '../components/FadeInItem';
 import GreetingRow from '../components/GreetingRow';
 import { haptics } from '../lib/haptics';
@@ -120,7 +120,18 @@ export default function HomeScreen({ navigation }: Props) {
   const ListHeader = (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>For you</Text>
-      <TouchableOpacity>
+      {/* Was a bare TouchableOpacity with no onPress — it rendered as a live
+          control but did nothing on tap. Routed to Search, which is the
+          browse-everything surface this label promises. */}
+      <TouchableOpacity
+        onPress={() => {
+          haptics.tap();
+          openSearch();
+        }}
+        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="See all listings"
+      >
         <Text style={styles.seeAll}>See all</Text>
       </TouchableOpacity>
     </View>
@@ -176,27 +187,15 @@ export default function HomeScreen({ navigation }: Props) {
         contentContainerStyle={styles.categoryRow}
       >
         {CATEGORIES.map(cat => (
-          <PressableScale
+          <CategoryChip
             key={cat}
-            style={[
-              styles.catChip,
-              activeCategory === cat ? styles.catChipActive : null,
-            ]}
+            label={cat}
+            active={activeCategory === cat}
             onPress={() => {
               haptics.tap();
               setActiveCategory(cat);
             }}
-            scaleTo={0.94}
-          >
-            <Text
-              style={[
-                styles.catLabel,
-                activeCategory === cat ? styles.catLabelActive : null,
-              ]}
-            >
-              {cat}
-            </Text>
-          </PressableScale>
+          />
         ))}
       </ScrollView>
 
@@ -322,27 +321,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     gap: 8,
-  },
-  catChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-  },
-  catChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  catLabel: {
-    fontSize: 13,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  catLabelActive: {
-    color: COLORS.white,
-    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',
