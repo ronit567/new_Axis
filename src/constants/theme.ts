@@ -6,8 +6,12 @@ export const COLORS = {
   primarySoft: '#EEE8F8',
   primaryBorder: '#DDD0F5',
   white: '#FFFFFF',
-  background: '#F8F8F8',
   surface: '#FFFFFF',
+  // The one page tint behind scrolling content. A second near-identical
+  // `background: #F8F8F8` used to sit beside this; the difference was
+  // invisible but forced a coin-flip at every call site, so screens split
+  // roughly evenly between them. Prefer <Screen background="page"> over
+  // reaching for this directly.
   surfaceAlt: '#F5F5FA',
   inputBorder: '#E0E0E0',
   inputBorderFocused: '#5C2D91',

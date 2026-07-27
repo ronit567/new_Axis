@@ -9,13 +9,15 @@ import {
   Dimensions,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 import Avatar from '../components/Avatar';
 import VerifiedTick from '../components/VerifiedTick';
 import ReviewCard from '../components/ReviewCard';
@@ -102,17 +104,46 @@ export default function ProfileScreen({ navigation }: Props) {
   // instead of a screen of blank fallbacks.
   if (profileError && !profile) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen background="surface">
         <ErrorState
           message="Couldn't load your profile. Please try again."
           onRetry={() => refetchProfile()}
         />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen background="surface">
+      {/* Deliberately title-less: this screen's heading is the avatar and
+          name directly below, and a "Profile" label would only repeat it.
+          Using ScreenHeader anyway keeps the action buttons at the same
+          size, spacing and inset as every other screen's. */}
+      <ScreenHeader
+        trailing={
+          <>
+            <HeaderIconButton
+              icon="share-outline"
+              accessibilityLabel="Share profile"
+              onPress={async () => {
+                if (!profile) return;
+                try {
+                  await Share.share({
+                    message: `${profile.name} is on Axis — check out their listings`,
+                  });
+                } catch {
+                  // Silently ignore — the user cancelling the share sheet isn't an error.
+                }
+              }}
+            />
+            <HeaderIconButton
+              icon="settings-outline"
+              accessibilityLabel="Settings"
+              onPress={() => navigation.navigate('Settings')}
+            />
+          </>
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -125,37 +156,6 @@ export default function ProfileScreen({ navigation }: Props) {
           />
         }
       >
-        {/* ── Top bar (share + gear icons) ── */}
-        <View style={styles.topBar}>
-          <PressableScale
-            style={styles.gearBtn}
-            onPress={async () => {
-              if (!profile) return;
-              try {
-                await Share.share({
-                  message: `${profile.name} is on Axis — check out their listings`,
-                });
-              } catch {
-                // Silently ignore — the user cancelling the share sheet isn't an error.
-              }
-            }}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Share profile"
-          >
-            <Ionicons name="share-outline" size={18} color={COLORS.textSecondary} />
-          </PressableScale>
-          <PressableScale
-            style={styles.gearBtn}
-            onPress={() => navigation.navigate('Settings')}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-          >
-            <Ionicons name="settings-outline" size={18} color={COLORS.textSecondary} />
-          </PressableScale>
-        </View>
-
         {/* ── Profile info ── */}
         <View style={styles.profileSection}>
           <Avatar
@@ -268,37 +268,15 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
-
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
   scroll: {
     paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
 
-  /* top bar */
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    paddingHorizontal: H_PAD,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  gearBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   /* profile */
   profileSection: {
     alignItems: 'center',

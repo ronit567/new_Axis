@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: 24, // concentric: icon radius (10) + row padding (14)
     borderWidth: 1.5,
     borderColor: COLORS.divider,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surfaceAlt,
   },
   reasonRowActive: {
     borderColor: COLORS.primary,

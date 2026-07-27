@@ -9,15 +9,16 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
 import { BlurView } from 'expo-blur';
-import { StatusBar } from 'expo-status-bar';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import Card, { SectionLabel } from '../components/layout/Card';
 import { useAuth } from '../context/AuthContext';
 import { useDeleteAccount } from '../hooks/useProfile';
 import { haptics } from '../lib/haptics';
@@ -25,14 +26,6 @@ import { haptics } from '../lib/haptics';
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
-
-function SectionLabel({ title }: { title: string }) {
-  return (
-    <View style={styles.sectionLabelWrap}>
-      <Text style={styles.sectionLabelText}>{title}</Text>
-    </View>
-  );
-}
 
 function RowItem({
   icon,
@@ -157,23 +150,8 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <PressableScale
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <Screen>
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} bordered />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -181,17 +159,17 @@ export default function SettingsScreen({ navigation }: Props) {
       >
         {/* ── ACCOUNT ── */}
         <SectionLabel title="ACCOUNT" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <RowItem icon="create-outline" label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
           <RowDivider />
           <RowItem icon="key-outline" label="Change password" />
           <RowDivider />
           <RowItem icon="card-outline" label="Payment & payouts" />
-        </View>
+        </Card>
 
         {/* ── PREFERENCES ── */}
         <SectionLabel title="PREFERENCES" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <ToggleRow
             icon="notifications-outline"
             label="Push notifications"
@@ -200,25 +178,25 @@ export default function SettingsScreen({ navigation }: Props) {
           />
           <RowDivider />
           <RowItem icon="location-outline" label="Default pickup area" value="UCC" />
-        </View>
+        </Card>
 
         {/* ── PRIVACY & SAFETY ── */}
         <SectionLabel title="PRIVACY & SAFETY" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <RowItem icon="ban-outline" label="Blocked users" />
-        </View>
+        </Card>
 
         {/* ── SUPPORT ── */}
         <SectionLabel title="SUPPORT" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <RowItem icon="help-circle-outline" label="Help & support" />
           <RowDivider />
           <RowItem icon="flag-outline" label="Report a problem" />
-        </View>
+        </Card>
 
         {/* ── LEGAL ── */}
         <SectionLabel title="LEGAL" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <RowItem
             icon="document-text-outline"
             label="Privacy policy"
@@ -236,7 +214,7 @@ export default function SettingsScreen({ navigation }: Props) {
             label="Community guidelines"
             onPress={() => navigation.navigate('CommunityGuidelines')}
           />
-        </View>
+        </Card>
 
         {/* ── Log out ── */}
         <PressableScale
@@ -255,7 +233,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
         {/* ── DANGER ZONE ── */}
         <SectionLabel title="DANGER ZONE" />
-        <View style={styles.card}>
+        <Card style={styles.card}>
           <PressableScale
             style={styles.row}
             onPress={() => {
@@ -272,7 +250,7 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.error} />
           </PressableScale>
-        </View>
+        </Card>
       </ScrollView>
 
       {/* ── Delete account confirmation modal ── */}
@@ -329,69 +307,22 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  /* header */
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSpacer: {
-    width: 38,
-  },
-  headerTitle: {
-    fontSize: SIZES.lg,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
-
   /* scroll */
   container: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 4,
     paddingBottom: 40,
   },
 
-  /* section labels */
-  sectionLabelWrap: {
-    marginBottom: 8,
-  },
-  sectionLabelText: {
-    fontSize: SIZES.xs,
-    fontFamily: FONTS.semibold,
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
-  },
-
-  /* card */
+  /* card — the surface itself (background, radius, shadow) comes from
+     <Card>; only the inner padding and group spacing are local. */
   card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
     paddingHorizontal: 16,
-    marginBottom: 20,
-    ...SHADOWS.card,
   },
 
   /* rows */
@@ -443,7 +374,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginBottom: 28,
+    // Group spacing now comes from SectionLabel's top margin, but Log out has
+    // no label above it — so it carries its own matching gap.
+    marginTop: 22,
+    marginBottom: 4,
     ...SHADOWS.card,
   },
   logoutIconBox: {

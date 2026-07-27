@@ -5,7 +5,9 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import CategoryChip from '../components/CategoryChip';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
@@ -111,37 +113,31 @@ export default function SavedScreen({ navigation }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <Screen>
       {/* Fixed header block (title + tabs) with a scroll hairline pinned to
           its bottom edge. */}
       <View style={styles.headerBlock}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Saved</Text>
-        </View>
+        <ScreenHeader variant="large" title="Saved" />
 
-        {/* Tabs */}
+        {/* Tabs — the shared chip, same as Home's categories and Messages'
+            filters. These carry a count in the label, which the chip renders
+            as ordinary text. */}
         <View style={styles.tabRow}>
-          {TABS.map(tab => {
-            const isActive = activeTab === tab;
-            return (
-              <PressableScale
-                key={tab}
-                style={[styles.tab, isActive ? styles.tabActive : null]}
-                onPress={() => {
-                  haptics.tap();
-                  setActiveTab(tab);
-                }}
-                scaleTo={0.96}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-              >
-                <Text style={[styles.tabText, isActive ? styles.tabTextActive : null]}>
-                  {tab === 'Items' ? `Items  ${savedItems.length}` : `Saved profiles  ${(following ?? []).length}`}
-                </Text>
-              </PressableScale>
-            );
-          })}
+          {TABS.map(tab => (
+            <CategoryChip
+              key={tab}
+              label={
+                tab === 'Items'
+                  ? `Items  ${savedItems.length}`
+                  : `Saved profiles  ${(following ?? []).length}`
+              }
+              active={activeTab === tab}
+              onPress={() => {
+                haptics.tap();
+                setActiveTab(tab);
+              }}
+            />
+          ))}
         </View>
 
         <Animated.View
@@ -208,15 +204,11 @@ export default function SavedScreen({ navigation }: Props) {
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceAlt,
-  },
   headerBlock: {
     position: 'relative',
     zIndex: 1,
@@ -230,42 +222,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.divider,
     ...SHADOWS.card,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
-  },
   tabRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 8,
     marginBottom: 16,
-  },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 20,
