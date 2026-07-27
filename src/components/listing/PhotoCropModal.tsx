@@ -22,7 +22,7 @@ export type CropPhoto = { uri: string; width: number; height: number };
 type Props = {
   visible: boolean;
   photo: CropPhoto | null;
-  onDone: (cropped: { uri: string; mimeType: string }) => void;
+  onDone: (cropped: { uri: string; mimeType: string; width: number; height: number }) => void;
   onCancel: () => void;
 };
 
@@ -218,7 +218,10 @@ export default function PhotoCropModal({ visible, photo, onDone, onCancel }: Pro
       context.crop({ originX, originY, width: cropW, height: cropH });
       const rendered = await context.renderAsync();
       const result = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
-      onDone({ uri: result.uri, mimeType: 'image/jpeg' });
+      // The crop box's pixel size is the output size — reported back so the
+      // photo's width/height stay truthful for the upload resize pass, which
+      // scales off them without decoding the file first.
+      onDone({ uri: result.uri, mimeType: 'image/jpeg', width: cropW, height: cropH });
     } catch (error) {
       Alert.alert(
         "Couldn't crop photo",

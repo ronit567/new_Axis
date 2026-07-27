@@ -67,15 +67,19 @@ export function useListingForm(initial?: ListingFormInitial) {
           });
           if (!result.canceled) {
             const asset = result.assets[0];
-            setPhotos(prev => [
-              ...prev,
-              {
-                uri: asset.uri,
-                mimeType: asset.mimeType ?? null,
-                isLocal: true,
-                original: { uri: asset.uri, width: asset.width, height: asset.height },
-              },
-            ].slice(0, MAX_PHOTOS));
+            setPhotos(prev =>
+              [
+                ...prev,
+                {
+                  uri: asset.uri,
+                  mimeType: asset.mimeType ?? null,
+                  width: asset.width,
+                  height: asset.height,
+                  isLocal: true,
+                  original: { uri: asset.uri, width: asset.width, height: asset.height },
+                },
+              ].slice(0, MAX_PHOTOS),
+            );
           }
         },
       },
@@ -94,15 +98,19 @@ export function useListingForm(initial?: ListingFormInitial) {
             selectionLimit: MAX_PHOTOS - photos.length,
           });
           if (!result.canceled) {
-            setPhotos(prev => [
-              ...prev,
-              ...result.assets.map(a => ({
-                uri: a.uri,
-                mimeType: a.mimeType ?? null,
-                isLocal: true,
-                original: { uri: a.uri, width: a.width, height: a.height },
-              })),
-            ].slice(0, MAX_PHOTOS));
+            setPhotos(prev =>
+              [
+                ...prev,
+                ...result.assets.map(a => ({
+                  uri: a.uri,
+                  mimeType: a.mimeType ?? null,
+                  width: a.width,
+                  height: a.height,
+                  isLocal: true,
+                  original: { uri: a.uri, width: a.width, height: a.height },
+                })),
+              ].slice(0, MAX_PHOTOS),
+            );
           }
         },
       },
@@ -117,11 +125,28 @@ export function useListingForm(initial?: ListingFormInitial) {
     setCropIndex(index);
   };
 
-  const handleCropDone = (cropped: { uri: string; mimeType: string }) => {
+  const handleCropDone = (cropped: {
+    uri: string;
+    mimeType: string;
+    width: number;
+    height: number;
+  }) => {
     // `original` is left untouched so a later re-crop still starts from the
     // uncropped source instead of compounding on the last crop's output.
+    // width/height DO move to the cropped values — the upload pass resizes
+    // off them, so leaving the pre-crop dimensions would mis-scale the file.
     setPhotos(prev =>
-      prev.map((p, i) => (i === cropIndex ? { ...p, uri: cropped.uri, mimeType: cropped.mimeType } : p)),
+      prev.map((p, i) =>
+        i === cropIndex
+          ? {
+              ...p,
+              uri: cropped.uri,
+              mimeType: cropped.mimeType,
+              width: cropped.width,
+              height: cropped.height,
+            }
+          : p,
+      ),
     );
     setCropIndex(null);
   };

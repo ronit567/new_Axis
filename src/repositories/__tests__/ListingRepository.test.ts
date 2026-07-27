@@ -76,6 +76,7 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
     category: 'Textbooks',
     pickup: 'UCC, Room 110',
     image_urls: [],
+    thumb_urls: [],
     status: 'active',
     views: 22,
     created_at: '2026-06-29T12:00:00.000Z',
@@ -83,8 +84,11 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
   };
 }
 
+// getAll embeds the seller on each listing row (profiles join, same shape as
+// search), so listing fixtures carry `seller` inline; only saved_listings is
+// still a separate query.
 function mockQueries(opts: {
-  listings: QueryResult<ListingRow[]>;
+  listings: QueryResult<(ListingRow & { seller?: ProfileRow | null })[]>;
   sellers?: QueryResult<ProfileRow[]>;
   saved?: QueryResult<{ listing_id: string }[]>;
 }) {
@@ -148,11 +152,10 @@ describe('ListingRepository.getAll', () => {
   });
 
   it('maps rows to Listings with per-user saved status', async () => {
-    const rowA = makeListingRow({ id: 'l1' });
-    const rowB = makeListingRow({ id: 'l2', title: 'Desk lamp' });
+    const rowA = { ...makeListingRow({ id: 'l1' }), seller };
+    const rowB = { ...makeListingRow({ id: 'l2', title: 'Desk lamp' }), seller };
     mockQueries({
       listings: { data: [rowA, rowB], error: null },
-      sellers: { data: [seller], error: null },
       saved: { data: [{ listing_id: 'l2' }], error: null },
     });
 
@@ -176,10 +179,9 @@ describe('ListingRepository.getAll', () => {
     expect(savedBuilder.select).not.toHaveBeenCalled();
   });
 
-  it('keeps rawCount at the fetched row count even when a seller lookup is missing, so pagination does not stop early', async () => {
+  it('keeps rawCount at the fetched row count even when a seller embed is null (RLS-hidden), so pagination does not stop early', async () => {
     mockQueries({
-      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
-      sellers: { data: [], error: null },
+      listings: { data: [{ ...makeListingRow({ id: 'l1' }), seller: null }], error: null },
     });
 
     const result = await ListingRepository.getAll('user-1');
@@ -277,6 +279,7 @@ const validCreateInput: CreateListingInput = {
   category: 'Furniture',
   pickup: 'UCC, Room 110',
   image_urls: ['https://example.com/a.jpg'],
+  thumb_urls: ['https://example.com/a_thumb.jpg'],
 };
 
 describe('ListingRepository.create', () => {
@@ -414,8 +417,10 @@ describe('ListingRepository.getBySeller', () => {
 });
 
 describe('ListingRepository.getActiveBySeller', () => {
+  // Seller is embedded on each row (same join shape as getAll/search); only
+  // saved_listings is a separate query.
   function mockStorefrontQueries(opts: {
-    listings: QueryResult<ListingRow[]>;
+    listings: QueryResult<(ListingRow & { seller?: ProfileRow | null })[]>;
     seller?: QueryResult<ProfileRow | null>;
     saved?: QueryResult<{ listing_id: string }[]>;
   }) {
@@ -435,7 +440,13 @@ describe('ListingRepository.getActiveBySeller', () => {
 
   it("returns only the seller's active listings, newest first, with the viewer's saved flags", async () => {
     const { listingsBuilder, savedBuilder } = mockStorefrontQueries({
-      listings: { data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })], error: null },
+      listings: {
+        data: [
+          { ...makeListingRow({ id: 'l1' }), seller },
+          { ...makeListingRow({ id: 'l2' }), seller },
+        ],
+        error: null,
+      },
       saved: { data: [{ listing_id: 'l2' }], error: null },
     });
 
@@ -459,10 +470,9 @@ describe('ListingRepository.getActiveBySeller', () => {
     expect(profilesBuilder.select).not.toHaveBeenCalled();
   });
 
-  it('returns an empty list when the seller profile reference is broken', async () => {
+  it('returns an empty list when the seller embed is null (broken or RLS-hidden profile)', async () => {
     mockStorefrontQueries({
-      listings: { data: [makeListingRow({ id: 'l1' })], error: null },
-      seller: { data: null, error: null },
+      listings: { data: [{ ...makeListingRow({ id: 'l1' }), seller: null }], error: null },
     });
 
     const result = await ListingRepository.getActiveBySeller(seller.id, 'viewer-1');
@@ -607,6 +617,7 @@ function makeSearchRow(overrides: Partial<Record<string, unknown>> = {}) {
     category: 'Textbooks',
     pickup: 'UCC, Room 110',
     image_urls: [],
+    thumb_urls: [],
     status: 'active',
     views: 22,
     created_at: '2026-06-29T12:00:00.000Z',

@@ -115,9 +115,10 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
   })
 }
 
-// Form input: image_urls doesn't exist yet at submit time, only the local
-// picker photos — uploadListingImages produces the real URLs during the mutation.
-export type CreateListingFormInput = Omit<CreateListingInput, 'image_urls'> & {
+// Form input: image_urls/thumb_urls don't exist yet at submit time, only the
+// local picker photos — uploadListingImages produces the real URLs during the
+// mutation.
+export type CreateListingFormInput = Omit<CreateListingInput, 'image_urls' | 'thumb_urls'> & {
   photos: LocalPhoto[]
 }
 
@@ -131,15 +132,16 @@ export function useCreateListing() {
       // Generated up front so photos can upload to their final
       // {seller_id}/{listing_id}/... path before the listing row exists.
       const listingId = Crypto.randomUUID()
-      const { urls, paths } =
+      const { urls, thumbUrls, paths } =
         photos.length > 0
           ? await StorageRepository.uploadListingImages(user.id, listingId, photos)
-          : { urls: [], paths: [] }
+          : { urls: [], thumbUrls: [], paths: [] }
 
       try {
         return await ListingRepository.create(user.id, listingId, {
           ...fields,
           image_urls: urls,
+          thumb_urls: thumbUrls,
         })
       } catch (error) {
         // The row never got created — don't leave the uploaded photos orphaned.

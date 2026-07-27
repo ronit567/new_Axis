@@ -115,6 +115,10 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     // this is all the card shows, so it must stay stable per id.
     imageColor: pickImageColor(row.id),
     imageUrls: row.image_urls,
+    // Positional fallback to the detail image (0023): pre-thumb rows and
+    // review-applied photo edits (which clear thumb_urls) render full-res
+    // rather than breaking or mispairing.
+    thumbUrls: row.image_urls.map((url, i) => row.thumb_urls[i] ?? url),
     // No `badge` column exists in the schema yet (the mock's "Price ↓" was
     // fabricated). Always null until a badge/price-history feature is designed.
     badge: null,
@@ -143,6 +147,7 @@ export function toMyListing(row: ListingRow, saves: number): MyListing {
     postedAgo: timeAgo(row.created_at),
     imageColor: pickImageColor(row.id),
     imageUrls: row.image_urls,
+    thumbUrls: row.image_urls.map((url, i) => row.thumb_urls[i] ?? url),
     // No separate "sale price" column — a sold listing keeps its list price.
     soldFor: row.status === 'sold' ? row.price : undefined,
   };

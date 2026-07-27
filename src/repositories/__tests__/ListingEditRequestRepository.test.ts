@@ -37,6 +37,7 @@ function makeRow(overrides: Partial<ListingEditRequestRow> = {}): ListingEditReq
     proposed_category: null,
     proposed_condition: null,
     proposed_image_urls: null,
+    proposed_thumb_urls: null,
     status: 'pending',
     created_at: '2026-07-01T10:00:00.000Z',
     reviewed_at: null,
@@ -65,10 +66,11 @@ describe('ListingEditRequestRepository.create', () => {
       proposed_category: null,
       proposed_condition: null,
       proposed_image_urls: null,
+      proposed_thumb_urls: null,
     });
   });
 
-  it('passes through a full proposed set, including imageUrls', async () => {
+  it('passes through a full proposed set, including imageUrls and thumbUrls', async () => {
     const builder = makeQueryBuilder({ data: null, error: null });
     mockFrom.mockImplementation((table: string) => {
       if (table === 'listing_edit_requests') return builder;
@@ -80,6 +82,7 @@ describe('ListingEditRequestRepository.create', () => {
       category: 'Electronics',
       condition: 'Good',
       imageUrls: ['https://cdn.test/a.jpg'],
+      thumbUrls: ['https://cdn.test/a_thumb.jpg'],
     });
 
     expect(builder.insert).toHaveBeenCalledWith({
@@ -89,6 +92,7 @@ describe('ListingEditRequestRepository.create', () => {
       proposed_category: 'Electronics',
       proposed_condition: 'Good',
       proposed_image_urls: ['https://cdn.test/a.jpg'],
+      proposed_thumb_urls: ['https://cdn.test/a_thumb.jpg'],
     });
   });
 

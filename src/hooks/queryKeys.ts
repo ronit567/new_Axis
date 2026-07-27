@@ -13,10 +13,9 @@ export const queryKeys = {
   profile: (userId: string) => ['profile', userId] as const,
   currentProfile: ['profile', 'me'] as const,
   conversations: (userId: string) => ['conversations', userId] as const,
-  // listing_id is nullable (a thread not tied to a listing) — normalize null to
-  // 'none' so the cache key stays a stable string tuple.
-  messages: (listingId: string | null, partnerId: string) =>
-    ['messages', listingId ?? 'none', partnerId] as const,
+  // The thread is the person (0026): all messages with a partner share one
+  // cache entry regardless of which listing each message was about.
+  messages: (partnerId: string) => ['messages', partnerId] as const,
   hasChattedWith: (userId: string, partnerId: string) =>
     ['hasChattedWith', userId, partnerId] as const,
   following: (userId: string) => ['following', userId] as const,

@@ -20,13 +20,13 @@ export function useConversations() {
   })
 }
 
-export function useMessages(listingId: string | null, partnerId: string) {
+export function useMessages(partnerId: string) {
   const { user } = useAuth()
   return useQuery<Message[]>({
-    queryKey: queryKeys.messages(listingId, partnerId),
+    queryKey: queryKeys.messages(partnerId),
     queryFn: () => {
       if (!user) return []
-      return MessageRepository.getMessages(listingId, partnerId, user.id)
+      return MessageRepository.getMessages(partnerId, user.id)
     },
     enabled: !!user && !!partnerId,
   })
@@ -59,7 +59,7 @@ export function useSendMessage() {
     },
     onMutate: async (input) => {
       if (!user) return undefined
-      const key = queryKeys.messages(input.listingId, input.receiverId)
+      const key = queryKeys.messages(input.receiverId)
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<Message[]>(key)
       const optimistic: Message = {
@@ -79,7 +79,7 @@ export function useSendMessage() {
     },
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.messages(input.listingId, input.receiverId),
+        queryKey: queryKeys.messages(input.receiverId),
       })
       if (user) {
         queryClient.invalidateQueries({
@@ -94,9 +94,9 @@ export function useMarkConversationRead() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: { listingId: string | null; partnerId: string }) => {
+    mutationFn: (input: { partnerId: string }) => {
       if (!user) throw new Error('Not signed in')
-      return MessageRepository.markConversationRead(input.listingId, input.partnerId, user.id)
+      return MessageRepository.markConversationRead(input.partnerId, user.id)
     },
     // Stamp the thread cache directly (the realtime UPDATE echo would do it
     // too, but this also converges when the socket is down), then refresh the
@@ -106,7 +106,7 @@ export function useMarkConversationRead() {
       if (!user) return
       const readAt = new Date().toISOString()
       queryClient.setQueryData<Message[]>(
-        queryKeys.messages(input.listingId, input.partnerId),
+        queryKeys.messages(input.partnerId),
         (old) =>
           old?.map((m) =>
             m.receiverId === user.id && m.readAt === null ? { ...m, readAt } : m,
@@ -134,10 +134,7 @@ export function useMessagesRealtime() {
     if (!userId) return undefined
     // Own sends key the thread by receiver; incoming ones by sender.
     const threadKey = (message: Message) =>
-      queryKeys.messages(
-        message.listingId,
-        message.senderId === userId ? message.receiverId : message.senderId,
-      )
+      queryKeys.messages(message.senderId === userId ? message.receiverId : message.senderId)
     return MessageRepository.subscribeToMessages(userId, {
       onInsert: (message) => {
         queryClient.setQueryData<Message[]>(threadKey(message), (old) => {

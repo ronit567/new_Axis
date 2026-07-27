@@ -147,6 +147,7 @@ export type Database = {
           proposed_category: string | null
           proposed_condition: string | null
           proposed_image_urls: string[] | null
+          proposed_thumb_urls: string[] | null
           proposed_title: string | null
           requester_id: string
           reviewed_at: string | null
@@ -159,6 +160,7 @@ export type Database = {
           proposed_category?: string | null
           proposed_condition?: string | null
           proposed_image_urls?: string[] | null
+          proposed_thumb_urls?: string[] | null
           proposed_title?: string | null
           requester_id: string
           reviewed_at?: string | null
@@ -171,6 +173,7 @@ export type Database = {
           proposed_category?: string | null
           proposed_condition?: string | null
           proposed_image_urls?: string[] | null
+          proposed_thumb_urls?: string[] | null
           proposed_title?: string | null
           requester_id?: string
           reviewed_at?: string | null
@@ -207,6 +210,7 @@ export type Database = {
           price: number
           seller_id: string
           status: string
+          thumb_urls: string[]
           title: string
           views: number
         }
@@ -223,6 +227,7 @@ export type Database = {
           price?: number
           seller_id: string
           status?: string
+          thumb_urls?: string[]
           title: string
           views?: number
         }
@@ -239,6 +244,7 @@ export type Database = {
           price?: number
           seller_id?: string
           status?: string
+          thumb_urls?: string[]
           title?: string
           views?: number
         }

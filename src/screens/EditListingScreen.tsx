@@ -33,7 +33,7 @@ import {
   usePendingEditRequest,
   useUpdateListing,
   useCreateEditRequest,
-  resolveImageUrls,
+  resolveListingPhotos,
   photosChanged,
 } from '../hooks/useListingEdits';
 import type { UpdateListingInput } from '../repositories/ListingRepository';
@@ -109,7 +109,12 @@ function EditListingForm({
     isFree: listing.isFree,
     isTrade: listing.isTrade,
     pickup: listing.pickup,
-    photos: listing.imageUrls.map((url) => ({ uri: url, mimeType: null, isLocal: false })),
+    photos: listing.imageUrls.map((url, i) => ({
+      uri: url,
+      mimeType: null,
+      isLocal: false,
+      thumbUri: listing.thumbUrls[i],
+    })),
   });
 
   // A pending request already covers the scam-vector fields — resubmitting
@@ -134,7 +139,7 @@ function EditListingForm({
     setSaving(true);
 
     const priceNum = form.isFree ? 0 : parseFloat(form.price) || 0;
-    const lowRiskPatch: Partial<Omit<UpdateListingInput, 'image_urls'>> = {};
+    const lowRiskPatch: Partial<Omit<UpdateListingInput, 'image_urls' | 'thumb_urls'>> = {};
     if (priceNum !== listing.price) lowRiskPatch.price = priceNum;
     if (form.description.trim() !== listing.description) {
       lowRiskPatch.description = form.description.trim();
@@ -167,11 +172,11 @@ function EditListingForm({
       // Resolved once, up front, so both the direct-update attempt and the
       // race-fallback edit-request reuse the same uploaded URLs instead of
       // uploading the photo set twice.
-      const resolvedImageUrls = photosDidChange
-        ? await resolveImageUrls(user.id, listing.id, form.photos)
+      const resolvedPhotos = photosDidChange
+        ? await resolveListingPhotos(user.id, listing.id, form.photos)
         : undefined;
 
-      const scamPatch: Partial<Omit<UpdateListingInput, 'image_urls'>> = {};
+      const scamPatch: Partial<Omit<UpdateListingInput, 'image_urls' | 'thumb_urls'>> = {};
       if (titleChanged) scamPatch.title = form.title.trim();
       if (categoryChanged) scamPatch.category = form.category;
       if (conditionChanged) scamPatch.condition = form.condition as 'Like new' | 'Good' | 'Fair';
@@ -182,7 +187,9 @@ function EditListingForm({
             listingId: listing.id,
             patch: {
               ...scamPatch,
-              ...(photosDidChange ? { image_urls: resolvedImageUrls } : {}),
+              ...(resolvedPhotos
+                ? { image_urls: resolvedPhotos.imageUrls, thumb_urls: resolvedPhotos.thumbUrls }
+                : {}),
             },
           });
           navigation.goBack();
@@ -202,7 +209,8 @@ function EditListingForm({
         title: titleChanged ? form.title.trim() : undefined,
         category: categoryChanged ? form.category : undefined,
         condition: conditionChanged ? form.condition : undefined,
-        imageUrls: photosDidChange ? resolvedImageUrls : undefined,
+        imageUrls: resolvedPhotos?.imageUrls,
+        thumbUrls: resolvedPhotos?.thumbUrls,
       });
       Alert.alert(
         'Submitted for review',

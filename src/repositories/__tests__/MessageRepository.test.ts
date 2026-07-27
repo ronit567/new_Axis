@@ -35,7 +35,7 @@ jest.mock('../../lib/supabase', () => ({
   },
 }));
 
-import { MessageRepository } from '../MessageRepository';
+import { MessageRepository, MESSAGE_PAGE_LIMIT } from '../MessageRepository';
 
 function makeMessageRow(overrides: Partial<MessageRow> = {}): MessageRow {
   return {
@@ -96,6 +96,7 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
     category: 'Textbooks',
     pickup: 'UCC, Room 110',
     image_urls: [],
+    thumb_urls: [],
     status: 'active',
     views: 22,
     created_at: '2026-06-29T12:00:00.000Z',
@@ -147,24 +148,56 @@ describe('MessageRepository.getConversations', () => {
     expect(result[0].unreadCount).toBe(2);
   });
 
-  it('treats the same partner across two different listings as two separate conversations', async () => {
+  it('drops a self-thread (partner is the caller) so pre-0025 rows cannot reopen a chat with yourself', async () => {
     const rows = [
-      makeConversationListRow({ id: 'm1', listing_id: 'lst1', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
-      makeConversationListRow({ id: 'm2', listing_id: 'lst2', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm1', sender_id: 'me', receiver_id: 'me', partner_id: 'me' }),
+      makeConversationListRow({ id: 'm2', sender_id: 'p1', receiver_id: 'me', partner_id: 'p1' }),
+    ];
+    mockTables({
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
+      profiles: makeQueryBuilder<ProfileRow[]>({
+        data: [makeProfileRow({ id: 'me' }), makeProfileRow({ id: 'p1' })],
+        error: null,
+      }),
+      listings: makeQueryBuilder<ListingRow[]>({ data: [makeListingRow({ id: 'lst1' })], error: null }),
+    });
+
+    const result = await MessageRepository.getConversations('me');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].partnerId).toBe('p1');
+  });
+
+  it('maps one conversation per partner, carrying the newest message and its listing as the row context (0026)', async () => {
+    // The view guarantees one row per partner: messaging the same person about
+    // two listings is ONE thread, whose row is the newest message (here about
+    // lst2) — its listing supplies the inbox row's title/price context.
+    const rows = [
+      makeConversationListRow({
+        id: 'm2',
+        listing_id: 'lst2',
+        sender_id: 'p1',
+        receiver_id: 'me',
+        partner_id: 'p1',
+        body: 'About the lamp',
+      }),
     ];
     mockTables({
       conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
       listings: makeQueryBuilder<ListingRow[]>({
-        data: [makeListingRow({ id: 'lst1' }), makeListingRow({ id: 'lst2' })],
+        data: [makeListingRow({ id: 'lst2', title: 'Desk lamp' })],
         error: null,
       }),
     });
 
     const result = await MessageRepository.getConversations('me');
 
-    expect(result).toHaveLength(2);
-    expect(result.map((c) => c.listingId).sort()).toEqual(['lst1', 'lst2']);
+    expect(result).toHaveLength(1);
+    expect(result[0].partnerId).toBe('p1');
+    expect(result[0].listingId).toBe('lst2');
+    expect(result[0].listingTitle).toBe('Desk lamp');
+    expect(result[0].lastMessage).toBe('About the lamp');
   });
 
   it('preserves the view row order in the returned conversations', async () => {
@@ -281,48 +314,56 @@ describe('MessageRepository.getMessages', () => {
   const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
   const USER_ID = '22222222-2222-4222-8222-222222222222';
 
-  it('queries both message directions ordered oldest-first, filtered by listing_id, and maps rows to domain Messages', async () => {
-    const row = makeMessageRow({
+  it('queries both directions across all listings, capped to the newest rows, and returns them oldest-first', async () => {
+    // The query fetches newest-first (so limit() keeps the most recent rows)
+    // and getMessages reverses back to the ascending order the chat renders.
+    // The two messages are about different listings and still form one thread
+    // (0026) — the thread is the person, not the (listing, person) pair.
+    const older = makeMessageRow({
       id: 'm1',
       listing_id: 'lst1',
       sender_id: PARTNER_ID,
       receiver_id: USER_ID,
       body: 'Hi',
       read_at: null,
+      created_at: '2026-07-01T12:00:00.000Z',
     });
-    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [row], error: null });
+    const newer = makeMessageRow({
+      id: 'm2',
+      listing_id: 'lst2',
+      sender_id: USER_ID,
+      receiver_id: PARTNER_ID,
+      body: 'Hello!',
+      read_at: null,
+      created_at: '2026-07-01T12:01:00.000Z',
+    });
+    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [newer, older], error: null });
     mockTables({ messages: messagesBuilder });
 
-    const result = await MessageRepository.getMessages('lst1', PARTNER_ID, USER_ID);
+    const result = await MessageRepository.getMessages(PARTNER_ID, USER_ID);
 
     expect(messagesBuilder.or).toHaveBeenCalledWith(
       `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
         `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
     );
-    expect(messagesBuilder.order).toHaveBeenCalledWith('created_at', { ascending: true });
-    expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
-    expect(messagesBuilder.is).not.toHaveBeenCalled();
-    expect(result).toEqual([
-      {
-        id: 'm1',
-        listingId: 'lst1',
-        senderId: PARTNER_ID,
-        receiverId: USER_ID,
-        body: 'Hi',
-        createdAt: row.created_at,
-        readAt: null,
-      },
-    ]);
-  });
-
-  it('filters by .is(listing_id, null) instead of .eq() when listingId is null', async () => {
-    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
-    mockTables({ messages: messagesBuilder });
-
-    await MessageRepository.getMessages(null, PARTNER_ID, USER_ID);
-
-    expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false });
+    // id tiebreak keeps the cap boundary and chat order stable when rapid
+    // sends share a created_at.
+    expect(messagesBuilder.order).toHaveBeenNthCalledWith(2, 'id', { ascending: false });
+    expect(messagesBuilder.limit).toHaveBeenCalledWith(MESSAGE_PAGE_LIMIT);
+    // No listing filter of any kind — the whole per-person history loads.
     expect(messagesBuilder.eq).not.toHaveBeenCalled();
+    expect(messagesBuilder.is).not.toHaveBeenCalled();
+    expect(result.map((m) => m.id)).toEqual(['m1', 'm2']);
+    expect(result[0]).toEqual({
+      id: 'm1',
+      listingId: 'lst1',
+      senderId: PARTNER_ID,
+      receiverId: USER_ID,
+      body: 'Hi',
+      createdAt: older.created_at,
+      readAt: null,
+    });
   });
 
   it('rejects a non-UUID partnerId before issuing any query, so injected PostgREST filter syntax cannot reach `.or()`', async () => {
@@ -330,7 +371,7 @@ describe('MessageRepository.getMessages', () => {
     mockTables({ messages: messagesBuilder });
 
     await expect(
-      MessageRepository.getMessages('lst1', `${PARTNER_ID}),and(sender_id.eq.${USER_ID}`, USER_ID),
+      MessageRepository.getMessages(`${PARTNER_ID}),and(sender_id.eq.${USER_ID}`, USER_ID),
     ).rejects.toThrow(/partnerId must be a UUID/);
     expect(mockFrom).not.toHaveBeenCalled();
   });
@@ -428,14 +469,26 @@ describe('MessageRepository.send', () => {
       expect.objectContaining({ listing_id: null }),
     );
   });
+
+  it('rejects a self-send (receiverId = senderId) before issuing any query', async () => {
+    await expect(
+      MessageRepository.send('me', {
+        id: 'm-new',
+        listingId: 'lst1',
+        receiverId: 'me',
+        body: 'talking to myself',
+      }),
+    ).rejects.toThrow('cannot send a message to yourself');
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
 });
 
 describe('MessageRepository.markConversationRead', () => {
-  it('stamps read_at with an ISO string, scoped to receiver/sender/unread, filtered by listing_id', async () => {
+  it('stamps read_at with an ISO string, scoped to receiver/sender/unread across every listing (0026)', async () => {
     const messagesBuilder = makeQueryBuilder<null>({ data: null, error: null });
     mockTables({ messages: messagesBuilder });
 
-    await MessageRepository.markConversationRead('lst1', 'p1', 'me');
+    await MessageRepository.markConversationRead('p1', 'me');
 
     expect(messagesBuilder.update).toHaveBeenCalledWith({
       read_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
@@ -443,17 +496,9 @@ describe('MessageRepository.markConversationRead', () => {
     expect(messagesBuilder.eq).toHaveBeenCalledWith('receiver_id', 'me');
     expect(messagesBuilder.eq).toHaveBeenCalledWith('sender_id', 'p1');
     expect(messagesBuilder.is).toHaveBeenCalledWith('read_at', null);
-    expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
-  });
-
-  it('filters by .is(listing_id, null) when listingId is null', async () => {
-    const messagesBuilder = makeQueryBuilder<null>({ data: null, error: null });
-    mockTables({ messages: messagesBuilder });
-
-    await MessageRepository.markConversationRead(null, 'p1', 'me');
-
-    expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
-    expect(messagesBuilder.is).toHaveBeenCalledWith('read_at', null);
+    // No listing filter: opening the person's thread reads all of it.
+    expect(messagesBuilder.eq).not.toHaveBeenCalledWith('listing_id', expect.anything());
+    expect(messagesBuilder.is).not.toHaveBeenCalledWith('listing_id', expect.anything());
   });
 });
 
