@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import type { Conversation, Message } from '../types'
 import { timeAgo } from '../lib/timeAgo'
 import { queryKeys } from './queryKeys'
+import { cancelScheduledInvalidate, scheduleInvalidate } from './coalescedInvalidate'
 
 // Rebuilding the inbox is the most expensive read in the app: the
 // conversation_list view walks every message the user has ever exchanged, then
@@ -63,31 +64,14 @@ export function clearUnreadInInbox(
 // --- Coalesced refetch -------------------------------------------------------
 //
 // For the events that do need the server (a new partner, a listing change, a
-// read made on another device), a burst must cost one rebuild, not one each:
-// opening a thread with 30 unread messages echoes back as 30 UPDATE events
-// within a few hundred milliseconds.
+// read made on another device), a burst must cost one rebuild, not one each.
 
-const DEBOUNCE_MS = 600
-const MAX_WAIT_MS = 3000
+const INBOX_BURST = 'inbox'
 
-let timer: ReturnType<typeof setTimeout> | undefined
-let burstStartedAt = 0
-
-// Trailing debounce with a ceiling, so a steady stream still refreshes every
-// few seconds rather than never.
 export function scheduleInboxRefresh(queryClient: QueryClient, userId: string): void {
-  const now = Date.now()
-  if (timer) clearTimeout(timer)
-  else burstStartedAt = now
-  const wait = Math.max(0, Math.min(DEBOUNCE_MS, burstStartedAt + MAX_WAIT_MS - now))
-  timer = setTimeout(() => {
-    timer = undefined
-    queryClient.invalidateQueries({ queryKey: queryKeys.conversations(userId) })
-  }, wait)
+  scheduleInvalidate(queryClient, INBOX_BURST, [queryKeys.conversations(userId)])
 }
 
-// Drop a pending refresh, e.g. on sign-out, so it cannot fire for the next user.
 export function cancelInboxRefresh(): void {
-  if (timer) clearTimeout(timer)
-  timer = undefined
+  cancelScheduledInvalidate(INBOX_BURST)
 }
