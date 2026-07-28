@@ -7,16 +7,16 @@ import {
   RefreshControl,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { ComponentProps } from 'react';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { haptics } from '../lib/haptics';
 import { RootStackParamList, Notification, NotificationType } from '../types';
 import {
@@ -90,15 +90,10 @@ export default function NotificationsScreen({ navigation }: Props) {
   const markAll = useMarkAllNotificationsRead();
   const createTest = useCreateTestNotification();
 
-  // Shadow under the header, faded in on scroll. The header keeps its static
-  // hairline border at rest (unchanged) and gains a soft shadow as content
-  // slides beneath it.
+  // Handed to ScreenHeader, which fades its hairline in as content slides
+  // beneath — the interpolation itself now lives there rather than being
+  // re-derived on every screen that wants the effect.
   const scrollY = useRef(new Animated.Value(0)).current;
-  const headerBorderOpacity = scrollY.interpolate({
-    inputRange: [0, 14],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: true },
@@ -135,36 +130,25 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          scaleTo={0.9}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.title}>Notifications</Text>
-        <PressableScale
-          onPress={() => {
-            haptics.tap();
-            markAll.mutate();
-          }}
-          scaleTo={0.94}
-        >
-          <Text style={styles.markAll}>Mark all read</Text>
-        </PressableScale>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.scrollShadow, { opacity: headerBorderOpacity }]}
-        />
-      </View>
+    <Screen background="surface">
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        scrollY={scrollY}
+        trailing={
+          <PressableScale
+            onPress={() => {
+              haptics.tap();
+              markAll.mutate();
+            }}
+            scaleTo={0.94}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all notifications read"
+          >
+            <Text style={styles.markAll}>Mark all read</Text>
+          </PressableScale>
+        }
+      />
 
       {isLoading ? (
         <View style={styles.body}>
@@ -258,52 +242,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           </Text>
         </PressableScale>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    position: 'relative',
-    zIndex: 1,
-  },
-  scrollShadow: {
-    // Sits on the header's existing hairline border (same divider color, so no
-    // visible change at rest) and layers a soft shadow in on scroll.
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.divider,
-    ...SHADOWS.card,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  title: {
-    flex: 1,
-    fontSize: SIZES.lg,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
   markAll: {
     fontSize: SIZES.sm,
     color: COLORS.primary,

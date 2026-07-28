@@ -15,6 +15,12 @@ type Props = {
   variant?: 'large' | 'compact';
   onBack?: () => void;
   trailing?: React.ReactNode;
+  // Replaces the title with arbitrary content, for headers whose subject
+  // isn't a string — Chat shows the conversation partner's avatar and name.
+  // It flexes in the row rather than being absolutely centered, because
+  // content of unknown width can't be centered without overlapping the
+  // buttons on either side.
+  titleContent?: React.ReactNode;
   // When supplied, the bottom hairline fades in as content scrolls beneath —
   // the header sits flush at rest and gains definition only once there is
   // something to separate it from. Home, Saved and Notifications each had
@@ -30,6 +36,7 @@ export default function ScreenHeader({
   variant = 'compact',
   onBack,
   trailing,
+  titleContent,
   scrollY,
   bordered = false,
   style,
@@ -55,7 +62,9 @@ export default function ScreenHeader({
           />
         ) : null}
 
-        {isLarge ? (
+        {titleContent ? (
+          <View style={styles.titleContent}>{titleContent}</View>
+        ) : isLarge ? (
           // Left-aligned and in the flow: a large title is content, and it
           // should push trailing actions aside rather than sit under them.
           <Text style={styles.titleLarge} numberOfLines={1}>
@@ -73,7 +82,9 @@ export default function ScreenHeader({
           </View>
         ) : null}
 
-        <View style={styles.spacer} />
+        {/* Custom content already flexes to fill, so a second spacer would
+            fight it for the row's free space. */}
+        {titleContent ? null : <View style={styles.spacer} />}
         {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       </View>
 
@@ -124,6 +135,10 @@ const styles = StyleSheet.create({
     fontSize: SIZES.lg,
     fontFamily: FONTS.bold,
     color: COLORS.text,
+  },
+  titleContent: {
+    flex: 1,
+    minWidth: 0,
   },
   spacer: {
     flex: 1,

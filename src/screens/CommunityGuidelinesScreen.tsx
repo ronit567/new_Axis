@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
@@ -14,24 +15,8 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Community guidelines</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <Screen background="surface">
+      <ScreenHeader title="Community guidelines" onBack={() => navigation.goBack()} bordered />
 
       <ScrollView
         contentContainerStyle={[
@@ -85,43 +70,11 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           urgent, or if you'd rather reach us directly, email support@axis.app.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: SIZES.lg,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-    marginHorizontal: 8,
-  },
-  headerSpacer: {
-    width: 38,
-  },
   container: {
     paddingHorizontal: 20,
     paddingTop: 24,

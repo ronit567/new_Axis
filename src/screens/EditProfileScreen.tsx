@@ -10,11 +10,11 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList, SellerProfile, YearOfStudy } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
@@ -49,26 +49,12 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   if (isLoading || !profile) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar style="dark" />
-        <View style={styles.header}>
-          <PressableScale
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-          </PressableScale>
-          <Text style={styles.headerTitle}>Edit profile</Text>
-          <View style={styles.saveHeaderBtn} />
-        </View>
+      <Screen background="surface">
+        <ScreenHeader title="Edit profile" onBack={() => navigation.goBack()} bordered />
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -136,31 +122,24 @@ function EditProfileForm({
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Edit profile</Text>
-        <PressableScale
-          style={styles.saveHeaderBtn}
-          onPress={handleSave}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          scaleTo={0.92}
-          disabled={!canSave}
-        >
-          <Text style={[styles.saveText, !canSave ? styles.saveTextDisabled : null]}>Save</Text>
-        </PressableScale>
-      </View>
+    <Screen background="surface">
+      <ScreenHeader
+        title="Edit profile"
+        onBack={() => navigation.goBack()}
+        bordered
+        trailing={
+          <PressableScale
+            onPress={handleSave}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            scaleTo={0.92}
+            disabled={!canSave}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile"
+          >
+            <Text style={[styles.saveText, !canSave ? styles.saveTextDisabled : null]}>Save</Text>
+          </PressableScale>
+        }
+      />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -308,43 +287,11 @@ function EditProfileForm({
           />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveHeaderBtn: {
-    minWidth: 44,
-    minHeight: 38,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: SIZES.base,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
   saveText: {
     fontSize: SIZES.base,
     fontWeight: '700',

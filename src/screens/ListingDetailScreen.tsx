@@ -14,7 +14,8 @@ import {
   Share,
   Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../components/layout/Screen';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
@@ -120,32 +121,32 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <Screen background="surface">
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (isError) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <Screen background="surface">
         <ErrorState message="Something went wrong. Please try again." onRetry={() => refetch()} />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!listing) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <Screen background="surface">
         <EmptyState
           icon="alert-circle-outline"
           title="This listing is no longer available."
           ctaLabel="Go back"
           onCta={() => navigation.goBack()}
         />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -223,7 +224,11 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   });
 
   return (
-    <View style={styles.safe}>
+    // edges=[] because the hero photo runs full-bleed up behind the status
+    // bar; a top inset would cut it short. Light glyphs for the same reason —
+    // the loading and error branches above stay dark, since they show a plain
+    // white page rather than the photo.
+    <Screen background="surface" statusBar="light" edges={[]}>
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -587,7 +592,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         initialIndex={viewerIndex ?? 0}
         onClose={() => setViewerIndex(null)}
       />
-    </View>
+    </Screen>
   );
 }
 

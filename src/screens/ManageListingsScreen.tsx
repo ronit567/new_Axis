@@ -6,8 +6,6 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -15,6 +13,10 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
 import RemoteImage from '../components/RemoteImage';
+import CategoryChip from '../components/CategoryChip';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 import { haptics } from '../lib/haptics';
 import {
   useMyListings,
@@ -161,58 +163,39 @@ export default function ManageListingsScreen({ navigation }: Props) {
   const soldCount = listings.filter(l => l.status === 'sold').length;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => navigation.goBack()}
-          style={styles.headerIconBtn}
-          scaleTo={0.9}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>My listings</Text>
-        <PressableScale
-          onPress={() => {
-            haptics.tap();
-            navigation.navigate('CreateListing');
-          }}
-          style={styles.headerIconBtn}
-          scaleTo={0.9}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Create new listing"
-          accessibilityRole="button"
-        >
-          <Ionicons name="add" size={24} color={COLORS.primary} />
-        </PressableScale>
-      </View>
+    <Screen>
+      <ScreenHeader
+        title="My listings"
+        onBack={() => navigation.goBack()}
+        bordered
+        trailing={
+          <HeaderIconButton
+            icon="add"
+            accessibilityLabel="Create new listing"
+            color={COLORS.primary}
+            size={24}
+            onPress={() => {
+              haptics.tap();
+              navigation.navigate('CreateListing');
+            }}
+          />
+        }
+      />
 
-      {/* Tabs */}
+      {/* Tabs — the shared chip again, so Active/Sold here behaves exactly
+          like the filters on Messages and Saved. */}
       <View style={styles.tabRow}>
-        {TABS.map(tab => {
-          const isActive = activeTab === tab;
-          return (
-            <PressableScale
-              key={tab}
-              style={[styles.tab, isActive ? styles.tabActive : null]}
-              scaleTo={0.96}
-              onPress={() => {
-                haptics.tap();
-                setActiveTab(tab);
-              }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isActive }}
-            >
-              <Text style={[styles.tabText, isActive ? styles.tabTextActive : null]}>
-                {tab}  {tab === 'Active' ? activeCount : soldCount}
-              </Text>
-            </PressableScale>
-          );
-        })}
+        {TABS.map(tab => (
+          <CategoryChip
+            key={tab}
+            label={`${tab}  ${tab === 'Active' ? activeCount : soldCount}`}
+            active={activeTab === tab}
+            onPress={() => {
+              haptics.tap();
+              setActiveTab(tab);
+            }}
+          />
+        ))}
       </View>
 
       {isLoading ? (
@@ -266,39 +249,11 @@ export default function ManageListingsScreen({ navigation }: Props) {
         }
       />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceAlt,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: SIZES.lg,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
-
   /* tabs */
   tabRow: {
     flexDirection: 'row',
@@ -307,29 +262,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     marginBottom: 8,
   },
-  tab: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: SIZES.borderRadiusLg,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontFamily: FONTS.medium,
-    fontVariant: ['tabular-nums'],
-  },
-  tabTextActive: {
-    color: COLORS.white,
-    fontFamily: FONTS.semibold,
-  },
-
   /* list */
   listContent: {
     paddingHorizontal: 20,
@@ -338,7 +270,10 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusLg,
+    // Was borderRadiusLg (20) while Settings' card used 12 — same name, same
+    // role, different shape. Both now sit on the shared radius.
+    borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     padding: 14,
     marginBottom: 12,
     ...SHADOWS.card,

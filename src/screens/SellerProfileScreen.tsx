@@ -8,11 +8,12 @@ import {
   Alert,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import SkeletonLoader from '../components/SkeletonLoader';
@@ -279,74 +280,54 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-      {/* Nav bar */}
-      <View style={styles.navBar}>
-        <PressableScale
-          style={styles.iconBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={20} color={COLORS.text} />
-        </PressableScale>
-        <View style={styles.navBarRight}>
-          <PressableScale
-            style={styles.iconBtn}
-            onPress={async () => {
-              haptics.tap();
-              try {
-                await Share.share({
-                  message: `${seller.name} is on Axis — check out their listings`,
-                });
-              } catch {
-                // Silently ignore — the user cancelling the share sheet isn't an error.
-              }
-            }}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Share profile"
-          >
-            <Ionicons name="share-outline" size={20} color={COLORS.text} />
-          </PressableScale>
-          {!isOwnProfile && (
-            <PressableScale
-              style={styles.iconBtn}
+    <Screen background="surface">
+      {/* Title-less for the same reason as your own Profile: the seller's
+          avatar and name lead the content directly below. */}
+      <ScreenHeader
+        onBack={() => navigation.goBack()}
+        trailing={
+          <>
+            <HeaderIconButton
+              icon="share-outline"
+              accessibilityLabel="Share profile"
+              color={COLORS.text}
+              size={20}
+              onPress={async () => {
+                haptics.tap();
+                try {
+                  await Share.share({
+                    message: `${seller.name} is on Axis — check out their listings`,
+                  });
+                } catch {
+                  // Silently ignore — the user cancelling the share sheet isn't an error.
+                }
+              }}
+            />
+            {!isOwnProfile && (
+              <HeaderIconButton
+                icon={following ? 'bookmark' : 'bookmark-outline'}
+                accessibilityLabel={following ? 'Saved — tap to remove' : 'Save profile'}
+                color={following ? COLORS.primary : COLORS.text}
+                size={20}
+                onPress={() => {
+                  haptics.tap();
+                  toggleFollow.mutate({ sellerId: seller.id, next: !following });
+                }}
+              />
+            )}
+            <HeaderIconButton
+              icon="ellipsis-horizontal"
+              accessibilityLabel="More options"
+              color={COLORS.text}
+              size={20}
               onPress={() => {
                 haptics.tap();
-                toggleFollow.mutate({ sellerId: seller.id, next: !following });
+                setReportVisible(true);
               }}
-              hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-              scaleTo={0.9}
-              accessibilityRole="button"
-              accessibilityLabel={following ? 'Saved — tap to remove' : 'Save profile'}
-            >
-              <Ionicons
-                name={following ? 'bookmark' : 'bookmark-outline'}
-                size={20}
-                color={following ? COLORS.primary : COLORS.text}
-              />
-            </PressableScale>
-          )}
-          <PressableScale
-            style={styles.iconBtn}
-            onPress={() => {
-              haptics.tap();
-              setReportVisible(true);
-            }}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
-          </PressableScale>
-        </View>
-      </View>
+            />
+          </>
+        }
+      />
 
       <FlatList
         key={activeTab}
@@ -388,34 +369,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         }
         onBlock={() => blockUser.mutateAsync(seller.id)}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  navBarRight: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   listContent: {
     flexGrow: 1,
     paddingBottom: 40,

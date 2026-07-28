@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  StatusBar,
   Image,
   Animated,
   Easing,
   AccessibilityInfo,
   LayoutChangeEvent,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -149,7 +149,10 @@ export default function WelcomeScreen({ navigation }: Props) {
 
   return (
     <LinearGradient colors={GRADIENTS.primaryRadiant} start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }} style={styles.bg}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      {/* expo-status-bar, like every other screen — this was the one place
+          still using React Native's StatusBar directly, and having both APIs
+          in one app means whichever mounts last wins. */}
+      <StatusBar style="light" />
 
       {/* ── Ambient orbs — behind all content, never interactive ── */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
