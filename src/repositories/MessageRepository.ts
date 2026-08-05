@@ -185,7 +185,23 @@ export const MessageRepository = {
       })
       .select('*')
       .single()
-    if (error) throw error
+    if (error) {
+      // 23505 on the primary key: a row with this client-generated id already
+      // exists, which can only be an earlier attempt at this same send whose
+      // response never arrived (the request timed out after the insert
+      // committed). The message was sent; report it as such instead of failing
+      // a second time — ChatScreen reuses the id when the same text is re-sent.
+      if (error.code === '23505') {
+        const { data: existing } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('id', data.id)
+          .eq('sender_id', senderId)
+          .maybeSingle()
+        if (existing) return toMessage(existing as MessageRow)
+      }
+      throw error
+    }
     return toMessage(row as MessageRow)
   },
 
