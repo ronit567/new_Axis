@@ -12,6 +12,7 @@ import {
   clearUnreadInInbox,
   scheduleInboxRefresh,
 } from './inboxPatch'
+import { scheduleCatchUp } from './useCatchUp'
 import type { Conversation, Message } from '../types'
 
 // A message landing in a loaded thread: replace the entry that shares its id
@@ -223,6 +224,7 @@ export function useMessagesRealtime() {
         if (thread && thread.unreadCount === 0) return
         scheduleInboxRefresh(queryClient, userId)
       },
+      onResubscribed: () => scheduleCatchUp(queryClient, userId),
     })
     return () => {
       unsubscribe()

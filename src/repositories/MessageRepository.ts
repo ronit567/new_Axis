@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resubscribeDetector } from './realtimeStatus'
 import {
   CONTACT_COLUMNS,
   LISTING_SUMMARY_COLUMNS,
@@ -23,6 +24,8 @@ export type SendMessageInput = {
 export type MessageEventHandlers = {
   onInsert: (message: Message) => void
   onUpdate: (message: Message) => void
+  // The channel re-joined after a drop: events may have been missed.
+  onResubscribed?: () => void
 }
 
 // Newest messages a thread loads in one fetch (see getMessages). Generous for
@@ -298,7 +301,7 @@ export const MessageRepository = {
         },
         onUpdate,
       )
-      .subscribe()
+      .subscribe(resubscribeDetector(handlers.onResubscribed))
     return () => {
       supabase.removeChannel(channel)
     }

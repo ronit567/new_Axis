@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resubscribeDetector } from './realtimeStatus'
 import {
   CONTACT_COLUMNS,
   LISTING_SUMMARY_COLUMNS,
@@ -12,6 +13,8 @@ import type { NotificationRow } from '../types/database'
 export type NotificationEventHandlers = {
   onInsert: (row: NotificationRow) => void
   onUpdate: (row: NotificationRow) => void
+  // The channel re-joined after a drop: events may have been missed.
+  onResubscribed?: () => void
 }
 
 // Monotonic per-session suffix for realtime channel topics — see the identical
@@ -145,7 +148,7 @@ export const NotificationRepository = {
         },
         (payload) => handlers.onUpdate(payload.new as NotificationRow),
       )
-      .subscribe()
+      .subscribe(resubscribeDetector(handlers.onResubscribed))
     return () => {
       supabase.removeChannel(channel)
     }

@@ -14,16 +14,22 @@ type Pending = { timer: ReturnType<typeof setTimeout>; startedAt: number }
 const pending = new Map<string, Pending>()
 
 // `name` identifies the burst: calls sharing a name share one timer.
+//
+// `jitterMs` adds a random delay on top, for invalidations that many clients
+// would otherwise make in the same instant (everyone re-joining after a
+// Realtime restart, a lecture hall of phones waking up together).
 export function scheduleInvalidate(
   queryClient: QueryClient,
   name: string,
   queryKeys: QueryKey[],
+  jitterMs = 0,
 ): void {
   const now = Date.now()
   const existing = pending.get(name)
   if (existing) clearTimeout(existing.timer)
   const startedAt = existing?.startedAt ?? now
-  const wait = Math.max(0, Math.min(DEBOUNCE_MS, startedAt + MAX_WAIT_MS - now))
+  const wait =
+    Math.max(0, Math.min(DEBOUNCE_MS, startedAt + MAX_WAIT_MS - now)) + Math.random() * jitterMs
   const timer = setTimeout(() => {
     pending.delete(name)
     for (const queryKey of queryKeys) queryClient.invalidateQueries({ queryKey })

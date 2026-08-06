@@ -4,6 +4,7 @@ import { NotificationRepository } from '../repositories/NotificationRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 import { cancelScheduledInvalidate, scheduleInvalidate } from './coalescedInvalidate'
+import { scheduleCatchUp } from './useCatchUp'
 import { Notification } from '../types'
 import type { NotificationRow } from '../types/database'
 
@@ -81,6 +82,7 @@ export function useNotificationsRealtime(onNotify?: (row: NotificationRow) => vo
         if (cached && cached.read === row.read) return
         refresh()
       },
+      onResubscribed: () => scheduleCatchUp(queryClient, userId),
     })
     return () => {
       unsubscribe()

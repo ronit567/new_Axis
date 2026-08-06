@@ -13,6 +13,7 @@ import type { NotificationRow } from '../types/database';
 import { navigationRef } from '../lib/navigation';
 import { useConversations, useMessagesRealtime } from '../hooks/useMessages';
 import { useNotificationsRealtime } from '../hooks/useNotifications';
+import { useForegroundCatchUp } from '../hooks/useCatchUp';
 import { useNotificationBanner, type BannerContent } from '../context/NotificationBannerContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
@@ -51,6 +52,9 @@ export default function MainScreen({ navigation }: Props) {
   // Lives here (not in a chat screen) so incoming messages land in the cache
   // for the whole signed-in session, keeping the inbox fresh in the background.
   useMessagesRealtime();
+  // Realtime has no replay, so a gap (backgrounded, network handoff) has to be
+  // made up with a fetch once the app is back.
+  useForegroundCatchUp();
   // Same placement rationale: keeps the Home bell dot and the notifications
   // list live for the whole signed-in session. The callback surfaces each new
   // notification as a foreground banner (tap → open the Notifications list).
