@@ -3,6 +3,10 @@ import { supabase } from '../lib/supabase'
 
 const LISTING_IMAGES_BUCKET = 'listing-images'
 const AVATARS_BUCKET = 'avatars'
+// 2x the largest on-screen avatar at 3x density, so it stays sharp if a
+// profile header ever grows.
+const AVATAR_LONG_EDGE = 512
+const AVATAR_COMPRESS = 0.75
 
 // On-device resize targets (0023). Cameras produce 3–6MB ~4000px photos; the
 // detail gallery renders at screen width and the grid card at ~180pt, so
@@ -14,21 +18,9 @@ const DETAIL_COMPRESS = 0.7
 const THUMB_LONG_EDGE = 480
 const THUMB_COMPRESS = 0.6
 
-// Must stay in sync with the bucket's allowed_mime_types (0014_storage_buckets.sql).
-const EXTENSION_CONTENT_TYPES: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-}
-
-const ALLOWED_CONTENT_TYPES = new Set(Object.values(EXTENSION_CONTENT_TYPES))
-
-// A local photo picked via expo-image-picker. mimeType comes straight from
-// the picker's asset — the source of truth, since it reflects the actual
-// file bytes. Extension-sniffing the uri is only a fallback: Android content
-// picker uris (content://...) routinely have no file extension at all, so
-// relying on the uri alone would silently mislabel real PNGs/WebPs as jpeg.
+// A local photo picked via expo-image-picker. Every upload path re-encodes to
+// JPEG (prepareListingPhoto), so mimeType no longer decides the uploaded
+// content type; it is carried for callers that still branch on it.
 // width/height (when the picker reports them) let prepareListingPhoto pick
 // the long edge without decoding the image first.
 export type LocalPhoto = {
@@ -71,16 +63,6 @@ async function prepareListingPhoto(
 
   const scale = Math.min(1, longEdge / Math.max(width, height))
   return { uri: saved.uri, width: Math.round(width * scale), height: Math.round(height * scale) }
-}
-
-function contentTypeFor(photo: LocalPhoto): string {
-  if (photo.mimeType && ALLOWED_CONTENT_TYPES.has(photo.mimeType)) return photo.mimeType
-  const ext = photo.uri.split('.').pop()?.split('?')[0].toLowerCase() ?? ''
-  return EXTENSION_CONTENT_TYPES[ext] ?? 'image/jpeg'
-}
-
-function extensionFor(contentType: string): string {
-  return contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg'
 }
 
 export type UploadedListingImages = {
@@ -221,11 +203,17 @@ export const StorageRepository = {
   // there is no durable URL to persist — a signed URL expires. profiles.avatar_url
   // therefore stores this path and the client signs it at render time; see
   // src/lib/avatarUrls.ts, which Avatar calls.
+  //
+  // Resized before upload, like listing photos. The picker hands back whatever
+  // the camera produced (up to the bucket's 2MB cap, past which the upload
+  // simply failed), for a circle that is never drawn larger than 84pt — about
+  // 250px on a 3x screen. Every viewer of every list row paid for the rest.
   async uploadAvatar(userId: string, photo: LocalPhoto): Promise<string> {
-    const contentType = contentTypeFor(photo)
-    const path = `${userId}/${Date.now()}.${extensionFor(contentType)}`
+    const prepared = await prepareListingPhoto(photo, AVATAR_LONG_EDGE, AVATAR_COMPRESS)
+    const contentType = 'image/jpeg'
+    const path = `${userId}/${Date.now()}.jpg`
 
-    const response = await fetch(photo.uri)
+    const response = await fetch(prepared.uri)
     const arraybuffer = await response.arrayBuffer()
 
     const { error } = await supabase.storage
