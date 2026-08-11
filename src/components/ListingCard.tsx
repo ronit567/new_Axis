@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ViewStyle, Animated } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,8 +12,11 @@ import AnimatedIconToggle from './AnimatedIconToggle';
 
 type Props = {
   item: Listing;
-  onPress: () => void;
-  onSave: () => void;
+  // Called with the card's own item, so a screen can pass one stable handler
+  // for the whole grid. A closure per card (`() => open(item)`) is a new prop
+  // on every render, which makes the React.memo below a no-op.
+  onPress: (item: Listing) => void;
+  onSave: (item: Listing) => void;
   style?: ViewStyle;
 };
 
@@ -29,15 +32,24 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
   // opposition is what sells depth: the frame recedes, the artwork stays
   // forward, like glass over a print. Matched to the card's own spring, so
   // both settle together.
-  const imageScale = press.interpolate({
-    inputRange: [CARD_SCALE_TO, 1],
-    outputRange: [1.05, 1],
-  });
+  // Built once: a new interpolation node each render makes Animated tear down
+  // and rebuild the card's native animation graph.
+  const imageScale = useMemo(
+    () =>
+      press.interpolate({
+        inputRange: [CARD_SCALE_TO, 1],
+        outputRange: [1.05, 1],
+      }),
+    [press],
+  );
+
+  const handlePress = useCallback(() => onPress(item), [onPress, item]);
+  const handleSave = useCallback(() => onSave(item), [onSave, item]);
 
   return (
     <PressableScale
       style={[styles.card, style]}
-      onPress={onPress}
+      onPress={handlePress}
       scaleTo={CARD_SCALE_TO}
       scaleValue={press}
     >
@@ -73,7 +85,7 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
         ) : null}
         <PressableScale
           style={styles.heartBtn}
-          onPress={onSave}
+          onPress={handleSave}
           scaleTo={0.86}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
           accessibilityRole="button"
@@ -108,8 +120,11 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
   );
 }
 
-// Memoized so a parent re-render (e.g. Home category switch) doesn't re-render
-// every card — relies on the screens passing stable onPress/onSave callbacks.
+// Memoized so a parent re-render (a category switch, a search keystroke, the
+// list window moving during a scroll) doesn't re-render every mounted card.
+// With two columns FlatList rebuilds each row's item array per render, so this
+// memo is the only thing standing between a parent render and ~40 cards. It
+// holds only while the screens pass the same onPress/onSave every time.
 export default React.memo(ListingCard);
 
 const styles = StyleSheet.create({

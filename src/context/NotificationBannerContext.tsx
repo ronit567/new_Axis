@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -90,8 +91,14 @@ export function NotificationBannerProvider({ children }: { children: React.React
     return clearTimer;
   }, [content, hide, translateY]);
 
+  // One object for the provider's lifetime: `{ show }` inline is a new value on
+  // every render, and this component re-renders each time a banner appears or
+  // leaves — which re-rendered every consumer, MainScreen included, twice per
+  // banner.
+  const value = useMemo(() => ({ show }), [show]);
+
   return (
-    <BannerContext.Provider value={{ show }}>
+    <BannerContext.Provider value={value}>
       <View style={styles.root}>
         {children}
         {content && (

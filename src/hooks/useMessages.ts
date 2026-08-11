@@ -71,6 +71,27 @@ export function useConversations() {
   })
 }
 
+// How many threads have something unread — the Messages tab badge.
+//
+// Same query as useConversations, narrowed with `select`: a subscriber is only
+// re-rendered when the value it selected changes. MainScreen renders the active
+// tab inline, so reading the whole array there re-rendered Home (and every card
+// on it) on each inbox change, including a relative-time label ticking over.
+export function useUnreadConversationCount(): number {
+  const { user } = useAuth()
+  const { data } = useQuery({
+    queryKey: queryKeys.conversations(user?.id ?? ''),
+    queryFn: ({ signal }) => {
+      if (!user) return []
+      return MessageRepository.getConversations(user.id, signal)
+    },
+    enabled: !!user,
+    select: (conversations: Conversation[]) =>
+      conversations.filter((c) => c.unreadCount > 0).length,
+  })
+  return data ?? 0
+}
+
 export function useMessages(partnerId: string) {
   const { user } = useAuth()
   return useQuery<Message[]>({

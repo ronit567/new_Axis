@@ -11,7 +11,7 @@ import ProfileScreen from './ProfileScreen';
 import { RootStackParamList } from '../types';
 import type { NotificationRow } from '../types/database';
 import { navigationRef } from '../lib/navigation';
-import { useConversations, useMessagesRealtime } from '../hooks/useMessages';
+import { useUnreadConversationCount, useMessagesRealtime } from '../hooks/useMessages';
 import { useNotificationsRealtime } from '../hooks/useNotifications';
 import { useForegroundCatchUp } from '../hooks/useCatchUp';
 import { useNotificationBanner, type BannerContent } from '../context/NotificationBannerContext';
@@ -71,8 +71,7 @@ export default function MainScreen({ navigation }: Props) {
   // Same cache MessagesScreen reads; the realtime hook above invalidates it on
   // every INSERT/UPDATE, so the tab badge tracks conversations with unread
   // across the session.
-  const { data: conversations } = useConversations();
-  const unreadTotal = (conversations ?? []).filter((c) => c.unreadCount > 0).length;
+  const unreadTotal = useUnreadConversationCount();
 
   const renderContent = () => {
     switch (activeTab) {
