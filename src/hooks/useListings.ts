@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as Crypto from 'expo-crypto'
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -112,6 +113,12 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < SEARCH_PAGE_SIZE ? undefined : allPages.length * SEARCH_PAGE_SIZE,
     enabled: !!user,
+    // Every debounced keystroke is a new query key, which starts with no data —
+    // so the screen tore the whole results grid down to skeletons and rebuilt
+    // it from nothing, several times per typed phrase. Keeping the previous
+    // results on screen until the new ones land avoids both the flash and the
+    // churn; `isPlaceholderData` tells the screen it is showing the old set.
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -149,14 +156,13 @@ export function useCreateListing() {
         throw error
       }
     },
+    // The poster's own feed and search never show their own listings (see
+    // invalidateAfterListingMutation), so only their manage list and their own
+    // storefront can change — not every storefront, and not the feed.
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listings'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
-      if (user) queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
-      // The seller-storefront cache lives outside the ['listings'] prefix, so
-      // without this a just-posted listing stays invisible on the seller's
-      // public profile until the stale timer expires.
-      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
+      if (!user) return
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellerListings(user.id) })
     },
   })
 }
@@ -181,10 +187,19 @@ export function useSellerListings(sellerId: string) {
   })
 }
 
-// Every cache a status change / delete can affect. Home feed, search, and
-// storefronts all filter status='active', so a sold/deleted row must drop (and a
-// relisted row reappear); the owner's saved list drops it if they saved their own
-// listing; the detail cache flips status or becomes null after delete.
+// Every cache on THIS device that a change to one of the user's own listings can
+// affect: their manage list, their own storefront, the listing's detail, and
+// their saved list (in case they saved their own listing before that was
+// hidden).
+//
+// Not the Home feed or search. Both exclude the caller's own listings in the
+// query itself (`.neq('seller_id', userId)` in ListingRepository.getAll and
+// .search), so nothing the user does to their own listing can change a row in
+// either. Invalidating them anyway refetched every loaded page of the feed and
+// of each cached search, two requests per page, on every create, mark-sold,
+// relist, delete and edit — busiest at the start of term, when posting peaks.
+// Other people's devices pick the change up on their own next fetch.
+//
 // Exported so useUpdateListing (useListingEdits.ts) can reuse it for the same
 // invalidation surface a direct listing update affects.
 export function invalidateAfterListingMutation(
@@ -192,9 +207,7 @@ export function invalidateAfterListingMutation(
   userId: string,
   listingId: string,
 ) {
-  queryClient.invalidateQueries({ queryKey: ['listings'] })
-  queryClient.invalidateQueries({ queryKey: ['search'] })
-  queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
+  queryClient.invalidateQueries({ queryKey: queryKeys.sellerListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.myListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.savedListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.listing(listingId) })

@@ -152,6 +152,7 @@ export default function SearchScreen({ navigation, route }: Props) {
   const {
     data,
     isLoading,
+    isPlaceholderData,
     isError,
     refetch,
     fetchNextPage,
@@ -196,7 +197,9 @@ export default function SearchScreen({ navigation, route }: Props) {
   ];
 
   const loadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+    // Not while the previous query's results are standing in: the next page
+    // would be the next page of the wrong search.
+    if (hasNextPage && !isFetchingNextPage && !isPlaceholderData) fetchNextPage();
   };
 
   // Search is offset-paginated (see useSearchListings), so hasNextPage means
@@ -233,7 +236,7 @@ export default function SearchScreen({ navigation, route }: Props) {
   const resultsHeader = (
     <View style={styles.resultsRow}>
       <Text style={styles.resultsCount}>
-        {isLoading ? "Searching…" : `${resultsCountLabel} results`}
+        {isLoading || isPlaceholderData ? "Searching…" : `${resultsCountLabel} results`}
       </Text>
     </View>
   );
