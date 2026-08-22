@@ -8,6 +8,7 @@ import React, {
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { signOut } from '../providers/QueryProvider';
+import { restoreSession } from '../lib/restoreSession';
 
 /**
  * Outcome of a sign-up attempt, so the caller can route correctly instead of
@@ -121,9 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Always resolve `loading`, even if session restore rejects (e.g. a
     // corrupted keychain/keystore entry) — otherwise the app never leaves the
     // loading state.
-    supabase.auth
-      .getSession()
-      .then(({ data }) => setSession(data.session))
+    // restoreSession retries a restore that failed for a transient reason
+    // instead of treating it as "signed out" (see lib/restoreSession).
+    restoreSession(() => supabase.auth.getSession())
+      .then(setSession)
       .catch(() => setSession(null))
       .finally(() => setLoading(false));
 
