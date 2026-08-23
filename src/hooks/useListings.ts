@@ -25,6 +25,8 @@ import { queryKeys } from './queryKeys'
 import { MyListing } from '../types'
 
 const SEARCH_DEBOUNCE_MS = 300
+// Matches QueryProvider's default; named because the feed reasons about it.
+const FEED_STALE_MS = 2 * 60 * 1000
 
 // Home feed. Gated on auth because listings RLS requires an authenticated user.
 // Offset-paginated so pull-to-refresh/onEndReached hit real queries instead of
@@ -50,6 +52,10 @@ export function useListings(category?: string) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
     enabled: !!user,
+    staleTime: FEED_STALE_MS,
+    // Handled by the effect below. Left on, a stale remount refetches EVERY
+    // loaded page, strictly one after another.
+    refetchOnMount: false,
   })
 
   // Pull-to-refresh should re-check the top of the feed, not re-run one
@@ -65,6 +71,23 @@ export function useListings(category?: string) {
     )
     return queryClient.refetchQueries({ queryKey, exact: true })
   }
+
+  // MainScreen unmounts a tab when you leave it, so coming back to Home is a
+  // remount, and the list is back at the top either way. Someone who scrolled
+  // eight pages, spent three minutes in Messages and returned used to trigger
+  // sixteen sequential requests to repaint a list showing page one. A stale
+  // return now costs what pull-to-refresh costs: the first page. A first load
+  // (no data yet) is untouched — the query fetches that itself.
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    const state = queryClient.getQueryState(queryKey)
+    if (!state?.data) return
+    const stale = state.isInvalidated || Date.now() - state.dataUpdatedAt > FEED_STALE_MS
+    if (stale) void refreshFirstPage()
+    // Once per mount and per category; refreshFirstPage is a fresh closure each
+    // render and must not re-trigger this.
+  }, [userId, category])
 
   return { ...query, refreshFirstPage }
 }
