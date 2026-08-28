@@ -1,13 +1,11 @@
 export const COLORS = {
   primary: '#5C2D91',
   primaryDark: '#4A2070',
-  primaryDeep: '#391A57',
   primaryTint: '#F3EEFF',
   primarySoft: '#EEE8F8',
   primaryBorder: '#DDD0F5',
   white: '#FFFFFF',
   background: '#F8F8F8',
-  surface: '#FFFFFF',
   surfaceAlt: '#F5F5FA',
   inputBorder: '#E0E0E0',
   inputBorderFocused: '#5C2D91',
@@ -35,7 +33,6 @@ export const SIZES = {
   lg: 18,
   xl: 22,
   xxl: 28,
-  xxxl: 36,
   borderRadius: 12,
   borderRadiusSm: 8,
   borderRadiusLg: 20,
@@ -47,7 +44,6 @@ export const SIZES = {
 // expo-linear-gradient `colors` prop, brand purple deepening toward the bottom/end.
 export const GRADIENTS = {
   primary: [COLORS.primary, COLORS.primaryDark] as [string, string],
-  primaryDeep: [COLORS.primaryDark, COLORS.primaryDeep] as [string, string],
   primaryRadiant: ['#6E3AAE', COLORS.primary, COLORS.primaryDark] as [string, string, string],
 } as const;
 

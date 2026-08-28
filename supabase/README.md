@@ -30,15 +30,14 @@ against a live database yet — review before applying.
 | `tests/reports_queue_test.sql` | `reports_queue` tests: anon + authenticated are both denied (revoked), and the view owner sees the report with reporter/target names + emails + listing title joined in. Run **after** 0012. |
 | `tests/notifications_test.sql` | Notification trigger + RLS tests: message/save triggers generate rows (with dedup), client INSERT is revoked, and `create_test_notification()` inserts an actorless row for the caller only. Run **after** 0013 (and 0017 for the RPC scenario). |
 | `tests/signup_email_hook_test.sql` | `hook_restrict_signup_email()` tests: Western/alumni domains + the whitelist allow, non-Western/spoofed-suffix/missing emails reject with a 403, case is normalized, and only `supabase_auth_admin` (never `anon`/`authenticated`) can reach the function or the exceptions table. Run **after** 0018. |
-| `health_check.sql` | Throwaway table for the Milestone 5 smoke test. Drop it after. |
 
 ## How to apply (once Supabase is connected)
 
 - **Via the local stack** (preferred for dev): `npx supabase db reset` applies
   every migration `0001`–`0018` in filename order, then loads seed data — see
   `LOCAL_DEV.md`.
-- **Via the Supabase MCP server**: run migrations `0001`–`0018` in order, then
-  `health_check.sql`. I can drive this directly once the MCP is connected.
+- **Via the Supabase MCP server**: run migrations `0001`–`0018` in order.
+  I can drive this directly once the MCP is connected.
 - **Via the dashboard**: paste each file into the SQL editor in order.
 - **Via the CLI**: `supabase db push` if you wire up the local CLI + project ref.
 

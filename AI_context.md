@@ -524,42 +524,30 @@ Definition of done: all three repositories exist, are importable, and no screen 
 
 ---
 
-### Milestone 5 — Smoke test (real roundtrip)
+### Milestone 5 — Smoke test (real roundtrip) — DONE (superseded)
 
-Branch: `feature/smoke-test`
+**Superseded, not executed.** The dedicated smoke test became redundant once the
+project was provisioned (AX-102) and the real data layer went live. The
+roundtrip is now proven continuously by production code rather than a throwaway
+table: repositories read and write live tables under RLS, realtime messaging
+streams inserts, and `AuthProvider` restores sessions on launch behind the
+loading gate in `App.tsx`.
 
-This milestone requires at least one real database roundtrip from a device or simulator build — not just verifying the app boots.
-
-**Prerequisite:** Create a `health_check` table in the Supabase dashboard:
-```sql
-create table health_check (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz default now()
-);
--- No RLS needed on this table — it's for testing only and will be dropped in Phase 2
-```
-
-> **Helper ready:** `src/lib/healthCheck.ts` exports `runHealthCheck()` — does the real insert + select and returns a typed result. Call it from a dev button/debugger once keys + the `health_check` table exist.
-
-Tasks:
-- [ ] `.env` variables load correctly (log `supabase.supabaseUrl` to console in dev)
-- [ ] Supabase client initialises without error
-- [ ] QueryProvider initialises without error
-- [ ] AuthProvider restores session on launch — `loading` resolves to `false`
-- [ ] App renders correctly in both signed-out and signed-in states (no auth flash)
-- [ ] A real `supabase.from('health_check').insert({})` succeeds from the device
-- [ ] A real `supabase.from('health_check').select()` returns data
-- [ ] Drop the `health_check` table after confirming the roundtrip works
-
-Definition of done: all checklist items pass on a real device or simulator build. No fake timeouts, no mocked responses.
+The scaffolding this milestone called for — `supabase/health_check.sql` and
+`src/lib/healthCheck.ts` (`runHealthCheck()`) — was never run against a live
+project and has been deleted. Do not recreate it.
 
 ---
 
 ## Phase 2 Preview (do not start until Phase 1 is fully done)
 
-> **Prep available (not yet applied / not yet wired):**
-> - **DB drafts:** schema + RLS in `supabase/migrations/0001_initial_schema.sql` and `0002_rls_policies.sql`, `supabase/health_check.sql` for Milestone 5, `supabase/README.md` for how/decisions. `.env.example` documents the keys.
-> - **Hooks layer:** `src/hooks/` (`queryKeys`, `useListings`/`useListing`/`useCreateListing`, `useSavedListings`/`useToggleSaved`, `useProfile`/`useCurrentProfile`/`useUpsertProfile`, `useConversations`/`useMessages`/`useSendMessage`). TanStack Query wrappers over the repositories with `enabled: !!user` gating and mutation invalidation. **Not imported by any screen yet** — wiring each screen (and deleting mock data) is the per-screen Phase 2 work (items 4–7).
+> **Status: this preview is historical — Phase 2 has since landed.**
+> - **DB:** migrations `0001`–`0026` are applied against the live project; see
+>   `supabase/README.md` for what each one does and `supabase/LOCAL_DEV.md` for
+>   the local stack. `.env.example` documents the keys.
+> - **Hooks layer:** `src/hooks/` TanStack Query wrappers over the repositories,
+>   with `enabled: !!user` gating and mutation invalidation. **Now wired into the
+>   screens** — mock data was deleted in AX-299.
 
 1. Create Supabase DB tables with correct schema and RLS policies
 2. Generate TypeScript types from Supabase (`npx supabase gen types typescript`)
@@ -744,16 +732,15 @@ Milestone 4:
 
 ### Remaining Work
 
-- **Milestone 1 (user step):** provision Supabase project, paste URL + anon key into `.env`. Milestone 1 is not truly done until keys are in and a real import works (verified in Milestone 5).
-- **Milestone 5 (BLOCKED on user):** smoke test — needs keys, provisioned project, a `health_check` table, and a real device/simulator run. Cannot be done autonomously.
-- Milestone 3: Real AuthContext with session persistence
-- Milestone 4: Repository layer scaffolding
-- Milestone 5: Smoke test with real DB roundtrip
+- **Milestones 1–5 are complete.** The project is provisioned (AX-102), keys are
+  in `.env`, and the live data layer supersedes the Milestone 5 smoke test.
+  Current work is tracked as `AX-###` tickets in `PROJECT_ROADMAP.md`.
 
 ### Risks / Notes
 
-- `HomeScreen` and `SavedScreen` have a fake `setTimeout` simulating loading — remove these when real async hooks land, or they will double-delay the UI.
-- `src/data/mockListings.ts` must not be deleted until every screen that imports from it has been migrated to a real hook.
+- **Mock data is gone.** `src/data/mockListings.ts` was deleted in AX-299 and the
+  fake `setTimeout` loading delays in `HomeScreen`/`SavedScreen` went with it.
+  `scripts/check-architecture.sh` fails the build if either is reintroduced.
 - **Category inconsistency — RESOLVED (2026-07-02).** A single source of truth now lives in `src/constants/categories.ts` (`LISTING_CATEGORIES` = Textbooks, Furniture, Electronics, Tickets, Clothing, Sports, Other; `BROWSE_CATEGORIES` = `['All', ...LISTING_CATEGORIES]`). `HomeScreen` uses `BROWSE_CATEGORIES` (chip row made horizontally scrollable), `CreateListingScreen` uses `LISTING_CATEGORIES`. Tickets are now creatable and browsable. Not yet visually verified on a simulator.
 - Auth ↔ Query coordination: queries must use `enabled: !!user` and `signOut` must call `queryClient.clear()`. Missing either causes subtle bugs (queries firing before auth, or stale data leaking between sessions). `signOut` clears the cache as of M3; the `enabled: !!user` half applies when real queries land in Phase 2.
 - **Onboarding / profile capture (M3 decision, needs confirmation):** `verifyOtp` signs the user in immediately, so the signed-out `SetupProfile` step is bypassed. Phase 2 must decide how first-run profile capture works — likely an in-app step gated on "profile row exists" rather than on session existence. Until then `SetupProfile` is orphaned and `handleFinish` is a no-op.
