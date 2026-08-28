@@ -35,7 +35,4 @@ jobs:
         run: npm run check:arch
 
       - name: Tests
-        # NOTE: `npm test` is provided by the AX-901 test-harness branch. Until
-        # that lands there is no `test` script, so `--if-present` makes this a
-        # no-op instead of failing CI. Once AX-901 merges this runs the suite.
-        run: npm test --if-present
+        run: npm test

@@ -8,15 +8,11 @@
 #   1. FATAL  — no file under src/screens/ or src/components/ may import the
 #               Supabase client (`lib/supabase`) or `@supabase/supabase-js`.
 #               Only repositories may talk to Supabase.
-#   2. WARNING — nothing should import `src/data/mockListings`. This is only a
-#               warning FOR NOW because mock data is still legitimately used by
-#               several screens. It becomes FATAL after AX-299 deletes the mock
-#               file (flip WARN_ONLY_MOCK=0 below at that point).
+#   2. FATAL  — nothing may import `src/data/mockListings`. The mock file was
+#               deleted by AX-299; this guard exists to stop it being
+#               reintroduced.
 
 set -u
-
-# Flip to 0 after AX-299 lands to make the mockListings guard fatal.
-WARN_ONLY_MOCK=1
 
 FAIL=0
 
@@ -44,20 +40,15 @@ else
   echo "SKIP: neither src/screens nor src/components exists."
 fi
 
-# --- Rule 2: no mockListings imports (WARNING until AX-299) ------------------
+# --- Rule 2: no mockListings imports (FATAL) --------------------------------
 if [ -d src ]; then
   # Require an import/require/export keyword so comments referencing the mock
   # file (e.g. "// mirrors src/data/mockListings.ts") are not flagged.
   MOCK_HITS=$(grep -rnE "data/mockListings" src 2>/dev/null | grep -Ew "import|require|export" || true)
   if [ -n "$MOCK_HITS" ]; then
-    if [ "$WARN_ONLY_MOCK" -eq 1 ]; then
-      echo "WARNING: import(s) of src/data/mockListings found (allowed for now; becomes FATAL after AX-299):"
-      echo "$MOCK_HITS" | sed 's/^/  /'
-    else
-      echo "FAIL: import(s) of src/data/mockListings found (mock data must be gone post-AX-299):"
-      echo "$MOCK_HITS" | sed 's/^/  /'
-      FAIL=1
-    fi
+    echo "FAIL: import(s) of src/data/mockListings found (mock data was deleted by AX-299):"
+    echo "$MOCK_HITS" | sed 's/^/  /'
+    FAIL=1
   else
     echo "PASS: no imports of src/data/mockListings."
   fi
