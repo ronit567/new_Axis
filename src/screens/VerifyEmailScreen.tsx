@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
-  NativeSyntheticEvent,
-  TextInputKeyPressEventData,
   Platform,
   ScrollView,
   Alert,
@@ -18,15 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import PrimaryButton from '../components/PrimaryButton';
 import StepHeader from '../components/StepHeader';
+import CodeInput, { emptyCode, isCodeFilled } from '../components/CodeInput';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
-// Must match `otp_length` under [auth.email] in supabase/config.toml (and the
-// cloud project's Auth settings), or a valid code won't fit the boxes.
-const CODE_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
@@ -36,11 +32,11 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   // to a stranger's inbox and fail verification with a confusing error. The
   // route param is required, and CreateAccountScreen always passes it.
   const email = route.params.email;
-  const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
+  const [code, setCode] = useState<string[]>(emptyCode());
   const [countdown, setCountdown] = useState(RESEND_COOLDOWN_SECONDS);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const firstBoxRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -48,33 +44,6 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
       return () => clearTimeout(timer);
     }
   }, [countdown]);
-
-  const handleCodeChange = (text: string, index: number) => {
-    const sanitized = text.replace(/[^0-9]/g, '');
-    if (sanitized.length > 1) {
-      const chars = sanitized.split('').slice(0, CODE_LENGTH - index);
-      const newCode = [...code];
-      chars.forEach((char: string, i: number) => {
-        if (index + i < CODE_LENGTH) newCode[index + i] = char;
-      });
-      setCode(newCode);
-      const nextIndex = Math.min(index + chars.length, CODE_LENGTH - 1);
-      inputRefs.current[nextIndex]?.focus();
-      return;
-    }
-    const newCode = [...code];
-    newCode[index] = sanitized;
-    setCode(newCode);
-    if (sanitized && index < CODE_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => {
-    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
 
   // A successful verifyOtp establishes a session; RootNavigator then swaps to
   // the signed-in stack automatically, so there is no manual navigation here.
@@ -100,8 +69,8 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     try {
       await resend(email);
       setCountdown(RESEND_COOLDOWN_SECONDS);
-      setCode(Array(CODE_LENGTH).fill(''));
-      inputRefs.current[0]?.focus();
+      setCode(emptyCode());
+      firstBoxRef.current?.focus();
     } catch (e) {
       Alert.alert(
         'Resend failed',
@@ -112,7 +81,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     }
   };
 
-  const isFilled = code.every(c => c !== '');
+  const isFilled = isCodeFilled(code);
   const formattedTime = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
   return (
@@ -140,22 +109,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
             <Text style={styles.emailHighlight}>{email}</Text>
           </Text>
 
-          <View style={styles.codeRow}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={ref => { inputRefs.current[index] = ref; }}
-                style={[styles.codeBox, digit ? styles.codeBoxFilled : null]}
-                value={digit}
-                onChangeText={text => handleCodeChange(text, index)}
-                onKeyPress={e => handleKeyPress(e, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                textAlign="center"
-                selectionColor={COLORS.primary}
-              />
-            ))}
-          </View>
+          <CodeInput value={code} onChange={setCode} firstInputRef={firstBoxRef} />
 
           <TouchableOpacity
             style={styles.resendRow}
@@ -237,28 +191,6 @@ const styles = StyleSheet.create({
   emailHighlight: {
     color: COLORS.text,
     fontWeight: '600',
-  },
-  codeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  codeBox: {
-    width: 46,
-    height: 60,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadiusSm,
-    borderCurve: 'continuous',
-    fontSize: SIZES.xl,
-    fontWeight: '700',
-    color: COLORS.text,
-    backgroundColor: COLORS.white,
-  },
-  codeBoxFilled: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryTint,
   },
   resendRow: {
     marginBottom: 32,

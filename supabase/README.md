@@ -32,6 +32,25 @@ against a live database yet — review before applying.
 | `tests/notifications_test.sql` | Notification trigger + RLS tests: message/save triggers generate rows (with dedup), client INSERT is revoked, and `create_test_notification()` inserts an actorless row for the caller only. Run **after** 0013 (and 0017 for the RPC scenario). |
 | `tests/signup_email_hook_test.sql` | `hook_restrict_signup_email()` tests: Western/alumni domains + the whitelist allow, non-Western/spoofed-suffix/missing emails reject with a 403, case is normalized, and only `supabase_auth_admin` (never `anon`/`authenticated`) can reach the function or the exceptions table. Run **after** 0018. |
 
+## Password reset (recovery)
+
+Same code-based shape as signup, and the same Dashboard requirement: the stock
+recovery email sends `{{ .ConfirmationURL }}` (a link), but `ResetPasswordScreen`
+asks the user to type a code, so the template must render `{{ .Token }}`.
+
+Flow: SignIn -> "Forgot password?" -> `ForgotPassword` (enter email) ->
+`ResetPassword` (code + new password) -> `verifyOtp(type: 'recovery')` signs the
+user in -> `updateUser({ password })` applies the new password.
+
+**Cloud project:** Authentication -> Emails -> *Reset Password* -> paste
+`supabase/templates/reset_password.html`, subject `Your Axis password reset code`.
+Requires custom SMTP, same as the confirmation template.
+
+Note `resetPasswordForEmail()` does **not** error on an unknown address — that
+is deliberate anti-enumeration on Supabase's side, so the UI must never claim
+an email was definitely sent. `ForgotPasswordScreen` advances to the code screen
+either way and the copy reads "if an Axis account exists for...".
+
 ## Email verification (@uwo.ca gate)
 
 Signup is gated twice: the app checks the domain for fast feedback, and the DB

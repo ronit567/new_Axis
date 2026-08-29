@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -18,25 +17,30 @@ import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { haptics } from '../lib/haptics';
+import { isWesternEmail } from '../lib/email';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
 
-export default function SignInScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
+export default function ForgotPasswordScreen({ navigation }: Props) {
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSignIn = async () => {
-    if (submitting) return;
-    haptics.impact();
+  const trimmed = email.trim();
+  const canSubmit = !!trimmed && isWesternEmail(trimmed);
+
+  const handleSend = async () => {
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      await requestPasswordReset(trimmed);
+      // Advance regardless of whether that address has an account. Supabase
+      // stays silent on unknown emails on purpose, and branching here would
+      // leak which addresses are registered — the whole point of that silence.
+      navigation.navigate('ResetPassword', { email: trimmed });
     } catch (e) {
       Alert.alert(
-        'Sign in failed',
+        "Couldn't send the code",
         e instanceof Error ? e.message : 'Please try again.',
       );
     } finally {
@@ -55,12 +59,20 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9} accessibilityRole="button" accessibilityLabel="Back">
+          <PressableScale
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            scaleTo={0.9}
+          >
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </PressableScale>
 
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to your Axis account.</Text>
+          <Text style={styles.title}>Reset your password</Text>
+          <Text style={styles.subtitle}>
+            Enter your Western email and we'll send you a 6-digit code to set a new
+            password.
+          </Text>
 
           <View style={styles.form}>
             <InputField
@@ -69,35 +81,21 @@ export default function SignInScreen({ navigation }: Props) {
               onChangeText={setEmail}
               placeholder="yourname@uwo.ca"
               keyboardType="email-address"
+              hint={
+                email.length > 4 && !isWesternEmail(email)
+                  ? 'Please use a @uwo.ca email address.'
+                  : undefined
+              }
+              hintType={email.length > 4 && !isWesternEmail(email) ? 'error' : 'info'}
             />
-            <InputField
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              secureTextEntry
-            />
-
-            <TouchableOpacity
-              style={styles.forgotRow}
-              onPress={() => navigation.navigate('ForgotPassword')}
-            >
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
 
             <PrimaryButton
-              title="Sign in"
-              onPress={handleSignIn}
+              title="Send code"
+              onPress={handleSend}
+              disabled={!canSubmit}
               loading={submitting}
-              style={styles.signInBtn}
+              style={styles.sendBtn}
             />
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>New to Axis? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
-              <Text style={styles.footerLink}>Create account</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -106,10 +104,6 @@ export default function SignInScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -135,35 +129,8 @@ const styles = StyleSheet.create({
     fontSize: SIZES.md,
     color: COLORS.textSecondary,
     marginBottom: 32,
+    lineHeight: 22,
   },
-  form: {
-    flex: 1,
-  },
-  forgotRow: {
-    alignSelf: 'flex-end',
-    marginTop: -8,
-    marginBottom: 24,
-  },
-  forgotText: {
-    color: COLORS.primary,
-    fontSize: SIZES.sm,
-    fontWeight: '500',
-  },
-  signInBtn: {
-    marginBottom: 24,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 32,
-  },
-  footerText: {
-    color: COLORS.textSecondary,
-    fontSize: SIZES.sm,
-  },
-  footerLink: {
-    color: COLORS.primary,
-    fontSize: SIZES.sm,
-    fontWeight: '600',
-  },
+  form: { flex: 1 },
+  sendBtn: { marginTop: 8 },
 });

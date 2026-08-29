@@ -260,6 +260,13 @@ otp_expiry = 3600
 subject = "Your Axis confirmation code"
 content_path = "./supabase/templates/confirm_signup.html"
 
+# Password recovery. Same reasoning as confirmation above: the stock template
+# sends {{ .ConfirmationURL }}, but ResetPasswordScreen asks the user to TYPE a
+# code, so this renders {{ .Token }}.
+[auth.email.template.recovery]
+subject = "Your Axis password reset code"
+content_path = "./supabase/templates/reset_password.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

@@ -29,6 +29,8 @@ import WelcomeScreen from './src/screens/WelcomeScreen';
 import SignInScreen from './src/screens/SignInScreen';
 import CreateAccountScreen from './src/screens/CreateAccountScreen';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import SetupProfileScreen from './src/screens/SetupProfileScreen';
 
 // ── Signed-in: the app ──
@@ -107,6 +109,8 @@ function RootNavigator() {
           <Stack.Screen name="SignIn" component={SignInScreen} />
           <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
           <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         </Stack.Group>
       ) : needsOnboarding ? (
         <Stack.Group>
