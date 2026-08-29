@@ -24,11 +24,20 @@ import { Conversation, RootStackParamList } from '../types';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
+  /**
+   * Switches the parent tab container to Home. Required because MainScreen
+   * owns the active tab in local state, not navigation state — so this screen
+   * can't reach Home with a `navigate` call: it is already rendered *inside*
+   * the `Main` route, and navigating there is a no-op. Optional so the screen
+   * still works if it's ever pushed as a standalone `Messages` stack route,
+   * where falling back to `navigate('Main')` is the correct behaviour.
+   */
+  onBrowseListings?: () => void;
 };
 
 const FILTERS = ['All', 'Buying', 'Selling'];
 
-export default function MessagesScreen({ navigation }: Props) {
+export default function MessagesScreen({ navigation, onBrowseListings }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
   const { data, isPending, isError, refetch } = useConversations();
 
@@ -210,7 +219,9 @@ export default function MessagesScreen({ navigation }: Props) {
                 icon="chatbubble-ellipses-outline"
                 title="No conversations yet. Start a chat by messaging a seller on any listing."
                 ctaLabel="Browse listings"
-                onCta={() => navigation.navigate('Main')}
+                onCta={() =>
+                  onBrowseListings ? onBrowseListings() : navigation.navigate('Main')
+                }
               />
             )
           }

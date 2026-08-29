@@ -27,7 +27,7 @@ I read the tree, not just the context doc. Reality:
 
 | Layer | State | Evidence |
 |---|---|---|
-| Frontend UI (24 screens, components, theme) | ✅ Complete, ships on mock data | `src/screens/*`, `src/data/mockListings.ts` |
+| Frontend UI (24 screens, components, theme) | ✅ Complete, on the live data layer | `src/screens/*` (mock data deleted in AX-299) |
 | Supabase client singleton | 🟨 Code done, unverified | `src/lib/supabase.ts` — needs `.env` keys |
 | TanStack Query provider | ✅ Wired in `App.tsx` | `src/providers/QueryProvider.tsx` |
 | Real AuthContext | 🟨 Code done, unverified end-to-end | `src/context/AuthContext.tsx` |
@@ -37,7 +37,7 @@ I read the tree, not just the context doc. Reality:
 | Image upload (Storage) | ⬜ Not started | `CreateListingScreen` holds local URIs |
 | Realtime messaging | ✅ Live send/receive, read receipts, unread badges | `MessageRepository`, `useMessages*` hooks, `conversation_list` view (0008/0009) |
 | Notifications | ⬜ Table drafted, no generation strategy | `NotificationsScreen` static |
-| Tests / CI | ⬜ **None exist** | no test runner, no `.github/` |
+| Tests / CI | ✅ Jest suite + GitHub Actions | `src/**/__tests__/*`, `.github/workflows/ci.yml` |
 
 ### Screens still on mock/static data (the migration surface)
 Confirmed by `grep`:
@@ -79,14 +79,14 @@ Confirmed by `grep`:
 **AC:** `console.log(supabase.supabaseUrl)` prints the real URL in dev.
 **Depends on:** nothing. **Size:** S (user action).
 
-### AX-002 — Smoke test the round-trip (Milestone 5) 🔒
+### AX-002 — Smoke test the round-trip (Milestone 5) ✅
 **Why:** proves client + auth + query wiring works before building on it.
-**Tasks:**
-- Create the throwaway `health_check` table (`supabase/health_check.sql`).
-- Call `runHealthCheck()` (`src/lib/healthCheck.ts`) from a temporary dev button.
-- Verify: insert succeeds, select returns rows, session restores on relaunch with no auth flash, both signed-in/out states render.
-- Drop `health_check` after.
-**AC:** all 8 checklist items in `AI_context.md` Milestone 5 pass on a simulator.
+**Superseded — no throwaway smoke test needed.** The project was provisioned in
+AX-102 and the real data layer now exercises the full roundtrip in production:
+repositories read and write live tables under RLS, realtime messaging streams,
+and session restore is covered by the auth flow. The scaffolding this ticket
+called for (`supabase/health_check.sql`, `src/lib/healthCheck.ts`) was never
+used against a live project and has been deleted.
 **Depends on:** AX-001. **Size:** S.
 
 ### AX-003 — Verify the real auth flow end-to-end ⬜
