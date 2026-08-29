@@ -24,13 +24,20 @@ import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 
+// Must match `otp_length` under [auth.email] in supabase/config.toml (and the
+// cloud project's Auth settings), or a valid code won't fit the boxes.
 const CODE_LENGTH = 6;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function VerifyEmailScreen({ navigation, route }: Props) {
   const { verifyOtp, resend } = useAuth();
-  const email = route?.params?.email ?? 'rsharma42@uwo.ca';
+  // No fallback address here on purpose. This screen both verifies and
+  // resends against `email`, so a placeholder would send a real person's code
+  // to a stranger's inbox and fail verification with a confusing error. The
+  // route param is required, and CreateAccountScreen always passes it.
+  const email = route.params.email;
   const [code, setCode] = useState(Array(CODE_LENGTH).fill(''));
-  const [countdown, setCountdown] = useState(42);
+  const [countdown, setCountdown] = useState(RESEND_COOLDOWN_SECONDS);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
@@ -92,7 +99,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
     setResending(true);
     try {
       await resend(email);
-      setCountdown(60);
+      setCountdown(RESEND_COOLDOWN_SECONDS);
       setCode(Array(CODE_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } catch (e) {

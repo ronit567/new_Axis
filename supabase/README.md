@@ -32,6 +32,43 @@ against a live database yet — review before applying.
 | `tests/notifications_test.sql` | Notification trigger + RLS tests: message/save triggers generate rows (with dedup), client INSERT is revoked, and `create_test_notification()` inserts an actorless row for the caller only. Run **after** 0013 (and 0017 for the RPC scenario). |
 | `tests/signup_email_hook_test.sql` | `hook_restrict_signup_email()` tests: Western/alumni domains + the whitelist allow, non-Western/spoofed-suffix/missing emails reject with a 403, case is normalized, and only `supabase_auth_admin` (never `anon`/`authenticated`) can reach the function or the exceptions table. Run **after** 0018. |
 
+## Email verification (@uwo.ca gate)
+
+Signup is gated twice: the app checks the domain for fast feedback, and the DB
+hook enforces it so a direct `supabase.auth.signUp` call with the anon key
+can't get around the client. A user then has to type a 6-digit code mailed to
+that address, which is what proves the mailbox actually exists.
+
+Flow: `CreateAccountScreen` → `signUp()` returns `'verify'` → `VerifyEmail`
+(6-digit entry) → `verifyOtp()` establishes the session → `SetupProfile`.
+
+`config.toml` covers the **local stack only**. The cloud project needs the same
+three settings applied by hand in the Dashboard:
+
+| # | Dashboard location | Setting |
+|---|---|---|
+| 1 | Authentication → Providers → Email | **Confirm email: ON** |
+| 2 | Authentication → Emails → *Confirm signup* | Replace the body with `supabase/templates/confirm_signup.html` (it renders `{{ .Token }}`), subject `Your Axis confirmation code` |
+| 3 | Authentication → Hooks → *Before User Created* | Postgres function → `public.hook_restrict_signup_email` |
+
+Each one is load-bearing:
+
+- **Without (1)**, `signUp()` returns a live session, so it reports
+  `'signed-in'` and the app skips `VerifyEmail` entirely — an unverified
+  address walks straight into the app.
+- **Without (2)**, Supabase sends its stock template built on
+  `{{ .ConfirmationURL }}` — a magic *link*. There is no code to type, so the
+  6-digit screen can't be completed.
+- **Without (3)**, the @uwo.ca rule is client-side only and trivially bypassed
+  (this is the toggle migration 0018 says must be flipped by hand).
+
+`otp_length` must stay **6** to match `CODE_LENGTH` in
+`src/screens/VerifyEmailScreen.tsx`.
+
+Non-Western signups are rejected by the hook with a 403 and the message
+"Only @uwo.ca email addresses can join Axis." Reviewer/demo addresses go in
+`public.signup_email_exceptions` (Studio-editable) rather than in code.
+
 ## How to apply (once Supabase is connected)
 
 - **Via the local stack** (preferred for dev): `npx supabase db reset` applies
