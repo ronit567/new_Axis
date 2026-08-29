@@ -27,11 +27,20 @@ export default function CreateAccountScreen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const passwordsMatch = password === confirmPassword;
+
   const canContinue =
-    fullName.trim() && email.trim() && password.trim() && agreed && isWesternEmail(email.trim());
+    fullName.trim() &&
+    email.trim() &&
+    password.trim() &&
+    confirmPassword.trim() &&
+    passwordsMatch &&
+    agreed &&
+    isWesternEmail(email.trim());
 
   const handleContinue = async () => {
     if (!canContinue || submitting) return;
@@ -107,6 +116,23 @@ export default function CreateAccountScreen({ navigation }: Props) {
               onChangeText={setPassword}
               placeholder="Create a password"
               secureTextEntry
+            />
+            <InputField
+              label="Confirm password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Re-enter your password"
+              secureTextEntry
+              hint={
+                confirmPassword.length > 0
+                  ? passwordsMatch
+                    ? 'Passwords match.'
+                    : 'Passwords do not match.'
+                  : undefined
+              }
+              hintType={
+                confirmPassword.length > 0 ? (passwordsMatch ? 'success' : 'error') : 'info'
+              }
             />
 
             <TouchableOpacity
