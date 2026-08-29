@@ -192,6 +192,8 @@ export type RootStackParamList = {
   SignIn: undefined;
   CreateAccount: undefined;
   VerifyEmail: { email: string };
+  ForgotPassword: undefined;
+  ResetPassword: { email: string };
   SetupProfile: undefined;
   Profile: undefined;
   EditProfile: undefined;

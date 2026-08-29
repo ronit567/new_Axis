@@ -31,6 +31,12 @@ type AuthContextValue = {
   signUp: (email: string, password: string, fullName?: string) => Promise<SignUpResult>;
   verifyOtp: (email: string, token: string) => Promise<void>;
   resend: (email: string) => Promise<void>;
+  /** Emails a recovery code. Silent on unknown addresses — see below. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** Redeems a recovery code. On success the user is SIGNED IN. */
+  verifyPasswordResetOtp: (email: string, token: string) => Promise<void>;
+  /** Sets a new password for the currently signed-in user. */
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -76,6 +82,28 @@ async function resend(email: string): Promise<void> {
   if (error) throw error;
 }
 
+// Sends a recovery email. Supabase deliberately does NOT error on an unknown
+// address (anti-enumeration: erroring would let anyone probe which emails have
+// accounts), so a resolved promise means "sent if that account exists" — never
+// "that account exists". The UI must not claim an email was definitely sent.
+async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw error;
+}
+
+// type: 'recovery' — the signup OTP type would reject a recovery token. A
+// successful call establishes a session, which is what authorises the
+// updatePassword() that must follow it.
+async function verifyPasswordResetOtp(email: string, token: string): Promise<void> {
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' });
+  if (error) throw error;
+}
+
+async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+}
+
 // The offline-safe signOut (global call with a local-only fallback, then a
 // query-cache clear) is defined in QueryProvider — it owns queryClient, and
 // its 401 handler needs to call this exact function too, so a 401 while
@@ -116,6 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       verifyOtp,
       resend,
+      requestPasswordReset,
+      verifyPasswordResetOtp,
+      updatePassword,
       signOut,
     }),
     [session, loading],
