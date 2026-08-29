@@ -75,9 +75,19 @@ export default function MainScreen({ navigation }: Props) {
       case 'Home':
         return <HomeScreen navigation={navigation} />;
       case 'Saved':
-        return <SavedScreen navigation={navigation} />;
+        return (
+          <SavedScreen
+            navigation={navigation}
+            onBrowseListings={() => setActiveTab('Home')}
+          />
+        );
       case 'Messages':
-        return <MessagesScreen navigation={navigation} />;
+        return (
+          <MessagesScreen
+            navigation={navigation}
+            onBrowseListings={() => setActiveTab('Home')}
+          />
+        );
       case 'Profile':
         return <ProfileScreen navigation={navigation} />;
       default:

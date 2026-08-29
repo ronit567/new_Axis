@@ -26,11 +26,20 @@ import { RootStackParamList, Listing, SellerProfile } from '../types';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
+  /**
+   * Switches the parent tab container to Home. Required because MainScreen
+   * owns the active tab in local state, not navigation state — so this screen
+   * can't reach Home with a `navigate` call: it is already rendered *inside*
+   * the `Main` route, and navigating there is a no-op. Optional so the screen
+   * still works if it's ever pushed as a standalone stack route, where
+   * falling back to `navigate('Main')` is the correct behaviour.
+   */
+  onBrowseListings?: () => void;
 };
 
 const TABS = ['Items', 'Saved profiles'];
 
-export default function SavedScreen({ navigation }: Props) {
+export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
   const { data, isLoading, isError, refetch } = useSavedListings();
   const toggleSavedMutation = useToggleSaved();
@@ -158,7 +167,9 @@ export default function SavedScreen({ navigation }: Props) {
               icon="heart-outline"
               title="No saved items yet. Tap the heart on any listing to save it here."
               ctaLabel="Browse listings"
-              onCta={() => navigation.navigate('Main')}
+              onCta={() =>
+                onBrowseListings ? onBrowseListings() : navigation.navigate('Main')
+              }
             />
           }
         />
@@ -176,7 +187,9 @@ export default function SavedScreen({ navigation }: Props) {
               icon="people-outline"
               title="No saved profiles yet. Bookmark sellers to find them again quickly."
               ctaLabel="Browse listings"
-              onCta={() => navigation.navigate('Main')}
+              onCta={() =>
+                onBrowseListings ? onBrowseListings() : navigation.navigate('Main')
+              }
             />
           }
         />
