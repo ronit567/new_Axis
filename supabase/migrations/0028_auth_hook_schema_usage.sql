@@ -1,0 +1,22 @@
+-- Axis — 0028: fix the before-user-created hook failing with a 500.
+--
+-- 0018 created public.hook_restrict_signup_email() and granted EXECUTE on it
+-- to supabase_auth_admin (the role the GoTrue auth server runs hooks as), plus
+-- SELECT on public.signup_email_exceptions. Both correct — but incomplete.
+--
+-- supabase_auth_admin has NO access to the `public` schema by default. Its
+-- home is the `auth` schema. Without USAGE on `public`, it cannot resolve
+-- public.hook_restrict_signup_email at all, no matter what EXECUTE grants
+-- exist on the function itself: schema USAGE is checked first, so the
+-- function grant is unreachable.
+--
+-- Symptom once the hook is enabled in the Dashboard: every signup fails with
+--   HTTP 500, x-sb-error-code: unexpected_failure
+-- on POST /auth/v1/signup. That is GoTrue reporting "the hook threw", not a
+-- problem with the app, the email domain, or the payload. Signup is fully
+-- broken while the hook is enabled — this is not a partial degradation.
+--
+-- Supabase's own auth-hook documentation omits this grant, which is why 0018
+-- missed it; it's a well-known cause of this exact error.
+
+grant usage on schema public to supabase_auth_admin;
