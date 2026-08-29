@@ -42,10 +42,6 @@ export default function SignInScreen({ navigation }: Props) {
     }
   };
 
-  const handleSSO = () => {
-    Alert.alert('Coming soon', 'Western SSO isn’t available yet.');
-  };
-
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -90,17 +86,6 @@ export default function SignInScreen({ navigation }: Props) {
               loading={submitting}
               style={styles.signInBtn}
             />
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity style={styles.westernBtn} onPress={handleSSO} activeOpacity={0.85}>
-              <Ionicons name="school-outline" size={19} color={COLORS.text} />
-              <Text style={styles.westernBtnText}>Continue with Western SSO</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
@@ -161,36 +146,6 @@ const styles = StyleSheet.create({
   },
   signInBtn: {
     marginBottom: 24,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.inputBorder,
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: COLORS.textMuted,
-    fontSize: SIZES.sm,
-  },
-  westernBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    borderRadius: SIZES.borderRadius,
-    height: SIZES.buttonHeight,
-    gap: 10,
-  },
-  westernBtnText: {
-    color: COLORS.text,
-    fontSize: SIZES.base,
-    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
