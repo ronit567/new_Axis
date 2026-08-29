@@ -1,20 +1,24 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
+  Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Avatar from '../components/Avatar';
+import CategoryChip from '../components/CategoryChip';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
+import { haptics } from '../lib/haptics';
 import { useConversations } from '../hooks/useMessages';
 import { Conversation, RootStackParamList } from '../types';
 
@@ -37,6 +41,19 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
   const [activeFilter, setActiveFilter] = useState('All');
   const { data, isPending, isError, refetch } = useConversations();
 
+  // Hairline + shadow under the fixed header/filters, faded in on scroll so the
+  // header looks flush at rest and gains definition as content passes under it.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
+
   // Spinner only for user-initiated pulls — background refetches from realtime
   // invalidation must not replay the pull-to-refresh animation.
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +72,13 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
       ? conversations
       : conversations.filter(c => c.type === activeFilter);
 
-  const renderItem = ({ item, index }: { item: Conversation; index: number }) => (
+  const keyExtractor = useCallback(
+    (item: Conversation) => `${item.listingId ?? 'none'}|${item.partnerId}`,
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Conversation; index: number }) => (
     <TouchableOpacity
       style={[styles.row, index > 0 ? styles.rowBorder : null]}
       activeOpacity={0.75}
@@ -103,32 +126,50 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
         </View>
       </View>
     </TouchableOpacity>
+    ),
+    [navigation],
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Ionicons name="search-outline" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
+    <Screen>
+      {/* Fixed header block (title + filters) with a scroll hairline pinned to
+          its bottom edge — below the filters, not below the title, so the
+          whole block reads as one surface the list slides under. */}
+      <View style={styles.headerBlock}>
+        <ScreenHeader
+          variant="large"
+          title="Messages"
+          trailing={
+            <HeaderIconButton
+              icon="search-outline"
+              accessibilityLabel="Search messages"
+              color={COLORS.text}
+              size={22}
+              onPress={() => {}}
+            />
+          }
+        />
 
-      {/* Filters */}
-      <View style={styles.filterRow}>
-        {FILTERS.map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterChip, activeFilter === f ? styles.filterChipActive : null]}
-            onPress={() => setActiveFilter(f)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.filterText, activeFilter === f ? styles.filterTextActive : null]}>
-              {f}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {/* Filters — the same chip the Home categories use, so a pill means
+            the same thing and animates the same way on both screens. */}
+        <View style={styles.filterRow}>
+          {FILTERS.map(f => (
+            <CategoryChip
+              key={f}
+              label={f}
+              active={activeFilter === f}
+              onPress={() => {
+                haptics.tap();
+                setActiveFilter(f);
+              }}
+            />
+          ))}
+        </View>
+
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
+        />
       </View>
 
       {/* Conversation list */}
@@ -155,11 +196,13 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           onRetry={() => refetch()}
         />
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={filtered}
           renderItem={renderItem}
-          keyExtractor={item => `${item.listingId ?? 'none'}|${item.partnerId}`}
+          keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             conversations.length > 0 ? (
@@ -192,35 +235,23 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
+  headerBlock: {
+    position: 'relative',
+    zIndex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
-  },
-  searchBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+  scrollHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
   },
   filterRow: {
     flexDirection: 'row',
@@ -228,29 +259,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
-  filterChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: COLORS.background,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-  },
-  filterChipActive: {
-    backgroundColor: COLORS.text,
-    borderColor: COLORS.text,
-  },
-  filterText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  filterTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
-  },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
   row: {
     flexDirection: 'row',

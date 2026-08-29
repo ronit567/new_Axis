@@ -17,6 +17,7 @@ import { navigationRef } from './src/lib/navigation';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NotificationBannerProvider } from './src/context/NotificationBannerContext';
 import { useCurrentProfile } from './src/hooks/useProfile';
+import { useReducedMotion } from './src/hooks/useReducedMotion';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
 import ErrorState from './src/components/ErrorState';
@@ -59,6 +60,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 function RootNavigator() {
   const { isSignedIn, loading } = useAuth();
+  const reducedMotion = useReducedMotion();
   const {
     data: profile,
     isLoading: profileLoading,
@@ -88,9 +90,16 @@ function RootNavigator() {
 
   const needsOnboarding = isSignedIn && profile === null;
 
+  // Full-screen slides are the largest motion in the app, so Reduce Motion
+  // swaps every push for a cross-fade. Screens that already choreograph their
+  // own entrance keep their explicit option below — `none` is nothing to
+  // reduce, and the two bottom-sheet routes fade rather than travel.
+  const pushAnimation = reducedMotion ? 'fade' : 'slide_from_right';
+  const sheetAnimation = reducedMotion ? 'fade' : 'slide_from_bottom';
+
   return (
     <Stack.Navigator
-      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+      screenOptions={{ headerShown: false, animation: pushAnimation }}
     >
       {!isSignedIn ? (
         <Stack.Group>
@@ -122,15 +131,18 @@ function RootNavigator() {
           />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
+          {/* 250ms (vs the platform default) keeps the compose slide snappy —
+              CreateListing's is timed to play right after the circle-expand
+              reveal MainScreen runs from the + button. */}
           <Stack.Screen
             name="CreateListing"
             component={CreateListingScreen}
-            options={{ animation: 'slide_from_bottom' }}
+            options={{ animation: sheetAnimation, animationDuration: 250 }}
           />
           <Stack.Screen
             name="EditListing"
             component={EditListingScreen}
-            options={{ animation: 'slide_from_bottom' }}
+            options={{ animation: sheetAnimation, animationDuration: 250 }}
           />
           <Stack.Screen name="Messages" component={MessagesScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />

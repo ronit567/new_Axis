@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Screen from '../components/layout/Screen';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -18,6 +18,7 @@ import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
@@ -29,6 +30,7 @@ export default function SignInScreen({ navigation }: Props) {
 
   const handleSignIn = async () => {
     if (submitting) return;
+    haptics.impact();
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
@@ -43,7 +45,7 @@ export default function SignInScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen background="surface">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -53,7 +55,7 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
+          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </PressableScale>
 
@@ -96,7 +98,7 @@ export default function SignInScreen({ navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

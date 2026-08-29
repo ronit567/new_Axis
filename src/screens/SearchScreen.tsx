@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  FlatList,
   Modal,
   ScrollView,
   ActivityIndicator,
@@ -87,6 +86,20 @@ export default function SearchScreen({ navigation, route }: Props) {
   const filterBtnWidth = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 34] });
   const filterBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
   const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+
+  // Scroll hairline under the purple header — mirrors HomeScreen so the two
+  // screens behave identically when the (animation: 'none') swap happens. Its
+  // own native-driven value, independent of the layout-driven enterAnim above.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
 
   // Mirror of the entrance, then pop the screen — Home re-expands its
   // greeting on focus, so the whole close reads as one continuous motion.
@@ -188,13 +201,18 @@ export default function SearchScreen({ navigation, route }: Props) {
   // than implying results.length is the exact total match count.
   const resultsCountLabel = hasNextPage ? `${results.length}+` : `${results.length}`;
 
-  const renderItem = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={item}
-      onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
-      onSave={() => toggleSavedMutation.mutate(item)}
-      style={styles.card}
-    />
+  // Stable so the memoized ListingCard cells don't re-render on each keystroke.
+  const keyExtractor = useCallback((item: Listing) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: Listing }) => (
+      <ListingCard
+        item={item}
+        onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
+        onSave={() => toggleSavedMutation.mutate(item)}
+        style={styles.card}
+      />
+    ),
+    [navigation, toggleSavedMutation],
   );
 
   const ListFooter = isFetchingNextPage ? (
@@ -361,6 +379,11 @@ export default function SearchScreen({ navigation, route }: Props) {
             </ScrollView>
           </MaskedView>
         ) : null}
+
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
+        />
       </LinearGradient>
 
       {/* Everything below the header fades up as one block — the "results
@@ -387,16 +410,18 @@ export default function SearchScreen({ navigation, route }: Props) {
           onRetry={() => refetch()}
         />
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={results}
           renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
           numColumns={2}
           columnWrapperStyle={styles.row}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
           windowSize={7}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: insets.bottom + 24 },
@@ -606,12 +631,22 @@ const styles = StyleSheet.create({
   header: {
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
+    borderCurve: 'continuous',
     // Matches HomeScreen's header inset exactly — the two screens swap with
     // animation: 'none', so any offset here shows up as a visible jump. The
     // horizontal inset lives on the rows (greeting/search), not here, so the
     // greeting's own padding isn't doubled up.
     paddingBottom: 18,
     ...SHADOWS.floating,
+  },
+  scrollHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
   },
   searchRow: {
     flexDirection: "row",
@@ -626,14 +661,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.white,
     borderRadius: 24,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     height: 48,
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+    // Match HomeScreen's search bar exactly (SHADOWS.card) so the visually
+    // continuous bar stays seamless across the animation: 'none' swap.
+    ...SHADOWS.card,
   },
   searchInput: {
     flex: 1,
@@ -742,6 +776,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderTopLeftRadius: SIZES.borderRadiusXl,
     borderTopRightRadius: SIZES.borderRadiusXl,
+    borderCurve: 'continuous',
     paddingHorizontal: 24,
     paddingTop: 12,
     maxHeight: "80%",
@@ -788,6 +823,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: SIZES.borderRadiusLg,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     backgroundColor: COLORS.white,
@@ -883,6 +919,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     alignItems: "center",
@@ -904,6 +941,7 @@ const styles = StyleSheet.create({
   showResultsBtn: {
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     height: SIZES.buttonHeight,
     alignItems: "center",
     justifyContent: "center",

@@ -7,11 +7,13 @@ import React, {
   useState,
   type ComponentProps,
 } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import PressableScale from '../components/PressableScale';
-import { COLORS, FONTS, SHADOWS, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SHADOWS } from '../constants/theme';
+import { CURVE, DURATION, SPRING, timing } from '../constants/motion';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -58,8 +60,9 @@ export function NotificationBannerProvider({ children }: { children: React.React
     clearTimer();
     Animated.timing(translateY, {
       toValue: OFFSCREEN,
-      duration: 220,
-      useNativeDriver: true,
+      // Accelerating out: a dismissal should commit quickly rather than
+      // linger over the content it's uncovering.
+      ...timing(DURATION.base, CURVE.exit),
     }).start(({ finished }) => {
       // Only unmount if this animation completed — a new show() interrupts it
       // and will manage its own content.
@@ -76,11 +79,12 @@ export function NotificationBannerProvider({ children }: { children: React.React
   useEffect(() => {
     if (!content) return undefined;
     translateY.setValue(OFFSCREEN);
+    // Drops in on a gentle spring — a large surface travelling a real
+    // distance, so a stiffer spring would look nervous rather than weighty.
     Animated.spring(translateY, {
       toValue: 0,
+      ...SPRING.gentle,
       useNativeDriver: true,
-      bounciness: 7,
-      speed: 13,
     }).start();
     hideTimer.current = setTimeout(hide, VISIBLE_MS);
     return clearTimer;
@@ -99,7 +103,7 @@ export function NotificationBannerProvider({ children }: { children: React.React
             pointerEvents="box-none"
           >
             <PressableScale
-              style={styles.banner}
+              style={styles.bannerShadowWrap}
               scaleTo={0.98}
               onPress={() => {
                 content.onPress?.();
@@ -108,19 +112,27 @@ export function NotificationBannerProvider({ children }: { children: React.React
               accessibilityRole="button"
               accessibilityLabel={`${content.title}${content.body ? `. ${content.body}` : ''}`}
             >
-              <View style={styles.iconCircle}>
-                <Ionicons name={content.icon ?? 'notifications'} size={18} color={COLORS.white} />
-              </View>
-              <View style={styles.textCol}>
-                <Text style={styles.title} numberOfLines={1}>
-                  {content.title}
-                </Text>
-                {content.body ? (
-                  <Text style={styles.body} numberOfLines={2}>
-                    {content.body}
+              <BlurView
+                intensity={70}
+                tint="systemChromeMaterialLight"
+                style={styles.banner}
+                experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+              >
+                <View style={styles.bannerTint} />
+                <View style={styles.iconCircle}>
+                  <Ionicons name={content.icon ?? 'notifications'} size={18} color={COLORS.white} />
+                </View>
+                <View style={styles.textCol}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {content.title}
                   </Text>
-                ) : null}
-              </View>
+                  {content.body ? (
+                    <Text style={styles.body} numberOfLines={2}>
+                      {content.body}
+                    </Text>
+                  ) : null}
+                </View>
+              </BlurView>
             </PressableScale>
           </Animated.View>
         )}
@@ -150,15 +162,26 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     elevation: 1000,
   },
+  bannerShadowWrap: {
+    ...SHADOWS.floating,
+  },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 22,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    ...SHADOWS.floating,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(20, 12, 36, 0.08)',
+  },
+  bannerTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Platform.select({
+      android: 'rgba(255,255,255,0.96)',
+      default: 'rgba(255,255,255,0.55)',
+    }),
   },
   iconCircle: {
     width: 36,

@@ -1,21 +1,22 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
+  Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { ComponentProps } from 'react';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { haptics } from '../lib/haptics';
 import { RootStackParamList, Notification, NotificationType } from '../types';
 import {
@@ -89,6 +90,15 @@ export default function NotificationsScreen({ navigation }: Props) {
   const markAll = useMarkAllNotificationsRead();
   const createTest = useCreateTestNotification();
 
+  // Handed to ScreenHeader, which fades its hairline in as content slides
+  // beneath — the interpolation itself now lives there rather than being
+  // re-derived on every screen that wants the effect.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
+
   // Spinner only for user-initiated pulls — background refetches from realtime
   // invalidation must not replay the pull-to-refresh animation.
   const [refreshing, setRefreshing] = useState(false);
@@ -120,32 +130,25 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          scaleTo={0.9}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.title}>Notifications</Text>
-        <PressableScale
-          onPress={() => {
-            haptics.tap();
-            markAll.mutate();
-          }}
-          scaleTo={0.94}
-        >
-          <Text style={styles.markAll}>Mark all read</Text>
-        </PressableScale>
-      </View>
+    <Screen background="surface">
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        scrollY={scrollY}
+        trailing={
+          <PressableScale
+            onPress={() => {
+              haptics.tap();
+              markAll.mutate();
+            }}
+            scaleTo={0.94}
+            accessibilityRole="button"
+            accessibilityLabel="Mark all notifications read"
+          >
+            <Text style={styles.markAll}>Mark all read</Text>
+          </PressableScale>
+        }
+      />
 
       {isLoading ? (
         <View style={styles.body}>
@@ -183,9 +186,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           onCta={() => navigation.goBack()}
         />
       ) : (
-        <ScrollView
+        <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.body}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -216,7 +221,7 @@ export default function NotificationsScreen({ navigation }: Props) {
               ))}
             </>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       )}
 
       {__DEV__ && (
@@ -237,39 +242,11 @@ export default function NotificationsScreen({ navigation }: Props) {
           </Text>
         </PressableScale>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  title: {
-    flex: 1,
-    fontSize: SIZES.lg,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
   markAll: {
     fontSize: SIZES.sm,
     color: COLORS.primary,
@@ -293,6 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     marginBottom: 4,
     gap: 12,
   },

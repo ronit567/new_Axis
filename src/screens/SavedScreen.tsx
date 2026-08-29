@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import CategoryChip from '../components/CategoryChip';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
@@ -18,6 +19,7 @@ import EmptyState from '../components/EmptyState';
 import ActivitySpinner from '../components/ActivitySpinner';
 import Avatar from '../components/Avatar';
 import PressableScale from '../components/PressableScale';
+import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { useFollowing, useToggleFollow } from '../hooks/useFollows';
 import { formatYearOfStudy } from '../lib/formatYear';
@@ -46,27 +48,33 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   const savedItems = data ?? [];
   const { data: following, isPending: isFollowingPending } = useFollowing();
   const toggleFollow = useToggleFollow();
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+  const pulseAnim = useSkeletonPulse(isLoading);
 
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    if (isLoading) anim.start();
-    else { anim.stop(); pulseAnim.setValue(0.4); }
-    return () => anim.stop();
-  }, [isLoading, pulseAnim]);
+  // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
+  // header stays flush at rest and gains definition as content passes under it.
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerBorderOpacity = scrollY.interpolate({
+    inputRange: [0, 14],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true },
+  );
 
-  const renderItem = ({ item }: { item: Listing }) => (
-    <ListingCard
-      item={item}
-      onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-      onSave={() => toggleSavedMutation.mutate(item)}
-      style={styles.card}
-    />
+  // Stable so the memoized ListingCard cells skip re-rendering on tab switches.
+  const keyExtractor = useCallback((item: { id: string }) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: Listing }) => (
+      <ListingCard
+        item={item}
+        onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+        onSave={() => toggleSavedMutation.mutate(item)}
+        style={styles.card}
+      />
+    ),
+    [navigation, toggleSavedMutation],
   );
 
   const renderProfileRow = ({ item }: { item: SellerProfile }) => (
@@ -114,26 +122,37 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Saved</Text>
-      </View>
+    <Screen>
+      {/* Fixed header block (title + tabs) with a scroll hairline pinned to
+          its bottom edge. */}
+      <View style={styles.headerBlock}>
+        <ScreenHeader variant="large" title="Saved" />
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab ? styles.tabActive : null]}
-            onPress={() => setActiveTab(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab ? styles.tabTextActive : null]}>
-              {tab === 'Items' ? `Items  ${savedItems.length}` : `Saved profiles  ${(following ?? []).length}`}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {/* Tabs — the shared chip, same as Home's categories and Messages'
+            filters. These carry a count in the label, which the chip renders
+            as ordinary text. */}
+        <View style={styles.tabRow}>
+          {TABS.map(tab => (
+            <CategoryChip
+              key={tab}
+              label={
+                tab === 'Items'
+                  ? `Items  ${savedItems.length}`
+                  : `Saved profiles  ${(following ?? []).length}`
+              }
+              active={activeTab === tab}
+              onPress={() => {
+                haptics.tap();
+                setActiveTab(tab);
+              }}
+            />
+          ))}
+        </View>
+
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
+        />
       </View>
 
       {isLoading && activeTab === 'Items' ? (
@@ -151,16 +170,18 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
           onRetry={() => refetch()}
         />
       ) : activeTab === 'Items' ? (
-        <FlatList
+        <Animated.FlatList
           data={savedItems}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           numColumns={2}
           columnWrapperStyle={styles.row}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
           windowSize={7}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
@@ -176,11 +197,13 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
       ) : isFollowingPending ? (
         <ActivitySpinner style={styles.spinner} />
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={following ?? []}
           renderItem={renderProfileRow}
-          keyExtractor={item => item.id}
+          keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.profileListContent}
           ListEmptyComponent={
             <EmptyState
@@ -194,24 +217,23 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceAlt,
+  headerBlock: {
+    position: 'relative',
+    zIndex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: FONTS.extraBold,
-    color: COLORS.text,
+  scrollHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.divider,
+    ...SHADOWS.card,
   },
   tabRow: {
     flexDirection: 'row',
@@ -219,30 +241,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-  },
-  tabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: COLORS.white,
-    fontWeight: '600',
-  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
   row: {
     gap: 12,
@@ -256,6 +257,7 @@ const styles = StyleSheet.create({
   },
   profileListContent: {
     padding: 20,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
     gap: 10,
   },
   profileRow: {
@@ -264,6 +266,7 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadius,
+    borderCurve: 'continuous',
     padding: 12,
     ...SHADOWS.card,
   },

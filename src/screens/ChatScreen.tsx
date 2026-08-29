@@ -11,11 +11,12 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
 import * as Crypto from 'expo-crypto';
 import { COLORS, SIZES, GRADIENTS, FONTS, SHADOWS } from '../constants/theme';
 import { Message, RootStackParamList } from '../types';
@@ -226,66 +227,64 @@ export default function ChatScreen({ navigation, route }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          scaleTo={0.9}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <PressableScale
-          style={styles.headerIdentity}
-          onPress={() => {
-            // partnerProfile is null while loading or when RLS hides the
-            // profile (blocked/deleted) — no profile page to open then.
-            if (!partnerProfile) return;
-            haptics.tap();
-            navigation.navigate('SellerProfile', { seller: partnerProfile });
-          }}
-          scaleTo={0.97}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${partner.name}'s profile`}
-        >
-          <Avatar
-            url={partner.avatarUrl}
-            initials={partner.initials}
-            color={partner.avatarColor}
-            size={36}
-            textStyle={styles.headerAvatarText}
-          />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
-          </View>
-        </PressableScale>
-        {canViewListing && (
+    <Screen background="surface">
+      {/* The header's subject is a person, not a string, so it goes through
+          titleContent — same bar geometry, back button and hairline as every
+          other pushed screen. */}
+      <ScreenHeader
+        onBack={() => navigation.goBack()}
+        bordered
+        titleContent={
           <PressableScale
-            style={styles.viewBtn}
-            onPress={handleViewListing}
-            scaleTo={0.94}
-            accessibilityLabel="View listing"
+            style={styles.headerIdentity}
+            onPress={() => {
+              // partnerProfile is null while loading or when RLS hides the
+              // profile (blocked/deleted) — no profile page to open then.
+              if (!partnerProfile) return;
+              haptics.tap();
+              navigation.navigate('SellerProfile', { seller: partnerProfile });
+            }}
+            scaleTo={0.97}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${partner.name}'s profile`}
           >
-            <Text style={styles.viewBtnText}>View</Text>
+            <Avatar
+              url={partner.avatarUrl}
+              initials={partner.initials}
+              color={partner.avatarColor}
+              size={36}
+              textStyle={styles.headerAvatarText}
+            />
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerName} numberOfLines={1}>{partner.name}</Text>
+            </View>
           </PressableScale>
-        )}
-        <PressableScale
-          style={styles.flagBtn}
-          onPress={() => setReportVisible(true)}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          scaleTo={0.9}
-          accessibilityLabel="Report conversation"
-          accessibilityRole="button"
-        >
-          <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
-        </PressableScale>
-      </View>
+        }
+        trailing={
+          <>
+            {canViewListing && (
+              <PressableScale
+                style={styles.viewBtn}
+                onPress={handleViewListing}
+                scaleTo={0.94}
+                accessibilityLabel="View listing"
+              >
+                <Text style={styles.viewBtnText}>View</Text>
+              </PressableScale>
+            )}
+            <PressableScale
+              style={styles.flagBtn}
+              onPress={() => setReportVisible(true)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              scaleTo={0.9}
+              accessibilityLabel="Report conversation"
+              accessibilityRole="button"
+            >
+              <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
+            </PressableScale>
+          </>
+        }
+      />
 
       {/* Listing preview banner */}
       {listingTitle != null && (
@@ -322,6 +321,7 @@ export default function ChatScreen({ navigation, route }: Props) {
               keyExtractor={item => item.message.id}
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
+              keyboardDismissMode="interactive"
               // The gutter times sit past each row's right edge; Android's
               // default clipping would cut them off mid-swipe.
               removeClippedSubviews={false}
@@ -376,33 +376,11 @@ export default function ChatScreen({ navigation, route }: Props) {
         }
         onBlock={() => blockUser.mutateAsync(partnerId)}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    gap: 10,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerIdentity: {
     flex: 1,
     flexDirection: 'row',
@@ -426,6 +404,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
@@ -453,6 +432,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     backgroundColor: COLORS.primarySoft,
   },
   listingInfo: {
@@ -473,6 +453,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: SIZES.borderRadiusSm,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
   },
@@ -523,6 +504,7 @@ const styles = StyleSheet.create({
   bubble: {
     maxWidth: '75%',
     borderRadius: 18,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -565,6 +547,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.inputBorder,
     borderRadius: 22,
+    borderCurve: 'continuous',
     paddingHorizontal: 14,
     paddingVertical: 8,
     fontSize: SIZES.base,

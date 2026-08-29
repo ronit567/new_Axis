@@ -1,6 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StyleProp,
+  ViewStyle,
+  LayoutChangeEvent,
+} from 'react-native';
+import { COLORS } from '../constants/theme';
+import { SPRING } from '../constants/motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { haptics } from '../lib/haptics';
 
 type Props = {
@@ -10,18 +21,57 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-// Reusable pill-style segmented control. The active segment reads as a raised
-// white pill; screens can pass `style` to tune the container background for
-// their own backdrop (e.g. translucent white on a tinted screen).
+// Reusable pill-style segmented control, styled after UISegmentedControl: a
+// single white thumb slides behind the labels rather than each segment
+// swapping its own background. Screens can pass `style` to tune the
+// container background for their own backdrop (e.g. translucent white on a
+// tinted screen) — it stays after the base style so it can override the
+// track color.
 export default function SegmentedTabs({ tabs, activeIndex, onChange, style }: Props) {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
+
+  const thumbWidth = containerWidth > 0 ? (containerWidth - 4) / tabs.length : 0;
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    setContainerWidth(e.nativeEvent.layout.width);
+  };
+
+  useEffect(() => {
+    if (thumbWidth === 0) return;
+    const toValue = activeIndex * thumbWidth;
+    // The thumb is the only thing that moves, so it carries the whole
+    // interaction — a spring that settles without ringing keeps a fast
+    // back-and-forth between segments from looking nervous. Under Reduce
+    // Motion it jumps straight to the segment instead of travelling.
+    if (reducedMotion) {
+      translateX.setValue(toValue);
+      return;
+    }
+    Animated.spring(translateX, {
+      toValue,
+      ...SPRING.snap,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, thumbWidth, translateX, reducedMotion]);
+
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, style]} onLayout={handleLayout}>
+      {thumbWidth > 0 && (
+        <Animated.View
+          style={[
+            styles.thumb,
+            { width: thumbWidth, transform: [{ translateX }] },
+          ]}
+        />
+      )}
       {tabs.map((tab, index) => {
         const active = index === activeIndex;
         return (
           <TouchableOpacity
             key={tab}
-            style={[styles.segment, active && styles.segmentActive]}
+            style={styles.segment}
             onPress={() => {
               haptics.tap();
               onChange(index);
@@ -41,9 +91,22 @@ export default function SegmentedTabs({ tabs, activeIndex, onChange, style }: Pr
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surfaceAlt,
+    backgroundColor: 'rgba(118,118,128,0.12)',
     borderRadius: 999,
-    padding: 4,
+    padding: 2,
+  },
+  thumb: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    left: 2,
+    borderRadius: 999,
+    backgroundColor: COLORS.white,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   segment: {
     flex: 1,
@@ -52,17 +115,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentActive: {
-    backgroundColor: COLORS.white,
-    ...SHADOWS.card,
-  },
   label: {
-    fontSize: SIZES.sm,
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: COLORS.text,
   },
   labelActive: {
-    fontFamily: FONTS.bold,
     color: COLORS.primary,
   },
 });

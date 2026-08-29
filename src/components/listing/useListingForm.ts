@@ -45,6 +45,11 @@ export function useListingForm(initial?: ListingFormInitial) {
   const [isTrade, setIsTrade] = useState(initial?.isTrade ?? false);
   const [pickup, setPickup] = useState(initial?.pickup ?? '');
   const [photos, setPhotos] = useState<EditablePhoto[]>(initial?.photos ?? []);
+  // Cropping is opt-in from the preview carousel rather than a forced step on
+  // every picked photo — cropIndex tracks which photo (if any) is currently
+  // being cropped, and the modal always receives that photo's untouched
+  // `original`, never the already-cropped `uri`, so re-crops never compound.
+  const [cropIndex, setCropIndex] = useState<number | null>(null);
 
   const handleAddPhoto = () => {
     Alert.alert('Add photo', 'Choose a source', [
@@ -59,8 +64,6 @@ export function useListingForm(initial?: ListingFormInitial) {
           const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images'],
             quality: 0.8,
-            allowsEditing: true,
-            aspect: [1, 1],
           });
           if (!result.canceled) {
             const asset = result.assets[0];
@@ -73,6 +76,7 @@ export function useListingForm(initial?: ListingFormInitial) {
                   width: asset.width,
                   height: asset.height,
                   isLocal: true,
+                  original: { uri: asset.uri, width: asset.width, height: asset.height },
                 },
               ].slice(0, MAX_PHOTOS),
             );
@@ -103,6 +107,7 @@ export function useListingForm(initial?: ListingFormInitial) {
                   width: a.width,
                   height: a.height,
                   isLocal: true,
+                  original: { uri: a.uri, width: a.width, height: a.height },
                 })),
               ].slice(0, MAX_PHOTOS),
             );
@@ -112,6 +117,43 @@ export function useListingForm(initial?: ListingFormInitial) {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  // Opens the crop modal for an already-added photo, sourced from the
+  // carousel's crop button.
+  const handleCropPhoto = (index: number) => {
+    haptics.tap();
+    setCropIndex(index);
+  };
+
+  const handleCropDone = (cropped: {
+    uri: string;
+    mimeType: string;
+    width: number;
+    height: number;
+  }) => {
+    // `original` is left untouched so a later re-crop still starts from the
+    // uncropped source instead of compounding on the last crop's output.
+    // width/height DO move to the cropped values — the upload pass resizes
+    // off them, so leaving the pre-crop dimensions would mis-scale the file.
+    setPhotos(prev =>
+      prev.map((p, i) =>
+        i === cropIndex
+          ? {
+              ...p,
+              uri: cropped.uri,
+              mimeType: cropped.mimeType,
+              width: cropped.width,
+              height: cropped.height,
+            }
+          : p,
+      ),
+    );
+    setCropIndex(null);
+  };
+
+  const handleCropCancel = () => setCropIndex(null);
+
+  const cropPhoto = cropIndex !== null ? photos[cropIndex]?.original ?? null : null;
 
   const handleRemovePhoto = (index: number) => {
     setPhotos(prev => prev.filter((_, i) => i !== index));
@@ -154,7 +196,11 @@ export function useListingForm(initial?: ListingFormInitial) {
     setPickup,
     photos,
     setPhotos,
+    cropPhoto,
     handleAddPhoto,
+    handleCropPhoto,
+    handleCropDone,
+    handleCropCancel,
     handleRemovePhoto,
     handleFree,
     handleTrade,

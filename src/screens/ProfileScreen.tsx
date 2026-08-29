@@ -1,19 +1,23 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   Dimensions,
   Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
+import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
+import Screen from '../components/layout/Screen';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 import Avatar from '../components/Avatar';
 import VerifiedTick from '../components/VerifiedTick';
 import ReviewCard from '../components/ReviewCard';
@@ -21,6 +25,8 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import ReviewSummary from '../components/ReviewSummary';
 import TrustStack from '../components/TrustStack';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import SkeletonLoader from '../components/SkeletonLoader';
 import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
@@ -60,10 +66,14 @@ function ListingThumb({ item }: { item: MyListing }) {
 export default function ProfileScreen({ navigation }: Props) {
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
-  const { data: myListings = [] } = useMyListings();
+  const { data: myListings = [], refetch: refetchListings } = useMyListings();
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
-  const { data: profile } = useCurrentProfile();
+  const {
+    data: profile,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useCurrentProfile();
   // What others wrote about me (0020). Also feeds the trust row's rating
   // segment — profile.rating/reviewCount are the mapper's deferred zeros,
   // never shown.
@@ -78,43 +88,74 @@ export default function ProfileScreen({ navigation }: Props) {
     replyTime: profile?.stats.replyTime ?? '',
   });
 
+  // Spinner only for user-initiated pulls — refresh both the profile and the
+  // own-listings preview together.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchProfile(), refetchListings()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchProfile, refetchListings]);
+
+  // A cold refetch can fail before the cached profile lands — show a retry
+  // instead of a screen of blank fallbacks.
+  if (profileError && !profile) {
+    return (
+      <Screen background="surface">
+        <ErrorState
+          message="Couldn't load your profile. Please try again."
+          onRetry={() => refetchProfile()}
+        />
+      </Screen>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen background="surface">
+      {/* Deliberately title-less: this screen's heading is the avatar and
+          name directly below, and a "Profile" label would only repeat it.
+          Using ScreenHeader anyway keeps the action buttons at the same
+          size, spacing and inset as every other screen's. */}
+      <ScreenHeader
+        trailing={
+          <>
+            <HeaderIconButton
+              icon="share-outline"
+              accessibilityLabel="Share profile"
+              onPress={async () => {
+                if (!profile) return;
+                try {
+                  await Share.share({
+                    message: `${profile.name} is on Axis — check out their listings`,
+                  });
+                } catch {
+                  // Silently ignore — the user cancelling the share sheet isn't an error.
+                }
+              }}
+            />
+            <HeaderIconButton
+              icon="settings-outline"
+              accessibilityLabel="Settings"
+              onPress={() => navigation.navigate('Settings')}
+            />
+          </>
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
-        {/* ── Top bar (share + gear icons) ── */}
-        <View style={styles.topBar}>
-          <PressableScale
-            style={styles.gearBtn}
-            onPress={async () => {
-              if (!profile) return;
-              try {
-                await Share.share({
-                  message: `${profile.name} is on Axis — check out their listings`,
-                });
-              } catch {
-                // Silently ignore — the user cancelling the share sheet isn't an error.
-              }
-            }}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Share profile"
-          >
-            <Ionicons name="share-outline" size={18} color={COLORS.textSecondary} />
-          </PressableScale>
-          <PressableScale
-            style={styles.gearBtn}
-            onPress={() => navigation.navigate('Settings')}
-            hitSlop={{ top: 3, bottom: 3, left: 3, right: 3 }}
-            scaleTo={0.9}
-          >
-            <Ionicons name="settings-outline" size={18} color={COLORS.textSecondary} />
-          </PressableScale>
-        </View>
-
         {/* ── Profile info ── */}
         <View style={styles.profileSection}>
           <Avatar
@@ -129,9 +170,13 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.nameText}>{profile?.name ?? ''}</Text>
             {profile?.verified && <VerifiedTick />}
           </View>
-          <Text style={styles.programText}>
-            {profile ? `${profile.program} · ${formatYearOfStudy(profile.year)}` : ' '}
-          </Text>
+          {profile ? (
+            <Text style={styles.programText}>
+              {`${profile.program} · ${formatYearOfStudy(profile.year)}`}
+            </Text>
+          ) : (
+            <SkeletonLoader width={160} height={13} borderRadius={6} style={styles.programSkeleton} />
+          )}
           {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
 
           <TrustStack
@@ -223,37 +268,15 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
-
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-  },
   scroll: {
-    paddingBottom: 20,
+    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
   },
 
-  /* top bar */
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    paddingHorizontal: H_PAD,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  gearBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   /* profile */
   profileSection: {
     alignItems: 'center',
@@ -281,6 +304,10 @@ const styles = StyleSheet.create({
   programText: {
     fontSize: SIZES.sm,
     color: COLORS.textSecondary,
+  },
+  programSkeleton: {
+    marginTop: 3,
+    borderCurve: 'continuous',
   },
   bioText: {
     fontSize: SIZES.sm,

@@ -15,7 +15,14 @@ import { invalidateAfterListingMutation } from './useListings'
 // list — the same shape PhotoPicker renders either kind from. Remote photos
 // also carry their existing thumb URL (0023) so a reorder/remove keeps
 // image_urls and thumb_urls index-aligned without re-uploading anything.
-export type EditablePhoto = LocalPhoto & { isLocal: boolean; thumbUri?: string }
+export type EditablePhoto = LocalPhoto & {
+  isLocal: boolean
+  thumbUri?: string
+  // Present only on freshly-picked create-flow photos: the uncropped source
+  // the optional crop step always starts from, so re-crops never compound
+  // quality loss. Absent on remote photos prefilled into the edit flow.
+  original?: { uri: string; width: number; height: number }
+}
 
 export type ResolvedListingPhotos = { imageUrls: string[]; thumbUrls: string[] }
 

@@ -20,12 +20,22 @@ type Props = {
   photos: EditablePhoto[];
   onAdd: () => void;
   onRemove: (index: number) => void;
+  // Create flow only: opens the optional crop step for that photo. Omitted
+  // by EditListingScreen since photo changes there are scam-vector/review-
+  // gated and its photos are remote (no `original` to crop from anyway).
+  onCrop?: (index: number) => void;
   maxPhotos: number;
   // EditListingScreen: photos are a scam-vector field — once the listing is
   // engaged, changing them requires review instead of a direct save. Locked
   // hides add/remove and swaps in a "Requires review" affordance.
   locked?: boolean;
   onLockedPress?: () => void;
+  // EditListingScreen is delete-only: adding new photos is reserved for listing
+  // creation (photos are a scam-vector field). False hides every add affordance.
+  allowAdd?: boolean;
+  // Creation requires ≥1 photo, so edits keep ≥1 — the remove button hides once
+  // photos.length hits this floor and a live listing never goes photo-less.
+  minPhotos?: number;
 };
 
 // A large, swipeable gallery — matching the buyer-facing ListingDetailScreen
@@ -35,15 +45,18 @@ export default function PhotoPicker({
   photos,
   onAdd,
   onRemove,
+  onCrop,
   maxPhotos,
   locked,
   onLockedPress,
+  allowAdd = true,
+  minPhotos = 0,
 }: Props) {
   const [activeDot, setActiveDot] = useState(0);
   const [width, setWidth] = useState(0);
   const galleryRef = useRef<ScrollView>(null);
 
-  const canAdd = !locked && photos.length < maxPhotos;
+  const canAdd = allowAdd && !locked && photos.length < maxPhotos;
   // The add tile rides along as an extra carousel page when there's room, so
   // there's exactly one add affordance shared with the empty-state dropzone.
   const pageCount = photos.length + (canAdd ? 1 : 0);
@@ -73,6 +86,22 @@ export default function PhotoPicker({
   }, [pageCount, width]);
 
   if (photos.length === 0) {
+    // With add affordances disabled there's no dropzone to show — surface the
+    // locked hint if relevant, otherwise nothing. (Can't happen with minPhotos
+    // 1, but never render an add dropzone that would violate allowAdd.)
+    if (!allowAdd) {
+      return locked ? (
+        <PressableScale
+          style={styles.paddedRow}
+          onPress={onLockedPress}
+          scaleTo={0.98}
+          accessibilityLabel="Photos require review to change"
+          accessibilityRole="button"
+        >
+          <LockedHint label="Photos require review to change" />
+        </PressableScale>
+      ) : null;
+    }
     return (
       <View>
         <View style={styles.paddedRow}>
@@ -110,11 +139,15 @@ export default function PhotoPicker({
 
   return (
     <View>
-      <View style={[styles.countRow, styles.paddedRow]}>
-        <Text style={styles.countText}>
-          {photos.length} of {maxPhotos}
-        </Text>
-      </View>
+      {allowAdd && (
+        // The "N of M" count communicates remaining add capacity — pointless
+        // when adding is disabled, so hide it in the delete-only edit flow.
+        <View style={[styles.countRow, styles.paddedRow]}>
+          <Text style={styles.countText}>
+            {photos.length} of {maxPhotos}
+          </Text>
+        </View>
+      )}
       <View style={styles.carouselWrap} onLayout={handleLayout}>
         {width > 0 && (
           <ScrollView
@@ -127,7 +160,7 @@ export default function PhotoPicker({
             {photos.map((photo, index) => (
               <View key={photo.uri + index} style={[styles.page, { width }]}>
                 <Image source={{ uri: photo.uri }} style={styles.pageImage} />
-                {!locked && (
+                {!locked && photos.length > minPhotos && (
                   <PressableScale
                     style={styles.removeBtn}
                     onPress={() => onRemove(index)}
@@ -138,6 +171,20 @@ export default function PhotoPicker({
                   >
                     <View style={styles.circleBtn}>
                       <Ionicons name="trash-outline" size={16} color={COLORS.white} />
+                    </View>
+                  </PressableScale>
+                )}
+                {!locked && onCrop && photo.original && (
+                  <PressableScale
+                    style={styles.cropBtn}
+                    onPress={() => onCrop(index)}
+                    scaleTo={0.9}
+                    hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                    accessibilityLabel={`Crop photo ${index + 1}`}
+                    accessibilityRole="button"
+                  >
+                    <View style={styles.circleBtn}>
+                      <Ionicons name="crop-outline" size={16} color={COLORS.white} />
                     </View>
                   </PressableScale>
                 )}
@@ -276,6 +323,11 @@ const styles = StyleSheet.create({
   removeBtn: {
     position: 'absolute',
     top: 10,
+    right: 10,
+  },
+  cropBtn: {
+    position: 'absolute',
+    top: 54,
     right: 10,
   },
   circleBtn: {
