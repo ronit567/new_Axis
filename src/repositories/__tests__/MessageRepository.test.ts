@@ -511,7 +511,7 @@ describe('MessageRepository.subscribeToMessages', () => {
     return channelObj;
   }
 
-  it('registers INSERT and UPDATE postgres_changes listeners on public.messages with no filter', () => {
+  it('registers one filtered binding per event per participant side', () => {
     const channelObj = makeChannelObj();
     mockChannel.mockReturnValue(channelObj);
 
@@ -520,19 +520,64 @@ describe('MessageRepository.subscribeToMessages', () => {
     // Topic carries a per-session suffix so a remount never reuses a
     // still-joined channel (which would throw on the second `.on()`).
     expect(mockChannel).toHaveBeenCalledWith(expect.stringMatching(/^messages-me-\d+$/));
-    expect(channelObj.on).toHaveBeenCalledTimes(2);
 
-    const [insertConfig] = channelObj.on.mock.calls[0];
-    const [updateConfig] = channelObj.on.mock.calls[1];
-    expect(insertConfig).toBe('postgres_changes');
-    expect(updateConfig).toBe('postgres_changes');
+    // Four, not two: postgres_changes filters can't express OR, and a
+    // participant is either the sender or the receiver of a given row.
+    expect(channelObj.on).toHaveBeenCalledTimes(4);
 
-    const insertPayloadConfig = channelObj.on.mock.calls[0][1];
-    const updatePayloadConfig = channelObj.on.mock.calls[1][1];
-    expect(insertPayloadConfig).toEqual({ event: 'INSERT', schema: 'public', table: 'messages' });
-    expect(updatePayloadConfig).toEqual({ event: 'UPDATE', schema: 'public', table: 'messages' });
-    expect(insertPayloadConfig).not.toHaveProperty('filter');
-    expect(updatePayloadConfig).not.toHaveProperty('filter');
+    const configs = channelObj.on.mock.calls.map((call: unknown[]) => call[1]);
+    expect(channelObj.on.mock.calls.every((call: unknown[]) => call[0] === 'postgres_changes')).toBe(
+      true,
+    );
+
+    // Every binding must be filtered. An unfiltered one silently reintroduces
+    // the per-subscriber RLS fan-out this change exists to remove — and would
+    // not fail any other assertion here.
+    expect(configs).toEqual([
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: 'receiver_id=eq.me' },
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: 'sender_id=eq.me' },
+      { event: 'UPDATE', schema: 'public', table: 'messages', filter: 'receiver_id=eq.me' },
+      { event: 'UPDATE', schema: 'public', table: 'messages', filter: 'sender_id=eq.me' },
+    ]);
+  });
+
+  it('delivers a message this user SENT, so a second device sees its own send', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onInsert = jest.fn();
+
+    MessageRepository.subscribeToMessages('me', { onInsert, onUpdate: jest.fn() });
+
+    // Binding 1 is the sender-side INSERT. Without it, a send made on one
+    // device never reaches the same account's other devices.
+    const senderInsert = channelObj.on.mock.calls[1][2];
+    senderInsert({ new: makeMessageRow({ id: 'm-own', sender_id: 'me', receiver_id: 'p1' }) });
+
+    expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({ id: 'm-own', senderId: 'me' }));
+  });
+
+  it('delivers a read receipt on a message this user SENT', () => {
+    const channelObj = makeChannelObj();
+    mockChannel.mockReturnValue(channelObj);
+    const onUpdate = jest.fn();
+
+    MessageRepository.subscribeToMessages('me', { onInsert: jest.fn(), onUpdate });
+
+    // Binding 3 is the sender-side UPDATE — read_at flipping when the partner
+    // opens the thread. Dropping it leaves sent messages unread forever.
+    const senderUpdate = channelObj.on.mock.calls[3][2];
+    senderUpdate({
+      new: makeMessageRow({
+        id: 'm1',
+        sender_id: 'me',
+        receiver_id: 'p1',
+        read_at: '2026-07-04T12:00:00.000Z',
+      }),
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ readAt: '2026-07-04T12:00:00.000Z' }),
+    );
   });
 
   it('maps an INSERT payload to a domain Message and calls onInsert', () => {
@@ -575,7 +620,9 @@ describe('MessageRepository.subscribeToMessages', () => {
 
     MessageRepository.subscribeToMessages('me', { onInsert, onUpdate });
 
-    const updateCallback = channelObj.on.mock.calls[1][2];
+    // calls[2] is the receiver-side UPDATE binding (calls[1] is now a
+    // sender-side INSERT).
+    const updateCallback = channelObj.on.mock.calls[2][2];
     const row = makeMessageRow({
       id: 'm1',
       listing_id: 'lst1',
