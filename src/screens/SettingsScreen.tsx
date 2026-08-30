@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Switch,
   Modal,
   TextInput,
   Alert,
+  Linking,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,49 +71,26 @@ function RowItem({
   );
 }
 
-function ToggleRow({
-  icon,
-  label,
-  value,
-  onValueChange,
-}: {
-  icon: IoniconsName;
-  label: string;
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-}) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <View style={styles.rowIconBox}>
-          <Ionicons name={icon} size={16} color={COLORS.primary} />
-        </View>
-        <Text style={styles.rowLabel}>{label}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={v => {
-          haptics.tap();
-          onValueChange(v);
-        }}
-        trackColor={{ false: COLORS.inputBorder, true: COLORS.primary }}
-        thumbColor={COLORS.white}
-        ios_backgroundColor={COLORS.inputBorder}
-      />
-    </View>
-  );
-}
-
 function RowDivider() {
   return <View style={styles.rowDivider} />;
 }
 
+const SUPPORT_EMAIL = 'support@axis.app';
+
 export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();
   const deleteAccount = useDeleteAccount();
-  const [pushNotif, setPushNotif] = useState(true);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+
+  // mailto: can fail on a device with no configured mail client — fall back to
+  // showing the address so the user can reach us from anywhere.
+  const openSupportEmail = (subject: string) => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Email us', `Reach our team at ${SUPPORT_EMAIL}`);
+    });
+  };
 
   const canDelete = confirmText === 'DELETE' && !deleteAccount.isPending;
 
@@ -162,36 +139,40 @@ export default function SettingsScreen({ navigation }: Props) {
         <Card style={styles.card}>
           <RowItem icon="create-outline" label="Edit profile" onPress={() => navigation.navigate('EditProfile')} />
           <RowDivider />
-          <RowItem icon="key-outline" label="Change password" />
-          <RowDivider />
-          <RowItem icon="card-outline" label="Payment & payouts" />
-        </Card>
-
-        {/* ── PREFERENCES ── */}
-        <SectionLabel title="PREFERENCES" />
-        <Card style={styles.card}>
-          <ToggleRow
-            icon="notifications-outline"
-            label="Push notifications"
-            value={pushNotif}
-            onValueChange={setPushNotif}
+          {/* Reuses the reset-by-email-code flow — both screens are registered
+              in the signed-in group too (App.tsx), and the OTP path works the
+              same whether or not a session exists. */}
+          <RowItem
+            icon="key-outline"
+            label="Change password"
+            onPress={() => navigation.navigate('ForgotPassword')}
           />
-          <RowDivider />
-          <RowItem icon="location-outline" label="Default pickup area" value="UCC" />
         </Card>
 
         {/* ── PRIVACY & SAFETY ── */}
         <SectionLabel title="PRIVACY & SAFETY" />
         <Card style={styles.card}>
-          <RowItem icon="ban-outline" label="Blocked users" />
+          <RowItem
+            icon="ban-outline"
+            label="Blocked users"
+            onPress={() => navigation.navigate('BlockedUsers')}
+          />
         </Card>
 
         {/* ── SUPPORT ── */}
         <SectionLabel title="SUPPORT" />
         <Card style={styles.card}>
-          <RowItem icon="help-circle-outline" label="Help & support" />
+          <RowItem
+            icon="help-circle-outline"
+            label="Help & support"
+            onPress={() => openSupportEmail('Axis help request')}
+          />
           <RowDivider />
-          <RowItem icon="flag-outline" label="Report a problem" />
+          <RowItem
+            icon="flag-outline"
+            label="Report a problem"
+            onPress={() => openSupportEmail('Axis problem report')}
+          />
         </Card>
 
         {/* ── LEGAL ── */}

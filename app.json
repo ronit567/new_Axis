@@ -3,6 +3,7 @@
     "name": "Axis",
     "slug": "axis-app",
     "version": "1.0.0",
+    "scheme": "axis",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,14 +14,19 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.axis.app"
+      "bundleIdentifier": "com.axis.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#5C2D91"
       },
-      "package": "com.axis.app"
+      "package": "com.axis.app",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -72,6 +72,16 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
       // would strand the user signed in with their OLD password.
       await verifyPasswordResetOtp(email, code.join(''));
       await updatePassword(password);
+      // Signed-OUT flow: the verify call above signed the user in, the
+      // navigator already swapped stacks, and this screen is unmounted —
+      // isFocused() is false and the swap itself is the success feedback.
+      // Signed-IN flow (Settings → Change password): no stack swap happens,
+      // so confirm and return to Settings explicitly.
+      if (navigation.isFocused()) {
+        // Pops back to the Settings instance the flow started from.
+        navigation.navigate('Settings');
+        Alert.alert('Password updated', 'Your new password has been set.');
+      }
     } catch (e) {
       // Alert is imperative native UI, so it still shows if the swap above
       // already unmounted this screen.

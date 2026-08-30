@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -35,8 +35,9 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Information we collect</Text>
         <Text style={styles.paragraph}>
-          When you create an account we collect your name and your school-issued
-          .edu email address, which we use to confirm you are a current student.
+          When you create an account we collect your name and your Western-issued
+          @uwo.ca (or @alumni.uwo.ca) email address, which we use to confirm you
+          are part of the Western community.
           As you use Axis we also store the listings you post (titles, prices,
           photos, and descriptions), the messages you send to other students, and
           basic activity such as items you save or view.
@@ -75,8 +76,15 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Contact us</Text>
         <Text style={styles.paragraph}>
-          Questions about your privacy? Reach our team at privacy@axis.app and we
-          will get back to you.
+          Questions about your privacy? Reach our team at{' '}
+          <Text
+            style={styles.emailLink}
+            onPress={() => Linking.openURL('mailto:privacy@axis.app')}
+            accessibilityRole="link"
+          >
+            privacy@axis.app
+          </Text>{' '}
+          and we will get back to you.
         </Text>
       </ScrollView>
     </Screen>
@@ -110,5 +118,10 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     lineHeight: 25,
     color: COLORS.textSecondary,
+  },
+  emailLink: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

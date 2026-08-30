@@ -47,6 +47,7 @@ import EditListingScreen from './src/screens/EditListingScreen';
 import MessagesScreen from './src/screens/MessagesScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import BlockedUsersScreen from './src/screens/BlockedUsersScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/TermsOfServiceScreen';
 import CommunityGuidelinesScreen from './src/screens/CommunityGuidelinesScreen';
@@ -162,6 +163,13 @@ function RootNavigator() {
           <Stack.Screen name="Messages" component={MessagesScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+          {/* Also registered in the signed-out group: Settings' "Change
+              password" reuses the same email-code reset flow while a session
+              exists (ResetPassword handles both cases — see its success
+              branch). */}
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
           <Stack.Screen

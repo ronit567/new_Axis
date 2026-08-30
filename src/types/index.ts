@@ -171,6 +171,16 @@ export type Review = {
 export type ReportTarget = 'listing' | 'user' | 'chat';
 export type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
 
+// One row on the Blocked users screen (migration 0033's my_blocked_users()).
+// Display info only — the id is what unblocking needs.
+export type BlockedUser = {
+  id: string;
+  name: string;
+  initials: string;
+  avatarUrl: string | null;
+  avatarColor: string;
+};
+
 // A pending (or resolved) proposal to change one of the scam-vector fields
 // (title/category/condition/photos) on a listing that already has outside
 // interest — see migration 0021. A null proposed* means "no change proposed
@@ -225,6 +235,7 @@ export type RootStackParamList = {
     draftNonce?: number;
   };
   Notifications: undefined;
+  BlockedUsers: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   CommunityGuidelines: undefined;

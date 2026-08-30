@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -34,8 +34,9 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Eligibility</Text>
         <Text style={styles.paragraph}>
-          Axis is only for current university students. You must sign up with a
-          valid school-issued .edu email address and complete verification. You are
+          Axis is only for members of the Western University community. You must
+          sign up with a valid @uwo.ca or @alumni.uwo.ca email address and
+          complete verification. You are
           responsible for keeping your login credentials secure and for all activity
           on your account.
         </Text>
@@ -75,7 +76,15 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Contact us</Text>
         <Text style={styles.paragraph}>
-          Questions about these terms? Email us at support@axis.app.
+          Questions about these terms? Email us at{' '}
+          <Text
+            style={styles.emailLink}
+            onPress={() => Linking.openURL('mailto:support@axis.app')}
+            accessibilityRole="link"
+          >
+            support@axis.app
+          </Text>
+          .
         </Text>
       </ScrollView>
     </Screen>
@@ -109,5 +118,10 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     lineHeight: 25,
     color: COLORS.textSecondary,
+  },
+  emailLink: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

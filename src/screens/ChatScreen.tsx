@@ -120,11 +120,17 @@ export default function ChatScreen({ navigation, route }: Props) {
     sendMessage.mutate(
       { id: Crypto.randomUUID(), listingId, receiverId: partnerId, body: text },
       {
-        onError: () => {
+        onError: (error) => {
           // Put the failed message back (unless they've already typed more)
           // so it isn't lost with the rolled-back bubble.
           setInputText(current => (current.length > 0 ? current : text));
-          Alert.alert('Message not sent', 'Please try again.');
+          // Surface the server's reason when there is one — the content
+          // filter (0032) raises with copy meant to be shown verbatim, and a
+          // generic "try again" would send the user into a retry loop.
+          Alert.alert(
+            'Message not sent',
+            error instanceof Error && error.message ? error.message : 'Please try again.',
+          );
         },
       },
     );

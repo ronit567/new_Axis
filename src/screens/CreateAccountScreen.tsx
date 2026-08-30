@@ -168,6 +168,13 @@ export default function CreateAccountScreen({ navigation }: Props) {
                 >
                   Terms
                 </Text>
+                ,{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
+                >
+                  Privacy Policy
+                </Text>
                 {' '}and{' '}
                 <Text
                   style={styles.link}
