@@ -3,7 +3,8 @@
 -- Same harness as rls_policies_test.sql / messages_read_receipts_test.sql:
 -- runs inside BEGIN ... ROLLBACK, switches identity via `set local role` +
 -- `request.jwt.claims`, raises on the first failed assertion, prints
--- 'ALL ACCOUNT-DELETION TESTS PASSED' on success. Apply 0010 before running.
+-- 'ALL ACCOUNT-DELETION TESTS PASSED' on success. Apply 0010, 0014 and 0029
+-- before running (0014 creates the buckets the storage fixtures below need).
 --
 -- Two users: DYING (calls delete_own_account() on themself) and SURVIVOR
 -- (an unrelated party who also shares a message thread with DYING). The
@@ -71,6 +72,19 @@ begin
 end;
 $$;
 
+-- Storage objects. These are NOT reachable by any FK from profiles/auth.users,
+-- which is exactly why 0029 has to delete them explicitly — the cascade that
+-- covers every table above stops dead at the bucket. Names follow 0014's
+-- convention, first path segment = owning user id.
+insert into storage.objects (id, bucket_id, name)
+values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'listing-images',
+   '66666666-6666-6666-6666-666666666666/66666666-1111-1111-1111-111111111111/photo.jpg'),
+  ('aaaaaaaa-0000-0000-0000-000000000002', 'avatars',
+   '66666666-6666-6666-6666-666666666666/avatar.png'),
+  ('aaaaaaaa-0000-0000-0000-000000000003', 'listing-images',
+   '77777777-7777-7777-7777-777777777777/77777777-1111-1111-1111-111111111111/photo.jpg');
+
 -- ── Scenario 1: anon has no EXECUTE grant — mirrors is_blocked()'s exclusion
 --    in rls_policies_test.sql. Only `authenticated` should ever reach this.
 set local role anon;
@@ -124,6 +138,19 @@ select pg_temp.assert(
         or blocked_id = '66666666-6666-6666-6666-666666666666'),
   'blocks involving the deleted account (either direction) must be gone');
 
+select pg_temp.assert(
+  not exists (
+    select 1 from storage.objects
+     where bucket_id = 'listing-images'
+       and (storage.foldername(name))[1] = '66666666-6666-6666-6666-666666666666'),
+  'listing images uploaded by the deleted account must be gone (no FK reaches storage)');
+select pg_temp.assert(
+  not exists (
+    select 1 from storage.objects
+     where bucket_id = 'avatars'
+       and (storage.foldername(name))[1] = '66666666-6666-6666-6666-666666666666'),
+  'the deleted account''s avatar must be gone — it stayed publicly fetchable before 0029');
+
 -- ── SURVIVOR's own, unrelated rows must be completely untouched.
 select pg_temp.assert(
   exists (select 1 from auth.users where id = '77777777-7777-7777-7777-777777777777'),
@@ -143,6 +170,13 @@ select pg_temp.assert(
 select pg_temp.assert(
   exists (select 1 from public.notifications where user_id = '77777777-7777-7777-7777-777777777777'),
   'an unrelated user''s notifications must survive');
+
+select pg_temp.assert(
+  exists (
+    select 1 from storage.objects
+     where bucket_id = 'listing-images'
+       and (storage.foldername(name))[1] = '77777777-7777-7777-7777-777777777777'),
+  'an unrelated user''s listing images must survive');
 
 -- ── Scenario 3: calling it again for an id that no longer exists is a no-op,
 --    not an error — the JWT claim alone doesn't require the row to exist.
