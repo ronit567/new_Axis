@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Screen from '../components/layout/Screen';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +19,11 @@ import InputField from '../components/InputField';
 import StepHeader from '../components/StepHeader';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';
+import Avatar from '../components/Avatar';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useUpsertProfile } from '../hooks/useProfile';
+import { LocalPhoto } from '../repositories/StorageRepository';
 import { deriveInitials } from '../repositories/mappers';
 import { haptics } from '../lib/haptics';
 
@@ -53,8 +56,31 @@ export default function SetupProfileScreen(_props: Props) {
   const [year, setYear] = useState<number | string>(2);
   const [aboutYou, setAboutYou] = useState('');
   const [showProgramPicker, setShowProgramPicker] = useState(false);
+  // Previewed immediately, uploaded on Finish (inside useUpsertProfile) — same
+  // deferred-upload shape as EditProfile, so nothing is stored for a user who
+  // abandons onboarding.
+  const [pickedPhoto, setPickedPhoto] = useState<LocalPhoto | null>(null);
 
   const canFinish = name.trim().length > 0 && !upsertProfile.isPending;
+
+  const handlePickPhoto = async () => {
+    haptics.tap();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Photo library access is needed to pick a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setPickedPhoto({ uri: asset.uri, mimeType: asset.mimeType ?? null });
+    }
+  };
 
   // This screen is a mandatory gate — RootNavigator only mounts it when a
   // signed-in user has no `profiles` row yet, so there's nothing to go back
@@ -74,6 +100,7 @@ export default function SetupProfileScreen(_props: Props) {
         // 'Grad' has no numeric year; store null rather than fabricate one.
         year: typeof year === 'number' ? year : null,
         bio: aboutYou.trim(),
+        photo: pickedPhoto,
       });
     } catch (e) {
       Alert.alert(
@@ -106,12 +133,36 @@ export default function SetupProfileScreen(_props: Props) {
           </Text>
 
           <View style={styles.profileRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>{deriveInitials(name) || '?'}</Text>
+            <PressableScale
+              style={styles.avatarWrap}
+              onPress={handlePickPhoto}
+              scaleTo={0.96}
+              accessibilityRole="button"
+              accessibilityLabel="Add a profile photo"
+            >
+              <Avatar
+                url={pickedPhoto?.uri}
+                initials={deriveInitials(name) || '?'}
+                color={COLORS.primary}
+                size={64}
+                textStyle={styles.avatarInitials}
+              />
+              {/* Outside the Avatar so its overflow:hidden circle can't clip it. */}
               <View style={styles.cameraBtn}>
                 <Ionicons name="camera" size={12} color={COLORS.text} />
               </View>
-            </View>
+            </PressableScale>
+            <PressableScale
+              onPress={handlePickPhoto}
+              scaleTo={0.94}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Add a profile photo"
+            >
+              <Text style={styles.addPhoto}>
+                {pickedPhoto ? 'Change photo' : 'Add a photo'}
+              </Text>
+            </PressableScale>
           </View>
 
           <InputField
@@ -176,10 +227,10 @@ export default function SetupProfileScreen(_props: Props) {
           </View>
 
           <View style={styles.descHeader}>
-            <Text style={[styles.sectionLabel, { marginTop: 16, marginBottom: 0 }]}>
+            <Text style={[styles.sectionLabel, styles.sectionLabelInRow]}>
               About you <Text style={styles.optional}>(optional)</Text>
             </Text>
-            <Text style={[styles.charCount, { marginTop: 16 }]}>{aboutYou.length}/{BIO_MAX}</Text>
+            <Text style={styles.charCount}>{aboutYou.length}/{BIO_MAX}</Text>
           </View>
           <TextInput
             style={styles.aboutInput}
@@ -242,19 +293,18 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 28,
   },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
     position: 'relative',
   },
   avatarInitials: {
     color: COLORS.white,
     fontSize: SIZES.lg,
     fontWeight: '700',
+  },
+  addPhoto: {
+    fontSize: SIZES.sm,
+    color: COLORS.primary,
+    fontWeight: '600',
   },
   cameraBtn: {
     position: 'absolute',
@@ -279,10 +329,22 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontWeight: '400',
   },
+  // The row owns the section's spacing rather than each child carrying its
+  // own copy: 16 above to match the gap the other section labels get, and 8
+  // below so "About you" sits the same distance from its input as Program and
+  // Year do. That 8 used to be missing entirely — the label's own marginBottom
+  // has to be zeroed inside the row (see sectionLabelInRow) or alignItems
+  // centers its *margin* box and knocks the text out of line with the counter,
+  // which left the label flush against the input.
   descHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sectionLabelInRow: {
+    marginBottom: 0,
   },
   charCount: {
     fontSize: SIZES.xs,
