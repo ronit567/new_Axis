@@ -205,21 +205,83 @@ export const MessageRepository = {
 
   // Realtime: stream INSERTs (new messages in both directions — including our
   // own sends echoing back from another device) and UPDATEs (read_at flips)
-  // through the mapper. Deliberately no server-side filter: postgres_changes
-  // respects RLS, so exactly the rows this user can select arrive. Returns the
-  // unsubscribe fn.
+  // through the mapper. Returns the unsubscribe fn.
+  //
+  // Four bindings, not two. RLS alone would deliver the right rows with no
+  // filter at all, but an unfiltered binding makes Realtime evaluate every
+  // messages change against EVERY connected subscriber's RLS before deciding
+  // who gets it — work that scales with (subscribers x message rate) on one
+  // service. Filtering server-side eliminates non-participants before that
+  // check, so a message costs two RLS evaluations rather than N.
+  //
+  // postgres_changes filters cannot express OR, and a participant is either
+  // the sender or the receiver, so each event needs one binding per side.
+  //
+  // The two sides cannot both match the same row: migration 0025 adds
+  // `check (sender_id <> receiver_id)`, so no message is ever from and to the
+  // same person and no handler fires twice for one row. (onInsert dedups by id
+  // regardless — see useMessages — but the constraint is why that safety net
+  // is never load-bearing here.)
+  //
+  // NOTE ON THE FAILURE MODE: a wrong filter here does not error or duplicate,
+  // it silently drops messages for whichever case it fails to match. Verify
+  // against a real second device — both directions, plus read receipts for the
+  // UPDATE bindings — not just a green test run.
   subscribeToMessages(userId: string, handlers: MessageEventHandlers): () => void {
+    const onInsert = (payload: { new: unknown }) =>
+      handlers.onInsert(toMessage(payload.new as MessageRow))
+    const onUpdate = (payload: { new: unknown }) =>
+      handlers.onUpdate(toMessage(payload.new as MessageRow))
+
     const channel = supabase
       .channel(`messages-${userId}-${channelSeq++}`)
+      // Messages sent TO this user.
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => handlers.onInsert(toMessage(payload.new as MessageRow)),
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        onInsert,
       )
+      // Messages sent BY this user — the echo that keeps a second device's
+      // thread in sync with a send made on the first.
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => handlers.onUpdate(toMessage(payload.new as MessageRow)),
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${userId}`,
+        },
+        onInsert,
+      )
+      // read_at flipping on a message this user received (they opened the
+      // thread on another device).
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        onUpdate,
+      )
+      // read_at flipping on a message this user SENT — the partner read it.
+      // This is the binding that drives read receipts; dropping it would leave
+      // sent messages showing as unread forever.
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${userId}`,
+        },
+        onUpdate,
       )
       .subscribe()
     return () => {
