@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -67,7 +67,15 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
         </Text>
         <Text style={styles.paragraph}>
           Our team reviews every report and responds within 24 hours. For anything
-          urgent, or if you'd rather reach us directly, email support@axis.app.
+          urgent, or if you'd rather reach us directly, email{' '}
+          <Text
+            style={styles.emailLink}
+            onPress={() => Linking.openURL('mailto:support@axis.app')}
+            accessibilityRole="link"
+          >
+            support@axis.app
+          </Text>
+          .
         </Text>
       </ScrollView>
     </Screen>
@@ -96,5 +104,10 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     lineHeight: 25,
     color: COLORS.textSecondary,
+  },
+  emailLink: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

@@ -219,8 +219,8 @@ end;
 $$;
 reset role;
 
--- ── Scenario 5: anonymous visitor sees active listings only, no block filter,
---    no sold. Expected visible = {aaaa, cccc} = 2; private tables = 0.
+-- ── Scenario 5: anonymous visitors are locked out entirely (0034) — every
+--    table read below fails at the grant, before RLS is even consulted.
 set local role anon;
 select set_config('request.jwt.claims', '', true);
 -- anon has no grant at all (0005) on public.messages or public.saved_listings:
@@ -241,21 +241,19 @@ exception
   when insufficient_privilege then null; -- expected: no grant for anon
 end;
 $$;
--- anon has no EXECUTE grant on is_blocked() (0002): it's SECURITY DEFINER and
--- PostgREST exposes any EXECUTE-granted function as an RPC, so granting it
--- to anon would let an unauthenticated caller probe block relationships
--- directly, bypassing RLS on the blocks table. That check happens at parse
--- time, before the listings/profiles policies' `case when auth.uid() is
--- null` branch can short-circuit at runtime — so any anon SELECT against
--- listings or profiles (whose policy expressions reference is_blocked())
--- hits the same hard denial as a direct RPC call, not an RLS-empty result.
+-- 0034 revoked anon's SELECT grant on listings and profiles outright (the app
+-- never shipped signed-out browsing, and the bundled anon key made the old
+-- anon-readable policies a directory-enumeration hole). Expect the same hard
+-- denial as the private tables above — a grant failure, not an RLS-empty
+-- result. (Before 0034 this scenario already hard-failed, but only as a side
+-- effect of anon lacking EXECUTE on is_blocked(); now it is stated intent.)
 do $$
 begin
   perform count(*) from public.listings;
   raise exception 'RLS TEST FAILED: anon was able to select from listings';
 exception
   when insufficient_privilege then
-    null; -- expected: policy expression references is_blocked(), no EXECUTE grant for anon
+    null; -- expected: SELECT grant revoked for anon (0034)
 end;
 $$;
 do $$
@@ -264,7 +262,7 @@ begin
   raise exception 'RLS TEST FAILED: anon was able to select from profiles';
 exception
   when insufficient_privilege then
-    null; -- expected: policy expression references is_blocked(), no EXECUTE grant for anon
+    null; -- expected: SELECT grant revoked for anon (0034)
 end;
 $$;
 do $$

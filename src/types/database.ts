@@ -603,6 +603,18 @@ export type Database = {
         Args: { p_edit_id: string }
         Returns: undefined
       }
+      // MANUAL ADDITION (pending regen): 0033's Blocked-users list RPC.
+      my_blocked_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          blocked_id: string
+          name: string
+          initials: string | null
+          avatar_url: string | null
+          avatar_color: string | null
+          blocked_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -629,5 +641,7 @@ export type ReportRow = DefaultSchema['Tables']['reports']['Row']
 export type FollowRow = DefaultSchema['Tables']['follows']['Row']
 export type ReviewRow = DefaultSchema['Tables']['reviews']['Row']
 export type ListingEditRequestRow = DefaultSchema['Tables']['listing_edit_requests']['Row']
+// One row from my_blocked_users() (0033) — block + joined profile display info.
+export type BlockedUserRow = DefaultSchema['Functions']['my_blocked_users']['Returns'][number]
 
 export type ListingStatus = 'active' | 'sold'

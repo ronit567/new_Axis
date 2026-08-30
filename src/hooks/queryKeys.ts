@@ -18,6 +18,7 @@ export const queryKeys = {
   messages: (partnerId: string) => ['messages', partnerId] as const,
   hasChattedWith: (userId: string, partnerId: string) =>
     ['hasChattedWith', userId, partnerId] as const,
+  blockedUsers: (userId: string) => ['blockedUsers', userId] as const,
   following: (userId: string) => ['following', userId] as const,
   isFollowing: (userId: string, sellerId: string) =>
     ['isFollowing', userId, sellerId] as const,

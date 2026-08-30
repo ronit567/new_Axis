@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  Dimensions,
+  useWindowDimensions,
   Share,
 } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
@@ -41,16 +41,21 @@ type Props = {
   navigation: NavigationProp<RootStackParamList>;
 };
 
-const { width } = Dimensions.get('window');
 const H_PAD = 20;
 const CARD_GAP = 8;
-const THUMB_WIDTH = (width - H_PAD * 2 - CARD_GAP * 2) / 3;
-const THUMB_HEIGHT = Math.round(THUMB_WIDTH * 0.95);
 
-function ListingThumb({ item }: { item: MyListing }) {
+// Thumb sizing follows the live window width (not a module-scope
+// Dimensions.get snapshot) so the grid re-lays-out on rotation and on iPad
+// compatibility-mode resizes — App Review exercises iPhone apps on iPad.
+function thumbSize(windowWidth: number) {
+  const width = (windowWidth - H_PAD * 2 - CARD_GAP * 2) / 3;
+  return { width, height: Math.round(width * 0.95) };
+}
+
+function ListingThumb({ item, size }: { item: MyListing; size: { width: number; height: number } }) {
   const isSold = item.status === 'sold';
   return (
-    <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
+    <View style={[styles.thumb, size, { backgroundColor: item.imageColor }]}>
       {item.thumbUrls[0] ? (
         <RemoteImage uri={item.thumbUrls[0]} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : null}
@@ -64,6 +69,8 @@ function ListingThumb({ item }: { item: MyListing }) {
 }
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { width: windowWidth } = useWindowDimensions();
+  const thumb = thumbSize(windowWidth);
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [], refetch: refetchListings } = useMyListings();
@@ -219,11 +226,11 @@ export default function ProfileScreen({ navigation }: Props) {
                 {myListings.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.listingItem}
+                    style={{ width: thumb.width }}
                     onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                     activeOpacity={0.85}
                   >
-                    <ListingThumb item={item} />
+                    <ListingThumb item={item} size={thumb} />
                     <Text
                       style={[
                         styles.priceText,
@@ -368,12 +375,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: CARD_GAP,
   },
-  listingItem: {
-    width: THUMB_WIDTH,
-  },
+  // width/height arrive inline from thumbSize() (live window width).
   thumb: {
-    width: THUMB_WIDTH,
-    height: THUMB_HEIGHT,
     borderRadius: SIZES.borderRadiusSm,
     overflow: 'hidden',
     borderWidth: 1,

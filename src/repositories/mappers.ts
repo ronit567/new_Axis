@@ -6,6 +6,7 @@
 // Keep all mapping logic here so no screen reinvents it.
 
 import type {
+  BlockedUser,
   Contact,
   Conversation,
   Listing,
@@ -19,6 +20,7 @@ import type {
   SellerProfile,
 } from '../types';
 import type {
+  BlockedUserRow,
   ListingEditRequestRow,
   ListingRow,
   MessageRow,
@@ -248,6 +250,18 @@ export function sellerToContact(seller: Seller): Contact {
     initials: deriveInitials(seller.name),
     avatarColor: pickAvatarColor(seller.id),
     avatarUrl: seller.avatarUrl,
+  };
+}
+
+// Blocked-users screen rows (0033). Same initials/color fallbacks as
+// toContact, keyed by the blocked user's id so colors match everywhere else.
+export function toBlockedUser(row: BlockedUserRow): BlockedUser {
+  return {
+    id: row.blocked_id,
+    name: row.name,
+    initials: row.initials ?? deriveInitials(row.name),
+    avatarColor: row.avatar_color ?? pickAvatarColor(row.blocked_id),
+    avatarUrl: row.avatar_url,
   };
 }
 
