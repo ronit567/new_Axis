@@ -17,7 +17,6 @@ import Avatar from '../components/Avatar';
 import CategoryChip from '../components/CategoryChip';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
-import HeaderIconButton from '../components/layout/HeaderIconButton';
 import { haptics } from '../lib/haptics';
 import { useConversations } from '../hooks/useMessages';
 import { Conversation, RootStackParamList } from '../types';
@@ -136,19 +135,10 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           its bottom edge — below the filters, not below the title, so the
           whole block reads as one surface the list slides under. */}
       <View style={styles.headerBlock}>
-        <ScreenHeader
-          variant="large"
-          title="Messages"
-          trailing={
-            <HeaderIconButton
-              icon="search-outline"
-              accessibilityLabel="Search messages"
-              color={COLORS.text}
-              size={22}
-              onPress={() => {}}
-            />
-          }
-        />
+        {/* No `trailing` action: the search icon here was wired to a no-op,
+            so it looked tappable and did nothing. Restore it alongside real
+            conversation search rather than shipping a dead control. */}
+        <ScreenHeader variant="large" title="Messages" />
 
         {/* Filters — the same chip the Home categories use, so a pill means
             the same thing and animates the same way on both screens. */}

@@ -19,6 +19,7 @@ import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { isWesternEmail } from '../lib/email';
+import { isPasswordLongEnough, PASSWORD_LENGTH_HINT } from '../lib/password';
 import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
@@ -37,7 +38,7 @@ export default function CreateAccountScreen({ navigation }: Props) {
   const canContinue =
     fullName.trim() &&
     email.trim() &&
-    password.trim() &&
+    isPasswordLongEnough(password) &&
     confirmPassword.trim() &&
     passwordsMatch &&
     agreed &&
@@ -106,8 +107,8 @@ export default function CreateAccountScreen({ navigation }: Props) {
               hint={
                 email.length > 4
                   ? isWesternEmail(email)
-                    ? 'Only @uwo.ca emails can join Axis.'
-                    : 'Please use a @uwo.ca email address.'
+                    ? 'Western email accepted.'
+                    : 'Use your @uwo.ca or @alumni.uwo.ca email.'
                   : undefined
               }
               hintType={email.length > 4 ? (isWesternEmail(email) ? 'success' : 'error') : 'info'}
@@ -118,6 +119,12 @@ export default function CreateAccountScreen({ navigation }: Props) {
               onChangeText={setPassword}
               placeholder="Create a password"
               secureTextEntry
+              hint={
+                password.length > 0 && !isPasswordLongEnough(password)
+                  ? PASSWORD_LENGTH_HINT
+                  : undefined
+              }
+              hintType="error"
             />
             <InputField
               label="Confirm password"
@@ -137,21 +144,39 @@ export default function CreateAccountScreen({ navigation }: Props) {
               }
             />
 
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setAgreed(!agreed)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, agreed ? styles.checkboxChecked : null]}>
-                {agreed && <Ionicons name="checkmark" size={13} color={COLORS.white} />}
-              </View>
-              <Text style={styles.checkboxLabel}>
+            <View style={styles.checkboxRow}>
+              <TouchableOpacity
+                style={styles.checkboxHit}
+                onPress={() => setAgreed(!agreed)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.checkbox, agreed ? styles.checkboxChecked : null]}>
+                  {agreed && (
+                    <Ionicons name="checkmark" size={13} color={COLORS.white} />
+                  )}
+                </View>
+              </TouchableOpacity>
+              {/* The label sits outside the checkbox's Touchable on purpose: a
+                  nested <Text onPress> overrides its parent *Text* handler, but
+                  not a wrapping TouchableOpacity — so leaving it inside would
+                  have toggled the checkbox while opening the document. */}
+              <Text style={styles.checkboxLabel} onPress={() => setAgreed(!agreed)}>
                 I agree to the{' '}
-                <Text style={styles.link}>Terms</Text>
+                <Text
+                  style={styles.link}
+                  onPress={() => navigation.navigate('TermsOfService')}
+                >
+                  Terms
+                </Text>
                 {' '}and{' '}
-                <Text style={styles.link}>Community Guidelines</Text>
+                <Text
+                  style={styles.link}
+                  onPress={() => navigation.navigate('CommunityGuidelines')}
+                >
+                  Community Guidelines
+                </Text>
               </Text>
-            </TouchableOpacity>
+            </View>
 
             <PrimaryButton
               title="Continue"
@@ -213,6 +238,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 24,
     gap: 10,
+  },
+  checkboxHit: {
+    paddingRight: 2,
   },
   checkbox: {
     width: 20,

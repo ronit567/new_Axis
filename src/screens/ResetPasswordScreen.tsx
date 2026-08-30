@@ -20,6 +20,7 @@ import PressableScale from '../components/PressableScale';
 import CodeInput, { emptyCode, isCodeFilled } from '../components/CodeInput';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { isPasswordLongEnough, PASSWORD_LENGTH_HINT } from '../lib/password';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 
@@ -48,8 +49,16 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
   }, [countdown]);
 
   const passwordsMatch = password === confirmPassword;
+  // Length is gated here, not just server-side, because the two calls in
+  // handleReset are not equally reversible: redeeming the code SIGNS THE USER
+  // IN and burns the code. A password the server then rejects for being too
+  // short would leave them inside the app on their OLD password, with a spent
+  // code and no way back to this screen.
   const canSubmit =
-    isCodeFilled(code) && !!password.trim() && !!confirmPassword.trim() && passwordsMatch;
+    isCodeFilled(code) &&
+    isPasswordLongEnough(password) &&
+    !!confirmPassword.trim() &&
+    passwordsMatch;
 
   const handleReset = async () => {
     if (!canSubmit || submitting) return;
@@ -148,6 +157,12 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
               onChangeText={setPassword}
               placeholder="Create a new password"
               secureTextEntry
+              hint={
+                password.length > 0 && !isPasswordLongEnough(password)
+                  ? PASSWORD_LENGTH_HINT
+                  : undefined
+              }
+              hintType="error"
             />
             <InputField
               label="Confirm new password"

@@ -111,6 +111,17 @@ function RootNavigator() {
           <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          {/* Also registered in the signed-in group below. CreateAccount asks
+              users to agree to these before an account exists, so they have to
+              be reachable from here too — consenting to a document you cannot
+              open isn't consent, and App Review checks for it. Duplicate names
+              across groups are fine: only one group is ever mounted. */}
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+          <Stack.Screen
+            name="CommunityGuidelines"
+            component={CommunityGuidelinesScreen}
+          />
         </Stack.Group>
       ) : needsOnboarding ? (
         <Stack.Group>

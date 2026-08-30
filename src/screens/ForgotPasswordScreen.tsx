@@ -83,7 +83,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
               keyboardType="email-address"
               hint={
                 email.length > 4 && !isWesternEmail(email)
-                  ? 'Please use a @uwo.ca email address.'
+                  ? 'Use your @uwo.ca or @alumni.uwo.ca email.'
                   : undefined
               }
               hintType={email.length > 4 && !isWesternEmail(email) ? 'error' : 'info'}
