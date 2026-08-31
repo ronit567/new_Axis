@@ -171,6 +171,10 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
         />
       ) : activeTab === 'Items' ? (
         <Animated.FlatList
+          // Distinct keys per tab: both lists sit at the same position in this
+          // conditional, so without them React reuses one instance and flipping
+          // tabs changes numColumns on a mounted list — an invariant violation.
+          key="items"
           data={savedItems}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -198,6 +202,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
         <ActivitySpinner style={styles.spinner} />
       ) : (
         <Animated.FlatList
+          key="profiles"
           data={following ?? []}
           renderItem={renderProfileRow}
           keyExtractor={keyExtractor}
