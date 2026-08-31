@@ -25,7 +25,7 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: July 1, 2026</Text>
+        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
 
         <Text style={styles.intro}>
           Axis is a marketplace built for verified university students. This policy
@@ -54,9 +54,16 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>How we share information</Text>
         <Text style={styles.paragraph}>
           Your name and active listings are visible to other verified students so
-          they can buy from you. We do not sell your personal information. We only
-          share data with service providers that help us run Axis, or when required
-          by law to protect the safety of our community.
+          they can buy from you. We do not sell your personal information, and we do
+          not use it for advertising or tracking.
+        </Text>
+        <Text style={styles.paragraph}>
+          Two service providers process data on our behalf, and both are contractually
+          required to protect it: Supabase hosts our database, file storage, and
+          sign-in, and Sentry receives crash reports when the app fails. Crash reports
+          contain the technical details of the failure and your device model — never
+          your name, email, messages, or listings. We share data otherwise only when
+          required by law or to protect the safety of our community.
         </Text>
 
         <Text style={styles.sectionTitle}>Data retention</Text>
@@ -70,8 +77,9 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>Your choices</Text>
         <Text style={styles.paragraph}>
           You can edit or delete your listings at any time, update your profile
-          details, and request deletion of your account. You may also control push
-          notifications from the Settings screen.
+          details, and block anyone you no longer want to hear from. You can delete
+          your account from the Settings screen, which permanently removes your
+          profile, listings, photos, and messages.
         </Text>
 
         <Text style={styles.sectionTitle}>Contact us</Text>
@@ -79,10 +87,10 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
           Questions about your privacy? Reach our team at{' '}
           <Text
             style={styles.emailLink}
-            onPress={() => Linking.openURL('mailto:privacy@axis.app')}
+            onPress={() => Linking.openURL('mailto:axis.app@outlook.com')}
             accessibilityRole="link"
           >
-            privacy@axis.app
+            axis.app@outlook.com
           </Text>{' '}
           and we will get back to you.
         </Text>

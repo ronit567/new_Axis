@@ -29,6 +29,10 @@ android/
 # Cloud DB dumps (contain real auth hashes/tokens — never commit)
 cloud_*.sql
 
+# Store submission credentials (referenced by eas.json)
+google-play-service-account.json
+*-service-account.json
+
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*

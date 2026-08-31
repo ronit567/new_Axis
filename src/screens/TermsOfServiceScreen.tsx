@@ -25,7 +25,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: July 1, 2026</Text>
+        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
 
         <Text style={styles.intro}>
           Welcome to Axis. By creating an account or using the app you agree to
@@ -47,6 +47,17 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           impersonate others, spam, or attempt to access accounts that are not
           yours. You may not use the app for any unlawful purpose or in a way that
           disrupts the service for other students.
+        </Text>
+
+        <Text style={styles.sectionTitle}>Objectionable content</Text>
+        <Text style={styles.paragraph}>
+          There is no tolerance for objectionable content or abusive behaviour on
+          Axis. You may not post or send content that is harassing, hateful,
+          threatening, sexually explicit, discriminatory, or otherwise objectionable,
+          in any listing, photo, message, review, or profile. Report anything that
+          breaks this rule and our team will review it within 24 hours. Content that
+          violates these terms or our Community Guidelines is removed, and the
+          accounts responsible for it are suspended or permanently banned from Axis.
         </Text>
 
         <Text style={styles.sectionTitle}>Listings and transactions</Text>
@@ -79,10 +90,10 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           Questions about these terms? Email us at{' '}
           <Text
             style={styles.emailLink}
-            onPress={() => Linking.openURL('mailto:support@axis.app')}
+            onPress={() => Linking.openURL('mailto:axis.app@outlook.com')}
             accessibilityRole="link"
           >
-            support@axis.app
+            axis.app@outlook.com
           </Text>
           .
         </Text>

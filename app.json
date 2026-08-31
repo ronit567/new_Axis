@@ -40,7 +40,8 @@
           "cameraPermission": "Axis needs access to your camera so you can take photos for your listings."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@sentry/react-native"
     ]
   }
 }

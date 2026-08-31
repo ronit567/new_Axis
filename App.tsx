@@ -21,8 +21,13 @@ import { useReducedMotion } from './src/hooks/useReducedMotion';
 import QueryProvider from './src/providers/QueryProvider';
 import ActivitySpinner from './src/components/ActivitySpinner';
 import ErrorState from './src/components/ErrorState';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { initCrashReporting } from './src/lib/sentry';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Before anything renders, so a throw during the first mount is still reported.
+initCrashReporting();
 
 // ── Signed-out: auth & onboarding ──
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -202,16 +207,23 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <QueryProvider>
-        <SafeAreaProvider>
-          <NotificationBannerProvider>
-            <NavigationContainer ref={navigationRef}>
-              <RootNavigator />
-            </NavigationContainer>
-          </NotificationBannerProvider>
-        </SafeAreaProvider>
-      </QueryProvider>
-    </AuthProvider>
+    // Outermost, above the providers: a throw inside AuthProvider or
+    // QueryProvider is exactly the kind that white-screens the app, and a
+    // boundary nested under them would go down with the tree it was meant to
+    // catch. SafeAreaProvider is the one thing the fallback needs, so the
+    // boundary's own SafeAreaView uses the platform inset directly.
+    <ErrorBoundary>
+      <AuthProvider>
+        <QueryProvider>
+          <SafeAreaProvider>
+            <NotificationBannerProvider>
+              <NavigationContainer ref={navigationRef}>
+                <RootNavigator />
+              </NavigationContainer>
+            </NotificationBannerProvider>
+          </SafeAreaProvider>
+        </QueryProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
