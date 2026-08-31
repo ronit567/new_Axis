@@ -1,0 +1,27 @@
+-- Axis — 0037: remove the dev-only test-notification RPC from production.
+--
+-- 0017 added create_test_notification() to drive the "Send test notification"
+-- button on NotificationsScreen. The button is __DEV__-gated so it never
+-- renders in a release build — but the gate is client-side and the function is
+-- not: PRODUCTION_AUDIT.md confirmed it live in prod, granted to authenticated,
+-- and reachable over PostgREST by anyone holding the anon key (which is inlined
+-- in the JS bundle by design).
+--
+-- Two problems with leaving it. It lets any signed-in student inject arbitrary
+-- notification rows for themselves, which is dev tooling exposed as product
+-- surface. And under Guideline 2.3.1 an RPC that exists in the shipped API but
+-- appears nowhere in the app is precisely a "hidden or undocumented feature" —
+-- functionality App Review cannot see and did not approve.
+--
+-- Dropping the function rather than revoking EXECUTE: a revoke leaves the thing
+-- present and one dashboard mis-click from being callable again. The dev button
+-- is not worth that, and 0013's real triggers generate notifications anyway.
+--
+-- Client-side follow-up (already safe, noted for whoever reads this next):
+-- NotificationRepository.createTest() and useCreateTestNotification() still
+-- exist and will now fail with "function does not exist" if called. That path
+-- is unreachable in a release build, so this migration does not break the app —
+-- but the dev button stops working locally unless 0017 is re-applied to the
+-- local stack, which is the intended trade.
+
+drop function if exists public.create_test_notification();

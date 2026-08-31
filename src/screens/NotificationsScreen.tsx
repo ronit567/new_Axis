@@ -23,7 +23,6 @@ import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
-  useCreateTestNotification,
 } from '../hooks/useNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
@@ -88,7 +87,6 @@ export default function NotificationsScreen({ navigation }: Props) {
   const { data = [], isLoading, isError, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
-  const createTest = useCreateTestNotification();
 
   // Handed to ScreenHeader, which fades its hairline in as content slides
   // beneath — the interpolation itself now lives there rather than being
@@ -223,25 +221,6 @@ export default function NotificationsScreen({ navigation }: Props) {
           )}
         </Animated.ScrollView>
       )}
-
-      {__DEV__ && (
-        <PressableScale
-          style={styles.devTestBtn}
-          onPress={() => {
-            haptics.tap();
-            createTest.mutate();
-          }}
-          disabled={createTest.isPending}
-          scaleTo={0.96}
-          accessibilityRole="button"
-          accessibilityLabel="Send test notification"
-        >
-          <Ionicons name="flask-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.devTestText}>
-            {createTest.isPending ? 'Sending…' : 'Send test notification'}
-          </Text>
-        </PressableScale>
-      )}
     </Screen>
   );
 }
@@ -313,25 +292,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.primary,
     flexShrink: 0,
-  },
-  devTestBtn: {
-    position: 'absolute',
-    bottom: 24,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5,
-    borderColor: COLORS.inputBorder,
-    ...SHADOWS.card,
-  },
-  devTestText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
 });

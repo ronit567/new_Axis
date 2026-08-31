@@ -77,7 +77,8 @@ for pair in \
   "0033:blocked users list (Guideline 1.2 — blocking)" \
   "0034:authenticated browse (Guideline 5.1 — profile exposure)" \
   "0035:App Review demo account (Guideline 2.1 — reviewer sign-in)" \
-  "0036:rate limits (Guideline 1.2 — report queue integrity)"
+  "0036:rate limits (Guideline 1.2 — report queue integrity)" \
+  "0037:drop dev test RPC (Guideline 2.3.1 — no hidden features)"
 do
   NUM=${pair%%:*}
   WHY=${pair#*:}
@@ -103,7 +104,7 @@ echo "  [ ] Leaked-password protection is ON; minimum length >= 8."
 echo "  [ ] The App Review demo user EXISTS in Authentication -> Users with"
 echo "      'Auto Confirm User' ticked. 0035 only whitelists the address; it"
 echo "      does not create the account."
-echo "  [ ] create_test_notification() from 0017 is DROPPED in prod."
+echo "  [ ] (0037 now drops create_test_notification automatically — verify it applied.)"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
