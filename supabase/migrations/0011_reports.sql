@@ -24,7 +24,7 @@ create table if not exists public.reports (
   reason             text not null check (reason in ('spam', 'prohibited_item', 'harassment', 'other')),
   -- Moderation queue state. No client policy below ever updates this — status
   -- moves forward via the Supabase dashboard / service_role (reports are
-  -- reviewed at support@axis.app, per TermsOfServiceScreen's existing contact),
+  -- reviewed at axis.app@outlook.com, per TermsOfServiceScreen's existing contact),
   -- which bypasses RLS entirely. There is no in-app moderation UI yet.
   status             text not null default 'open' check (status in ('open', 'reviewing', 'resolved', 'dismissed')),
   created_at         timestamptz not null default now(),

@@ -75,7 +75,7 @@ function RowDivider() {
   return <View style={styles.rowDivider} />;
 }
 
-const SUPPORT_EMAIL = 'support@axis.app';
+const SUPPORT_EMAIL = 'axis.app@outlook.com';
 
 export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();

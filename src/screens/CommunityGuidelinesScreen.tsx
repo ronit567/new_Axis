@@ -70,10 +70,10 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           urgent, or if you'd rather reach us directly, email{' '}
           <Text
             style={styles.emailLink}
-            onPress={() => Linking.openURL('mailto:support@axis.app')}
+            onPress={() => Linking.openURL('mailto:axis.app@outlook.com')}
             accessibilityRole="link"
           >
-            support@axis.app
+            axis.app@outlook.com
           </Text>
           .
         </Text>
