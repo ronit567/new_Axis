@@ -43,9 +43,6 @@
 // hand-added alongside migration 0013 (AX-601/602 notification generation).
 // Drop this note once regenerated.
 //
-// MANUAL ADDITION (pending regen): the `create_test_notification` function was
-// hand-added alongside migration 0017 (dev test-notification RPC). Same deal.
-//
 // MANUAL ADDITION (pending regen): the `follows` table + FollowRow alias were
 // hand-added alongside migration 0019 (persisted profile follows). Drop this
 // note once regenerated.
@@ -588,10 +585,6 @@ export type Database = {
         Returns: { listing_id: string; saves: number }[]
       }
       delete_own_account: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      create_test_notification: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

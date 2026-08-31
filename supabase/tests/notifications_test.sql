@@ -180,32 +180,20 @@ end;
 $$;
 reset role;
 
--- ── Scenario 9: create_test_notification() (0017) inserts an actorless row
---    for the caller only; anon cannot execute it.
-set local role authenticated;
-select set_config('request.jwt.claims',
-       '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
-select public.create_test_notification();
-reset role;
-
+-- ── Scenario 9: create_test_notification() (0017) is GONE (0037).
+--    The dev RPC was reachable over PostgREST by any signed-in user regardless
+--    of the client's __DEV__ gate, which only ever hid the button. 0037 drops
+--    it; this asserts the drop stuck, so a re-applied 0017 or a hand-created
+--    function in the dashboard can't quietly put a dev tool back in production.
 select pg_temp.assert(
-  (select count(*) from public.notifications
-    where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-      and type = 'message'
-      and actor_id is null) = 1,
-  'create_test_notification must insert exactly one actorless message row for the caller');
-
-set local role anon;
-select set_config('request.jwt.claims', '', true);
-do $$
-begin
-  perform public.create_test_notification();
-  raise exception 'NOTIFICATIONS TEST FAILED: anon could execute create_test_notification';
-exception
-  when insufficient_privilege then null; -- expected: EXECUTE revoked from anon/public
-end;
-$$;
-reset role;
+  not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'create_test_notification'
+  ),
+  'create_test_notification() must not exist — dropped by 0037');
 
 select 'ALL NOTIFICATIONS TESTS PASSED' as result;
 
