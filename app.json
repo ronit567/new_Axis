@@ -45,7 +45,13 @@
         }
       ],
       "expo-secure-store",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "axis-67",
+          "project": "axis"
+        }
+      ]
     ],
     "extra": {
       "eas": {
