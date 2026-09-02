@@ -48,12 +48,54 @@ LIST=$(npx --no-install supabase migration list 2>&1) || {
   exit 1
 }
 
-echo "$LIST"
-echo ""
+# The CLI's output shape depends on whether stdout is a terminal, and not in
+# the direction you would guess: run by hand it prints a backticked table, run
+# through a pipe it prints JSON, and `--output json` prints the table. Rather
+# than fight that, parse both shapes.
+#
+# Each row becomes "<version>" if pending or "<version> applied" if not.
+ROWS=$(
+  if echo "$LIST" | grep -q '"local"'; then
+    # JSON: {"local":"0032","remote":"","time":"0032"}
+    echo "$LIST" | tr '{' '\n' | grep '"local"' | while IFS= read -r obj; do
+      v=$(echo "$obj" | sed -n 's/.*"local":"\([0-9][0-9]*\)".*/\1/p')
+      [ -n "$v" ] || continue
+      # Pending covers both an empty remote and an absent remote key.
+      if echo "$obj" | grep -q '"remote":"[0-9]'; then
+        echo "$v applied"
+      else
+        echo "$v"
+      fi
+    done
+  else
+    # Table: "   `0032` | ` ` | `0032`" — note the remote cell on a pending row
+    # is a backticked space, not an empty cell.
+    echo "$LIST" | tr -d '`' | awk -F'|' 'NF >= 2 {
+      l = $1; gsub(/[[:space:]]/, "", l)
+      r = $2; gsub(/[[:space:]]/, "", r)
+      if (l ~ /^[0-9]{4,}$/) { if (r == "") print l; else print l, "applied" }
+    }'
+  fi
+)
 
-PENDING=$(echo "$LIST" \
-  | grep -E '^[[:space:]]*[0-9]{4,}' \
-  | awk -F'|' '{ gsub(/ /,"",$1); gsub(/ /,"",$2); if ($1 != "" && $2 == "") print $1 }')
+# An earlier version of this script matched on a leading digit, matched nothing
+# against either real format, and cheerfully reported "every local migration is
+# applied" while ten were pending. A checker that passes when it parsed nothing
+# is worse than no checker, so an empty parse is now a hard failure rather than
+# a clean bill of health.
+if [ -z "$ROWS" ]; then
+  echo "FATAL: could not parse any migration rows from the CLI output."
+  echo "       The output format has changed — fix this script rather than"
+  echo "       trusting it. Do NOT read this as 'everything is applied'."
+  echo ""
+  echo "$LIST"
+  exit 1
+fi
+
+PENDING=$(echo "$ROWS" | awk 'NF == 1 { print $1 }')
+
+echo "    $(echo "$ROWS" | wc -l | tr -d ' ') migrations tracked, $(echo "$PENDING" | grep -c '[0-9]' || true) pending"
+echo ""
 
 if [ -z "$PENDING" ]; then
   echo "PASS: every local migration is applied to the remote project."
