@@ -26,7 +26,10 @@
         "backgroundColor": "#5C2D91"
       },
       "package": "com.axis.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,11 +40,18 @@
         "expo-image-picker",
         {
           "photosPermission": "Axis needs access to your photo library so you can attach images to your listings.",
-          "cameraPermission": "Axis needs access to your camera so you can take photos for your listings."
+          "cameraPermission": "Axis needs access to your camera so you can take photos for your listings.",
+          "microphonePermission": false
         }
       ],
       "expo-secure-store",
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "70c7989f-96c1-4b70-b9a1-609df41b296e"
+      }
+    },
+    "owner": "ronitttt"
   }
 }
