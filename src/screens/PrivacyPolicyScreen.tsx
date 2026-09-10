@@ -58,6 +58,12 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
           not use it for advertising or tracking.
         </Text>
         <Text style={styles.paragraph}>
+          Photos you attach to a listing are served from a public web address, so
+          anyone who has that address can open the image. Your profile photo is not:
+          it is stored privately and shown only to signed-in Axis members, through a
+          link that expires.
+        </Text>
+        <Text style={styles.paragraph}>
           Two service providers process data on our behalf, and both are contractually
           required to protect it: Supabase hosts our database, file storage, and
           sign-in, and Sentry receives crash reports when the app fails. Crash reports

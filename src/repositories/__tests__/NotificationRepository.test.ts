@@ -301,22 +301,6 @@ describe('NotificationRepository.markAllRead', () => {
   });
 });
 
-describe('NotificationRepository.createTest', () => {
-  it('invokes the create_test_notification RPC', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: null });
-
-    await NotificationRepository.createTest();
-
-    expect(mockRpc).toHaveBeenCalledWith('create_test_notification');
-  });
-
-  it('propagates an error from the RPC', async () => {
-    mockRpc.mockResolvedValue({ data: null, error: new Error('boom') });
-
-    await expect(NotificationRepository.createTest()).rejects.toThrow('boom');
-  });
-});
-
 describe('NotificationRepository.subscribe', () => {
   function makeChannelObj() {
     const channelObj: any = {

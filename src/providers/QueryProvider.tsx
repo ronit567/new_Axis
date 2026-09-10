@@ -6,6 +6,7 @@ import {
   QueryClientProvider,
 } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
+import { clearAvatarUrlCache } from '../lib/avatarUrls'
 
 function isUnauthorized(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false
@@ -33,8 +34,11 @@ export async function signOut(): Promise<void> {
     if (localError) throw localError
   }
   // Clear the query cache on the way out so the next user on this device can't
-  // briefly see the previous user's cached data.
+  // briefly see the previous user's cached data. Signed avatar URLs live
+  // outside React Query (see src/lib/avatarUrls.ts), so they need clearing
+  // explicitly or they would outlive the session that minted them.
   queryClient.clear()
+  clearAvatarUrlCache()
 }
 
 // On any 401 — from a query OR a mutation — flush the session and cache so a
@@ -50,6 +54,7 @@ function handleAuthError(error: unknown) {
   if (isUnauthorized(error)) {
     void signOut().catch(() => {
       queryClient.clear()
+      clearAvatarUrlCache()
     })
   }
 }
