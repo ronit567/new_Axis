@@ -1,0 +1,91 @@
+-- Axis — 0038: take the four trigger functions off the public API surface, and
+-- stop `anon` from reaching my_listing_save_counts().
+--
+-- Postgres grants EXECUTE to PUBLIC by default on every function it creates,
+-- and PostgREST publishes anything EXECUTE-granted as an RPC. So a function
+-- that nobody ever granted to anyone is still callable at
+-- /rest/v1/rpc/<name> by whoever holds the anon key — which is inlined in the
+-- JS bundle by design. The default is the grant; not writing a GRANT is not
+-- the same as withholding one.
+--
+-- Confirmed live before writing this (pg_proc.proacl on the production
+-- project): all four trigger functions below carry proacl = NULL, i.e. the
+-- untouched default, PUBLIC-executable. my_listing_save_counts() carries
+-- `{=X/postgres, postgres=X/postgres, authenticated=X/postgres}` — 0006's
+-- grant to `authenticated` is there, but the leading `=X` is the PUBLIC grant
+-- it never revoked, which is what actually lets anon in. 0006's own comment
+-- says EXECUTE is "granted to authenticated only"; that was the intent, and
+-- this is the statement that makes it true.
+--
+-- Why it matters beyond hygiene: under Guideline 2.3.1(a) an RPC that exists
+-- in the shipped API but appears nowhere in the app is a hidden, undocumented
+-- feature — the same argument 0037 used to drop create_test_notification()
+-- rather than merely revoking it. The project already applies this rule
+-- consistently in its newer migrations (0021 revokes is_listing_engaged and
+-- apply_listing_edit; 0032 revokes the four enforce_*_content functions; 0036
+-- revokes both enforce_*_rate_limit functions). 0013 and 0021 predate the
+-- habit for their trigger functions, and 0006 predates it entirely. This
+-- closes the four that were left behind.
+--
+-- SAFETY: revoking EXECUTE does not affect trigger firing. Postgres invokes a
+-- trigger function through the trigger mechanism and never consults the
+-- invoking user's EXECUTE privilege on it — the same reasoning already written
+-- into 0032 and 0036. The triggers on listings, messages, and saved_listings
+-- keep working untouched; all that disappears is the pointless RPC surface.
+-- (Calling any of them over PostgREST already failed, since a trigger function
+-- returns `trigger` and takes its arguments out of band. The exposure is that
+-- they are enumerable and callable at all, not that the call succeeds.)
+
+-- ---------------------------------------------------------------------------
+-- Trigger functions: no caller should ever hold EXECUTE on these.
+--
+--   notify_on_message          (0013) — trg_notify_on_message on messages
+--   notify_on_saved_listing    (0013) — trg_notify_on_saved_listing on saved_listings
+--   guard_engaged_listing_edit (0021) — trg_guard_engaged_listing_edit on listings
+--   notify_on_listing_edit     (0021) — trg_notify_on_listing_edit on listings
+--
+-- `anon, authenticated` are listed alongside `public` for symmetry with the
+-- existing revokes in 0032/0036. Neither role holds a direct grant today — both
+-- inherit from PUBLIC — so those two names are a no-op here and are kept only
+-- so the statement reads as a complete statement of intent.
+-- ---------------------------------------------------------------------------
+revoke all on function public.notify_on_message()          from public, anon, authenticated;
+revoke all on function public.notify_on_saved_listing()    from public, anon, authenticated;
+revoke all on function public.guard_engaged_listing_edit() from public, anon, authenticated;
+revoke all on function public.notify_on_listing_edit()     from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- my_listing_save_counts() (0006) is a real RPC and stays one — ListingRepository
+-- .getBySeller() calls it to show a seller how many people saved each of their
+-- listings. It is only ever narrowed here, never removed.
+--
+-- The function is already self-scoping: it filters on `l.seller_id = auth.uid()`,
+-- so an anon caller (auth.uid() is null) gets an empty set rather than anyone
+-- else's data. Nothing leaks today. But an unauthenticated caller has no
+-- business reaching a `my_*` endpoint at all, and leaving it open means the
+-- next person to read the ACL has to re-derive that the filter saves them.
+--
+-- Revoke-then-grant rather than a bare `revoke ... from anon`: the grant is
+-- restated so this file is correct on its own if it is ever replayed against a
+-- database where 0006's grant is missing. Same shape as delete_own_account()
+-- in 0010/0029/0031.
+-- ---------------------------------------------------------------------------
+revoke all on function public.my_listing_save_counts() from public, anon, authenticated;
+grant execute on function public.my_listing_save_counts() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Not touched here, deliberately:
+--
+--   is_blocked, increment_listing_views, is_listing_engaged, my_blocked_users,
+--   delete_own_account — all granted to `authenticated` on purpose; each is
+--   called by the app and each is scoped to auth.uid() internally.
+--
+--   hook_restrict_signup_email, hash_signup_email, signup_cooldown_window —
+--   supabase_auth_admin only (0018/0031). Revoking PUBLIC from the four
+--   functions above also drops the incidental EXECUTE that supabase_auth_admin
+--   was inheriting through PUBLIC on them; it has no reason to call a trigger
+--   function, and the hook path is unaffected.
+--
+-- After applying, `supabase db advisors` should report zero
+-- anon_security_definer_function_executable findings.
+-- ---------------------------------------------------------------------------
