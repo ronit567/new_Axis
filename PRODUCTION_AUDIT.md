@@ -46,8 +46,39 @@ Zero error tracking (no Sentry/Bugsnag/Crashlytics anywhere) and no `ErrorBounda
 **Do:** add `@sentry/react-native` (Expo-supported), wrap `RootNavigator` in an error boundary with a styled fallback + "restart" action, report caught errors, and wire the React Query error path / `QueryProvider` 401 handler into breadcrumbs.
 
 ### 8. Complete `app.json` for store submission
-Missing: `scheme` (deep links cannot work; `NavigationContainer` at `App.tsx:174` has no `linking` config either, even though route params were designed to be deep-linkable), `ios.buildNumber` / `android.versionCode`, `ios.infoPlist.ITSAppUsesNonExemptEncryption` (App Store submission will stall on the encryption question), and privacy-manifest config.
+Missing: `scheme` (deep links cannot work; `NavigationContainer` at `App.tsx:174` has no `linking` config either, even though route params were designed to be deep-linkable), `ios.buildNumber` / `android.versionCode`, `ios.infoPlist.ITSAppUsesNonExemptEncryption` (App Store submission will stall on the encryption question), and privacy-manifest config (privacy manifest now done, see below).
 **Do:** add `expo.scheme` (e.g. `axis`), a `linking` config mapping ListingDetail/Chat/SellerProfile, build numbers, the encryption declaration (`false` — standard HTTPS/keychain crypto is exempt), and verify the photo/camera permission strings read well in review.
+
+#### Privacy manifest — done
+
+`expo.ios.privacyManifests` in `app.json` is the source of truth, **not** `ios/Axis/PrivacyInfo.xcprivacy`
+— `ios/` is gitignored and `prebuild` regenerates it, so an edit made only there is lost on the next
+EAS build. `@expo/config-plugins` merges the app.json block additively into whatever the template emits.
+
+Declared, all for App Functionality, none for tracking:
+
+| Type | Linked | Source |
+| --- | --- | --- |
+| `EmailAddress` | yes | `auth.users` — signup, sign-in, email verification |
+| `Name` | yes | `profiles.name` / `initials` |
+| `UserID` | yes | auth uid / `profiles.id` |
+| `PhotosorVideos` | yes | `profiles.avatar_url`, `listings.image_urls` (expo-image-picker) |
+| `EmailsOrTextMessages` | yes | `messages.body` — buyer/seller DMs |
+| `OtherUserContent` | yes | listing title/description, bio, program, year, location, report reasons |
+| `ProductInteraction` | yes | `listings.views`, saves, follows, read receipts |
+| `CrashData` | **no** | Sentry — `sendDefaultPii: false` and `Sentry.setUser()` is never called |
+
+Everything is "linked" because it hangs off the Supabase auth uid. Crash data is the one exception;
+if `sendDefaultPii` or `setUser()` ever changes, flip that flag **and** the App Store Connect labels.
+
+Deliberately not declared: `PhoneNumber` (no column), precise/coarse `Location` (no location
+permission — `profiles.location` and `listings.pickup` are free text, covered by `OtherUserContent`),
+`SearchHistory` (not persisted server-side), `PaymentInfo`/`PurchaseHistory` (no payments),
+`AdvertisingData`/`DeviceID` (no ad or attribution SDK), `PerformanceData` (`tracesSampleRate: 0`).
+Over-declaring is its own rejection risk, so each omission is deliberate.
+
+The App Store Connect nutrition labels must be set to match this table exactly — a mismatch between
+the manifest, the labels, and real runtime behaviour is the single largest rejection cause (5.1.1).
 
 ### 9. Prepare store metadata & legal surface
 Store review requires: privacy policy at a public URL (the in-app `PrivacyPolicyScreen` text needs to live on the web too), support URL/email, screenshots, age rating, and — because this is a UGC marketplace with messaging — Apple will check for **content moderation, block, and report** (you have all three ✅) plus **EULA/objectionable-content terms**. Provide a demo `@uwo.ca` test account in App Review notes since signup is domain-gated, or reviewers cannot log in and will reject.
