@@ -213,9 +213,14 @@ export const StorageRepository = {
 
   // Path convention (0014_storage_buckets.sql): {user_id}/{filename}. The
   // filename is timestamped rather than fixed ("avatar.jpg") on purpose: the
-  // public URL changes on every replacement, so expo-image's cache can never
-  // serve a stale photo for the old URL. Older files under the prefix are
+  // stored value changes on every replacement, so expo-image's cache can never
+  // serve a stale photo for the old one. Older files under the prefix are
   // removed best-effort after the new upload succeeds.
+  //
+  // Returns the object PATH, not a URL (0039). The avatars bucket is private, so
+  // there is no durable URL to persist — a signed URL expires. profiles.avatar_url
+  // therefore stores this path and the client signs it at render time; see
+  // src/lib/avatarUrls.ts, which Avatar calls.
   async uploadAvatar(userId: string, photo: LocalPhoto): Promise<string> {
     const contentType = contentTypeFor(photo)
     const path = `${userId}/${Date.now()}.${extensionFor(contentType)}`
@@ -248,7 +253,6 @@ export const StorageRepository = {
       })
       .catch(() => undefined)
 
-    const { data } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path)
-    return data.publicUrl
+    return path
   },
 }

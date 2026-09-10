@@ -2,10 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { COLORS } from '../constants/theme';
+import { useAvatarUrl } from '../lib/avatarUrls';
 
 type Props = {
-  // Public storage URL of the profile photo. Absent/null renders the
-  // initials + color fallback alone (the pre-AX-403 look).
+  // The stored avatar value: an object path inside the private `avatars`
+  // bucket (profiles.avatar_url, post-0039), a local file:// uri for an
+  // unsaved pick, or null. Absent/null renders the initials + color fallback
+  // alone (the pre-AX-403 look).
   url?: string | null;
   initials: string;
   color: string;
@@ -19,6 +22,12 @@ type Props = {
 // photo sits on top once it decodes — so a slow or missing image degrades to
 // exactly the old initials look instead of an empty circle.
 export default function Avatar({ url, initials, color, size, style, textStyle }: Props) {
+  // The single place a stored path becomes a fetchable URL. Resolving here
+  // rather than at each of the 12 call sites is what keeps the private-bucket
+  // change (0039) from rippling through every screen — and it means one shared
+  // cache serves the same person's photo everywhere it appears.
+  const resolved = useAvatarUrl(url);
+
   return (
     <View
       style={[
@@ -28,9 +37,9 @@ export default function Avatar({ url, initials, color, size, style, textStyle }:
       ]}
     >
       <Text style={[styles.initials, { fontSize: size * 0.38 }, textStyle]}>{initials}</Text>
-      {url ? (
+      {resolved ? (
         <Image
-          source={{ uri: url }}
+          source={{ uri: resolved }}
           style={StyleSheet.absoluteFillObject}
           contentFit="cover"
           transition={150}
