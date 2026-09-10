@@ -1,0 +1,89 @@
+-- Axis — 0040: strip `anon` of every table privilege in the public schema, and
+-- stop the default that keeps handing them back.
+--
+-- 0034 revoked anon's SELECT on profiles and listings, which was the reachable
+-- half of the problem. It left three privileges behind on every table, and the
+-- audit found them still there:
+--
+--   anon=Dxtm  ->  D = TRUNCATE, x = REFERENCES, t = TRIGGER, m = MAINTAIN
+--
+-- Confirmed live before writing this:
+--   has_table_privilege('anon','public.listings','SELECT')   = false   (0034)
+--   has_table_privilege('anon','public.listings','TRUNCATE') = true
+--
+-- TRUNCATE is the one that matters: it is not row-level, so RLS does not apply
+-- to it at all. Every policy in 0002/0034 is irrelevant to a TRUNCATE.
+--
+-- It is not reachable today. PostgREST only ever issues SELECT/INSERT/UPDATE/
+-- DELETE and RPC calls, anon has no login of its own, and nothing in the app
+-- runs as anon against these tables (sign-up, sign-in, OTP, and password reset
+-- all go through GoTrue, and the signup hook runs as supabase_auth_admin). So
+-- this is a latent over-grant, not an open door — which is exactly the kind of
+-- thing to close while it is still cheap.
+--
+-- ---------------------------------------------------------------------------
+-- WHY THE SECOND STATEMENT IS THE IMPORTANT ONE
+-- ---------------------------------------------------------------------------
+-- A plain `revoke ... on all tables` fixes the ten tables that exist today and
+-- nothing else. These grants were never written by a migration — 0005 only ever
+-- granted anon SELECT on profiles and listings. They come from a default
+-- privilege, which pg_default_acl shows twice for this schema:
+--
+--   grantor=supabase_admin  anon=arwdDxtm   (Supabase's stock project setup)
+--   grantor=postgres        anon=Dxtm       (the one that actually applies)
+--
+-- Default privileges are keyed on the role that creates the object. Migrations
+-- run as `postgres`, so every table created by one picks up the second entry —
+-- and the evidence agrees: all ten tables carry exactly `Dxtm`, not `arwdDxtm`.
+--
+-- Without the ALTER below, the very next migration that creates a table hands
+-- anon TRUNCATE on it again, and this file becomes a one-time cleanup of a
+-- recurring condition. That is the drift shape 0034's header already complained
+-- about, so it is worth closing properly rather than repeating.
+--
+-- The supabase_admin entry is left alone: it is platform configuration, it
+-- applies only to tables that role creates (none of ours), and altering another
+-- role's defaults is not this migration's business.
+
+-- ---------------------------------------------------------------------------
+-- 1. Existing objects. `ALL TABLES` covers views too, so this also sweeps
+--    conversation_list (0009) and reports_queue (0012) — both already have
+--    nothing for anon, making those a documented no-op rather than a change.
+--
+--    `authenticated` is deliberately untouched: it is the role the app runs as,
+--    and 0005's explicit per-command grants are what make browsing work.
+-- ---------------------------------------------------------------------------
+revoke all on all tables in schema public from anon;
+
+-- ---------------------------------------------------------------------------
+-- 2. Future objects. Applies to the current role (postgres, which is what
+--    `supabase db push` runs as), so it edits the `grantor=postgres` entry
+--    above — the one new tables inherit from.
+-- ---------------------------------------------------------------------------
+alter default privileges in schema public revoke all on tables from anon;
+
+-- ---------------------------------------------------------------------------
+-- anon keeps `usage` on schema public (granted in 0005). That is intentional
+-- and unchanged: revoking it would break PostgREST's ability to resolve the
+-- schema for a signed-out caller, and it grants no access to anything by
+-- itself now that no table or function privilege remains behind it.
+--
+-- VERIFY AFTER APPLYING — anon has nothing, authenticated is unaffected:
+--
+--   select count(*) as anon_table_grants
+--     from information_schema.role_table_grants
+--    where table_schema = 'public' and grantee = 'anon';
+--   -- expect 0
+--
+--   select has_table_privilege('authenticated','public.listings','SELECT') as listings
+--        , has_table_privilege('authenticated','public.profiles','SELECT') as profiles
+--        , has_table_privilege('authenticated','public.messages','INSERT') as send_message;
+--   -- expect true, true, true
+--
+-- SEPARATE FINDING, NOT ADDRESSED HERE: the same default privilege gives
+-- `service_role` only Dxtm — it holds no SELECT/INSERT/UPDATE/DELETE on any
+-- public table. Moderation therefore works from the Studio SQL editor (which
+-- connects as postgres) but a service_role REST call against reports_queue or
+-- reports would fail on privileges. Worth fixing deliberately if the moderation
+-- workflow ever moves off Studio; it is not a regression introduced here.
+-- ---------------------------------------------------------------------------
