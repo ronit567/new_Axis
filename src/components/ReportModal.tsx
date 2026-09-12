@@ -28,9 +28,22 @@ type Props = {
   onClose: () => void;
   onSubmit: (reason: ReportReason) => Promise<void>;
   onBlock?: () => Promise<void>;
+  // Who gets blocked, when that isn't the thing being reported. A 'listing'
+  // report names the listing in `targetName` but blocks its seller, so the
+  // button would otherwise offer to "Block Vintage Desk Lamp". Defaults to
+  // targetName, which is already the person for 'user' and 'chat'.
+  blockName?: string;
 };
 
-export default function ReportModal({ visible, target, targetName, onClose, onSubmit, onBlock }: Props) {
+export default function ReportModal({
+  visible,
+  target,
+  targetName,
+  onClose,
+  onSubmit,
+  onBlock,
+  blockName,
+}: Props) {
   const [selected, setSelected] = useState<ReportReason | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -82,6 +95,8 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
     onClose();
   };
 
+  const blockTarget = blockName ?? targetName ?? 'This user';
+
   const handleBlock = async () => {
     if (blocking) return;
     const session = sessionRef.current;
@@ -91,7 +106,7 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
       if (sessionRef.current === session) {
         Alert.alert(
           'User blocked',
-          `${targetName ?? 'This user'} has been blocked. You will no longer see their content.`,
+          `${blockTarget} has been blocked. You will no longer see their content.`,
           // Close (rather than fall back to the reason-picker view) once the
           // user has acknowledged the block.
           [{ text: 'OK', onPress: handleClose }],
@@ -128,7 +143,7 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
             <Text style={styles.confirmBody}>
               Thanks for letting us know. Our team will review this {targetLabel}.
             </Text>
-            {(target === 'user' || target === 'chat') && (
+            {onBlock && (
               <TouchableOpacity
                 style={[styles.blockBtn, blocking && styles.blockBtnDisabled]}
                 onPress={handleBlock}
@@ -137,7 +152,7 @@ export default function ReportModal({ visible, target, targetName, onClose, onSu
               >
                 <Ionicons name="hand-left-outline" size={16} color={COLORS.error} />
                 <Text style={styles.blockBtnText}>
-                  {blocking ? 'Blocking…' : `Block ${targetName ?? 'this user'}`}
+                  {blocking ? 'Blocking…' : `Block ${blockTarget}`}
                 </Text>
               </TouchableOpacity>
             )}

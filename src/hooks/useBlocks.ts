@@ -13,6 +13,12 @@ function invalidateBlockSensitiveCaches(
   otherId: string,
 ) {
   queryClient.invalidateQueries({ queryKey: ['listings'] })
+  // The whole ['listing'] prefix, not one id: queryKeys.listing(id) is singular
+  // and therefore NOT matched by the ['listings'] invalidation above, so a
+  // detail screen kept showing a blocked seller's listing until a natural
+  // refetch. A block can hide any number of their listings, and we don't know
+  // which are cached, so the prefix is the correct granularity.
+  queryClient.invalidateQueries({ queryKey: ['listing'] })
   queryClient.invalidateQueries({ queryKey: ['search'] })
   queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
   queryClient.invalidateQueries({ queryKey: queryKeys.profile(otherId) })

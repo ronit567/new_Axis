@@ -36,6 +36,7 @@ import { useToggleSaved } from '../hooks/useSavedListings';
 import { usePendingEditRequest } from '../hooks/useListingEdits';
 import { useProfile } from '../hooks/useProfile';
 import { useCreateReport } from '../hooks/useReports';
+import { useBlockUser } from '../hooks/useBlocks';
 import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
@@ -53,6 +54,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
+  const blockUser = useBlockUser();
   const markSold = useMarkListingSold();
   const relist = useRelistListing();
   const deleteListing = useDeleteListing();
@@ -585,6 +587,15 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             reason,
           })
         }
+        // A listing is the most likely place to meet a bad actor, so the block
+        // lives here too rather than only on the seller's profile. Withheld on
+        // your own listing: blocks_no_self (0001) rejects it at the database,
+        // and ReportModal only shows the affordance when a handler exists.
+        onBlock={
+          isOwnListing ? undefined : () => blockUser.mutateAsync(listing.seller.id)
+        }
+        // targetName is the listing; the block applies to whoever posted it.
+        blockName={listing.seller.name}
       />
       <ImageViewerModal
         visible={viewerIndex !== null}

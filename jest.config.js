@@ -19,4 +19,11 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts'],
+  // Jest's 5s default is a poor fit for the component suites. The first render
+  // in a file pays the one-off cost of pulling in the RN/Expo native shims
+  // (expo-blur, expo-image, @expo/vector-icons) through Babel; locally that
+  // lands around 350ms, but a cold CI runner with no Babel cache has blown
+  // past 5s and failed a test that is not actually slow. Raised rather than
+  // scattering per-test timeouts, since any component suite can hit this.
+  testTimeout: 20000,
 };
