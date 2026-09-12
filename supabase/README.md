@@ -179,9 +179,14 @@ After the tables exist, regenerate app types:
   wants counterparty history preserved.
 - **`reports` is a queue, not a full moderation system.** `status` moves
   `open → reviewing → resolved/dismissed`, but nothing in this migration moves
-  it — there's no admin UI or role yet, so the queue is reviewed by hand via
-  the Supabase dashboard (`service_role` bypasses RLS entirely) by the team at
-  `support@axis.app` (the contact already published on `TermsOfServiceScreen`).
+  it — there's no admin UI or role yet, so the queue is reviewed by hand in the
+  Supabase **Studio SQL editor**, which connects as `postgres`. Note that
+  `service_role` will *not* work here despite the name: it holds only
+  `REFERENCES, TRIGGER, TRUNCATE` on `reports`/`listings`/`profiles` and no
+  SELECT, so a service-key REST call against `reports_queue` fails on
+  privileges. The published contact is `axis.app@outlook.com` (the address on
+  `TermsOfServiceScreen`, `CommunityGuidelinesScreen` and Settings). See
+  `docs/MODERATION.md` for who watches the queue and how often.
   Revisit once there's real moderator tooling.
 - **`hook_restrict_signup_email()` (0018) isn't live until it's wired up by
   hand** — Dashboard → Authentication → Hooks → "Before User Created" →
