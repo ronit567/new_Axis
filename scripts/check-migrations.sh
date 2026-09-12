@@ -51,9 +51,39 @@ LIST=$(npx --no-install supabase migration list 2>&1) || {
 echo "$LIST"
 echo ""
 
-PENDING=$(echo "$LIST" \
-  | grep -E '^[[:space:]]*[0-9]{4,}' \
-  | awk -F'|' '{ gsub(/ /,"",$1); gsub(/ /,"",$2); if ($1 != "" && $2 == "") print $1 }')
+# Parse the CLI's JSON rather than its human-readable table.
+#
+# This block used to grep for '^[[:space:]]*[0-9]{4,}' and split on '|',
+# which matched the pipe-table the CLI printed at the time. The CLI now emits
+# a single line of JSON, so that grep matched ZERO lines, PENDING was always
+# empty, and the script took the PASS branch unconditionally — it could not
+# have caught the 0037 drift it was written for. `-o pretty` does not rescue
+# the old parser either: those rows are backtick-wrapped (`   `0040` | ...`),
+# so they never start with a digit.
+#
+# The important part is not the parser, it is the failure mode. A checker that
+# cannot tell whether anything is pending must FAIL, never quietly pass, so
+# NO_PARSE below is treated exactly like drift.
+PENDING=$(printf '%s' "$LIST" | node -e '
+let raw = "";
+process.stdin.on("data", d => raw += d).on("end", () => {
+  const i = raw.indexOf("{\"migrations\"");
+  if (i < 0) { console.log("NO_PARSE"); return; }
+  let parsed;
+  try { parsed = JSON.parse(raw.slice(i)); } catch (e) { console.log("NO_PARSE"); return; }
+  const rows = parsed.migrations || [];
+  // Zero rows means the shape changed under us, not that all is well.
+  if (!rows.length) { console.log("NO_PARSE"); return; }
+  rows.filter(r => r.local && !r.remote).forEach(r => console.log(r.local));
+});' 2>/dev/null)
+
+if [ "$PENDING" = "NO_PARSE" ] || [ -z "$PENDING" ] && ! printf '%s' "$LIST" | grep -q '"migrations"'; then
+  echo "FATAL: could not read the migration list."
+  echo "       The supabase CLI's output format has changed and this script"
+  echo "       can no longer tell applied from pending. Refusing to report a"
+  echo "       pass it cannot prove — fix the parser in $0."
+  exit 1
+fi
 
 if [ -z "$PENDING" ]; then
   echo "PASS: every local migration is applied to the remote project."
@@ -78,7 +108,10 @@ for pair in \
   "0034:authenticated browse (Guideline 5.1 — profile exposure)" \
   "0035:App Review demo account (Guideline 2.1 — reviewer sign-in)" \
   "0036:rate limits (Guideline 1.2 — report queue integrity)" \
-  "0037:drop dev test RPC (Guideline 2.3.1 — no hidden features)"
+  "0037:drop dev test RPC (Guideline 2.3.1 — no hidden features)" \
+  "0038:revoke PUBLIC execute on trigger fns (Guideline 2.3.1)" \
+  "0039:private avatar bucket (Guideline 5.1 — profile photos)" \
+  "0040:strip anon table privileges (Guideline 1.6 — data security)"
 do
   NUM=${pair%%:*}
   WHY=${pair#*:}
@@ -104,7 +137,6 @@ echo "  [ ] Leaked-password protection is ON; minimum length >= 8."
 echo "  [ ] The App Review demo user EXISTS in Authentication -> Users with"
 echo "      'Auto Confirm User' ticked. 0035 only whitelists the address; it"
 echo "      does not create the account."
-echo "  [ ] (0037 now drops create_test_notification automatically — verify it applied.)"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
