@@ -1,0 +1,71 @@
+-- Axis — 0041: pin search_path on the last two functions that lack it.
+--
+-- The Supabase advisor reports `function_search_path_mutable` for
+-- public.hash_signup_email(text) and public.signup_cooldown_window(). They are
+-- the only two functions in the schema still carrying proconfig = NULL; every
+-- other function here already sets search_path, most of them since the
+-- migration that created them.
+--
+-- Neither is SECURITY DEFINER, so the exposure is genuinely small — they run
+-- with the caller's privileges, and the classic escalation (a definer function
+-- resolving an unqualified name against an attacker-controlled schema) does not
+-- apply. What remains is resolution ambiguity: both are called from inside
+-- hook_restrict_signup_email(), which IS SECURITY DEFINER and runs as
+-- supabase_auth_admin. Pinning them removes the one path by which a caller's
+-- search_path could influence what those calls resolve to.
+--
+-- ALTER FUNCTION ... SET, not CREATE OR REPLACE: the bodies are correct and
+-- should not be restated. This attaches the config and touches nothing else,
+-- so grants, ownership and — importantly — the function bodies are preserved
+-- byte for byte.
+--
+-- That last point matters more than it looks. hash_signup_email() is the basis
+-- of the 14-day re-signup cooldown (0031): delete_own_account() stores a
+-- SHA-256 of the address in deleted_account_cooldowns, and the signup hook
+-- hashes the incoming address to compare. If this migration altered the body at
+-- all, every stored hash would stop matching and every cooldown would silently
+-- lapse. Changing only proconfig cannot affect the digest.
+--
+-- Verified before writing this, against production:
+--
+--   * With search_path set to the empty string, the expression inside
+--     hash_signup_email still resolves and still hashes:
+--       select set_config('search_path','',true),
+--              encode(sha256(lower(coalesce('Test@UWO.ca',''))::bytea),'hex');
+--     -> 8d308890...868bab
+--     This works because pg_catalog is always searched first whether or not it
+--     appears in search_path, so encode/sha256/lower/coalesce and the bytea
+--     type all resolve with no schema qualification needed.
+--
+--   * Neither function backs an index expression or a generated column
+--     (pg_depend returns nothing), so there is no dependent object to rebuild.
+--
+-- Apply after 0031.
+
+alter function public.hash_signup_email(text)   set search_path = '';
+alter function public.signup_cooldown_window()  set search_path = '';
+
+-- ---------------------------------------------------------------------------
+-- Verification. Run after applying.
+--
+--   -- Both should now report search_path=, and NOTHING else should change:
+--   select p.proname,
+--          coalesce(array_to_string(p.proconfig, ','), '(none)') as config,
+--          p.prosecdef as security_definer,
+--          md5(pg_get_functiondef(p.oid))      as body_digest
+--   from pg_proc p
+--   join pg_namespace n on n.oid = p.pronamespace
+--   where n.nspname = 'public'
+--     and p.proname in ('hash_signup_email', 'signup_cooldown_window');
+--
+--   -- The hash must be unchanged, or every stored cooldown breaks:
+--   select public.hash_signup_email('Test@UWO.ca')
+--          = '8d308890e19e6d1bc26620086938678287deb6b3b1b886a3241844856c868bab'
+--          as hash_is_stable;   -- expect: true
+--
+--   -- And the window is still 14 days:
+--   select public.signup_cooldown_window() = interval '14 days' as window_ok;
+--
+-- `supabase db advisors --linked` should then report zero
+-- function_search_path_mutable findings.
+-- ---------------------------------------------------------------------------
