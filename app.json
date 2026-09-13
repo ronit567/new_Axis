@@ -136,11 +136,18 @@
         "expo-image-picker",
         {
           "photosPermission": "Axis needs access to your photo library so you can attach images to your listings.",
-          "cameraPermission": "Axis needs access to your camera so you can take photos for your listings."
+          "cameraPermission": "Axis needs access to your camera so you can take photos for your listings.",
+          "microphonePermission": false
         }
       ],
       "expo-secure-store",
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9cc60a46-6b62-4e8e-b411-63d212d4e7ad"
+      }
+    },
+    "owner": "nicholaslook"
   }
 }
