@@ -250,6 +250,14 @@ export default function SettingsScreen({ navigation }: Props) {
               This cannot be undone.
             </Text>
 
+            {/* The 14-day re-signup cooldown is enforced in the database (0031) so
+                deletion can't be used to escape a block or a report history. Users
+                hit it at signup, long after this screen — so warn here, not there. */}
+            <Text style={styles.modalWarning}>
+              This email address cannot be used to create a new Axis account for 14
+              days. If you only want a break, sign out instead.
+            </Text>
+
             <Text style={styles.modalInputLabel}>Type DELETE to confirm</Text>
             <TextInput
               style={styles.modalInput}
@@ -414,6 +422,12 @@ const styles = StyleSheet.create({
   modalBody: {
     fontSize: SIZES.md,
     color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: 18,
+  },
+  modalWarning: {
+    fontSize: SIZES.md,
+    color: COLORS.error,
     lineHeight: 20,
     marginBottom: 18,
   },

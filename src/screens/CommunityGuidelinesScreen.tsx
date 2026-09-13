@@ -25,6 +25,8 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
+
         <Text style={styles.intro}>
           Axis works because students look out for each other. These guidelines keep
           the marketplace welcoming, honest, and safe. Break them and you may lose
@@ -52,6 +54,14 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           outside an agreed exchange, or pressure anyone into a deal.
         </Text>
 
+        <Text style={styles.sectionTitle}>Nothing sexually explicit</Text>
+        <Text style={styles.paragraph}>
+          Listings, photos, profiles, reviews, and messages must stay free of
+          sexually explicit or otherwise objectionable content. This is enforced on
+          our servers, not just in the app — some language is rejected the moment
+          you try to post it.
+        </Text>
+
         <Text style={styles.sectionTitle}>Meet safely on campus</Text>
         <Text style={styles.paragraph}>
           Arrange to meet in busy, public spots on campus during daylight, such as
@@ -66,14 +76,29 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           from. Reports are confidential and help keep Axis safe for everyone.
         </Text>
         <Text style={styles.paragraph}>
-          Our team reviews every report and responds within 24 hours. For anything
-          urgent, or if you'd rather reach us directly, email{' '}
+          Our team reviews every report and responds within 24 hours. Content that
+          violates these guidelines is removed, and the accounts responsible for it
+          are suspended or permanently banned from Axis.
+        </Text>
+        <Text style={styles.paragraph}>
+          For anything urgent, or if you'd rather reach us directly, email{' '}
           <Text
             style={styles.emailLink}
             onPress={() => Linking.openURL('mailto:axis.app@outlook.com')}
             accessibilityRole="link"
           >
             axis.app@outlook.com
+          </Text>
+          .
+        </Text>
+        <Text style={styles.paragraph}>
+          These are also published at{' '}
+          <Text
+            style={styles.emailLink}
+            onPress={() => Linking.openURL('https://dataaxis.org/guidelines')}
+            accessibilityRole="link"
+          >
+            dataaxis.org/guidelines
           </Text>
           .
         </Text>
@@ -86,6 +111,11 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingTop: 24,
+  },
+  lastUpdated: {
+    fontSize: SIZES.sm,
+    color: COLORS.textMuted,
+    marginBottom: 20,
   },
   intro: {
     fontSize: SIZES.base,
