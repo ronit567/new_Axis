@@ -19,7 +19,7 @@ import StepHeader from '../components/StepHeader';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { isWesternEmail } from '../lib/email';
-import { isPasswordLongEnough, PASSWORD_LENGTH_HINT } from '../lib/password';
+import { isPasswordAcceptable, PASSWORD_HINT, passwordProblem } from '../lib/password';
 import { haptics } from '../lib/haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateAccount'>;
@@ -34,11 +34,14 @@ export default function CreateAccountScreen({ navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   const passwordsMatch = password === confirmPassword;
+  // Undefined until they have typed something, so the field opens with the
+  // requirements rather than an error against an empty box.
+  const passwordIssue = password.length > 0 ? passwordProblem(password) : undefined;
 
   const canContinue =
     fullName.trim() &&
     email.trim() &&
-    isPasswordLongEnough(password) &&
+    isPasswordAcceptable(password) &&
     confirmPassword.trim() &&
     passwordsMatch &&
     agreed &&
@@ -119,12 +122,8 @@ export default function CreateAccountScreen({ navigation }: Props) {
               onChangeText={setPassword}
               placeholder="Create a password"
               secureTextEntry
-              hint={
-                password.length > 0 && !isPasswordLongEnough(password)
-                  ? PASSWORD_LENGTH_HINT
-                  : undefined
-              }
-              hintType="error"
+              hint={passwordIssue ?? PASSWORD_HINT}
+              hintType={passwordIssue ? 'error' : 'info'}
             />
             <InputField
               label="Confirm password"
