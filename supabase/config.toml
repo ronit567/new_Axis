@@ -436,3 +436,11 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# The report alerter is called by Postgres (the reports_notify_new trigger in
+# 0043), not by a signed-in user. Its caller has no JWT, and the anon key ships
+# in every copy of the app, so JWT verification would gate it on a value an
+# attacker already holds. It authenticates the shared secret in the
+# x-axis-alert-secret header instead.
+[functions.report-alert]
+verify_jwt = false
