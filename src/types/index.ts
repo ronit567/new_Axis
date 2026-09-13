@@ -167,11 +167,12 @@ export type Review = {
   timeAgo: string; // relative label via timeAgo ("2d ago")
 };
 
-// AX-703: report + block. ReportTarget mirrors the ReportModal UI's three
-// entry points (listing detail, seller profile, chat); ReportReason is the
-// finite list its reason picker offers. Single source of truth for both the
-// component and ReportRepository, so they can't drift.
-export type ReportTarget = 'listing' | 'user' | 'chat';
+// AX-703: report + block. ReportTarget mirrors the ReportModal UI's entry
+// points (listing detail, seller profile, chat, and a single review — 0044);
+// ReportReason is the finite list its reason picker offers. Single source of
+// truth for both the component and ReportRepository, so they can't drift.
+// Kept in step with reports_target_type_check.
+export type ReportTarget = 'listing' | 'user' | 'chat' | 'review';
 export type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
 
 // One row on the Blocked users screen (migration 0033's my_blocked_users()).

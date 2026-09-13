@@ -13,7 +13,7 @@ import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
-import { RootStackParamList, MyListing } from '../types';
+import { RootStackParamList, MyListing, Review } from '../types';
 import PressableScale from '../components/PressableScale';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -21,6 +21,7 @@ import HeaderIconButton from '../components/layout/HeaderIconButton';
 import Avatar from '../components/Avatar';
 import VerifiedTick from '../components/VerifiedTick';
 import ReviewCard from '../components/ReviewCard';
+import ReportModal from '../components/ReportModal';
 import SegmentedTabs from '../components/SegmentedTabs';
 import ReviewSummary from '../components/ReviewSummary';
 import TrustStack from '../components/TrustStack';
@@ -31,6 +32,8 @@ import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { useSellerReviews } from '../hooks/useReviews';
+import { useCreateReport } from '../hooks/useReports';
+import { useBlockUser } from '../hooks/useBlocks';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { formatPrice } from '../lib/formatPrice';
 import { getSellerBadges } from '../lib/sellerBadges';
@@ -72,6 +75,12 @@ function ListingThumb({ item, size }: { item: MyListing; size: { width: number; 
 export default function ProfileScreen({ navigation }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const thumb = thumbSize(windowWidth);
+  const createReport = useCreateReport();
+  const blockUser = useBlockUser();
+  // These are reviews *of* you, so you are never their author and can never
+  // delete one — reporting is the whole remedy available here, which is why
+  // its absence was the gap.
+  const [reportingReview, setReportingReview] = useState<Review | null>(null);
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [], refetch: refetchListings } = useMyListings();
@@ -267,7 +276,11 @@ export default function ProfileScreen({ navigation }: Props) {
                 <ReviewSummary reviews={myReviews} />
                 <View style={styles.reviewsList}>
                   {myReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      onReport={() => setReportingReview(review)}
+                    />
                   ))}
                 </View>
               </>
@@ -279,6 +292,31 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
+
+      {/* A review on your own profile: you cannot remove it, so reporting it —
+          and blocking its author — is the remedy. */}
+      <ReportModal
+        visible={!!reportingReview}
+        target="review"
+        targetName={
+          reportingReview ? `${reportingReview.reviewer.name}'s review` : undefined
+        }
+        blockName={reportingReview?.reviewer.name}
+        onClose={() => setReportingReview(null)}
+        onSubmit={(reason) =>
+          createReport.mutateAsync({
+            targetType: 'review',
+            targetReviewId: reportingReview!.id,
+            targetUserId: reportingReview!.reviewer.id,
+            reason,
+          })
+        }
+        onBlock={
+          reportingReview?.reviewer.id
+            ? () => blockUser.mutateAsync(reportingReview.reviewer.id!)
+            : undefined
+        }
+      />
     </Screen>
   );
 }

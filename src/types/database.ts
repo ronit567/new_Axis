@@ -30,6 +30,8 @@
 // hand-added alongside migration 0010 (AX-704 account deletion RPC). Drop
 // this note once regenerated.
 //
+// MANUAL ADDITION (pending regen): `reports.target_review_id` was hand-added
+// alongside 0044 (report a review).
 // MANUAL ADDITION (pending regen): the `reports` table + ReportRow alias were
 // hand-added alongside migration 0011 (AX-703 report/block). Same deal —
 // regenerate after applying 0011.
@@ -415,6 +417,7 @@ export type Database = {
           reporter_id: string
           status: string
           target_listing_id: string | null
+          target_review_id: string | null
           target_type: string
           target_user_id: string | null
         }
@@ -425,6 +428,7 @@ export type Database = {
           reporter_id: string
           status?: string
           target_listing_id?: string | null
+          target_review_id?: string | null
           target_type: string
           target_user_id?: string | null
         }
@@ -435,6 +439,7 @@ export type Database = {
           reporter_id?: string
           status?: string
           target_listing_id?: string | null
+          target_review_id?: string | null
           target_type?: string
           target_user_id?: string | null
         }
