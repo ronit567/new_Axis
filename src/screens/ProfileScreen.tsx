@@ -32,6 +32,7 @@ import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { useSellerReviews } from '../hooks/useReviews';
 import { formatYearOfStudy } from '../lib/formatYear';
+import { formatPrice } from '../lib/formatPrice';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { averageRating } from '../lib/reviewStats';
 
@@ -237,7 +238,10 @@ export default function ProfileScreen({ navigation }: Props) {
                         item.status === 'sold' ? styles.priceTextSold : null,
                       ]}
                     >
-                      ${item.status === 'sold' ? item.soldFor ?? item.price : item.price}
+                      {formatPrice({
+                        ...item,
+                        price: item.status === 'sold' ? item.soldFor ?? item.price : item.price,
+                      })}
                     </Text>
                     <Text style={styles.statusText}>
                       {item.status === 'sold' ? 'Sold' : 'Active'}

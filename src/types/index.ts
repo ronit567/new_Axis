@@ -59,9 +59,8 @@ export type Listing = {
   views: number;
   postedAgo: string;
   pickup: string;
-  // 0021: EditListingScreen needs these to prefill the low-risk Free/Trade
-  // toggles — no other screen surfaced them before this (there's no
-  // Free/Trade badge on ListingDetail yet).
+  // Rendered through lib/formatPrice everywhere a price is shown — a Free or
+  // Trade listing stores price 0, so printing the raw number reads as "$0".
   isFree: boolean;
   isTrade: boolean;
   // 0021: ListingDetailScreen's owner view needs this to choose between
@@ -86,6 +85,10 @@ export type MyListing = {
   // Grid-sized variants, index-parallel to imageUrls (0023 fallback applies).
   thumbUrls: string[];
   soldFor?: number;
+  // The owner's own views (Manage listings, Profile grid) show prices too, so
+  // they need the same Free/Trade flags the buyer-facing Listing carries.
+  isFree: boolean;
+  isTrade: boolean;
 };
 
 export type Contact = {

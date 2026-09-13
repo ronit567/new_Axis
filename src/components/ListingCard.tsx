@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS, FONTS, SIZES } from '../constants/theme';
 import { Listing } from '../types';
+import { formatPrice } from '../lib/formatPrice';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import PressableScale from './PressableScale';
 import RemoteImage from './RemoteImage';
@@ -94,7 +95,7 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
         </PressableScale>
       </View>
       <View style={styles.info}>
-        <Text style={styles.price}>${item.price}</Text>
+        <Text style={styles.price}>{formatPrice(item)}</Text>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <View style={styles.sellerRow}>
           <View style={[styles.dot, { backgroundColor: item.seller.dotColor || COLORS.primary }]} />
