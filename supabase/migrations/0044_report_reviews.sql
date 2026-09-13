@@ -74,3 +74,47 @@ order by (r.status = 'open') desc, r.created_at desc;
 revoke all on public.reports_queue from public, anon, authenticated;
 -- 0043: the alerter reads the view, and only the view.
 grant select on public.reports_queue to service_role;
+
+-- 0036's duplicate-report guard keys on (target_type, target_user_id,
+-- target_listing_id). A review report sets target_user_id to the review's
+-- author and leaves target_listing_id null, so two reports naming *different
+-- reviews by the same author* looked identical to it and the second was
+-- rejected as "You have already reported this." Adding the new column to the
+-- comparison is the whole fix; the daily cap and every other branch are
+-- unchanged.
+create or replace function public.enforce_report_rate_limit()
+  returns trigger
+  language plpgsql
+  security definer
+  set search_path = public
+as $$
+declare
+  v_today integer;
+begin
+  select count(*) into v_today
+  from public.reports
+  where reporter_id = new.reporter_id
+    and created_at > now() - interval '1 day';
+
+  if v_today >= 20 then
+    raise exception 'You have filed too many reports today. If something urgent needs attention, email axis.app@outlook.com.';
+  end if;
+
+  if exists (
+    select 1 from public.reports
+    where reporter_id = new.reporter_id
+      and status in ('open', 'reviewing')
+      and target_type = new.target_type
+      and target_user_id is not distinct from new.target_user_id
+      and target_listing_id is not distinct from new.target_listing_id
+      and target_review_id is not distinct from new.target_review_id
+  ) then
+    raise exception 'You have already reported this. Our team is reviewing it and will respond within 24 hours.';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- 0036/0038: trigger functions keep no PostgREST RPC surface.
+revoke all on function public.enforce_report_rate_limit() from public, anon, authenticated;

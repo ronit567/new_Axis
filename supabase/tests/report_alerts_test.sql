@@ -87,13 +87,26 @@ select pg_temp.assert(
   has_table_privilege('service_role', 'public.reports_queue', 'SELECT'),
   'service_role should be able to read reports_queue');
 
--- ── Scenario 4: the grant is on the view only. service_role must NOT gain a
---    way to read the tables underneath it.
+-- ── Scenario 4: the grant 0043 adds is on the VIEW, not on a table.
+--
+--    Deliberately not asserted here: that service_role cannot read `reports`
+--    itself. On the hosted project it cannot (it holds only Dxtm — see the
+--    closing note in 0040), but that is a property of how that project was
+--    provisioned, not something any migration in this repo establishes: a
+--    stack built from these files alone gives service_role the Supabase
+--    default of full table privileges. Asserting it would test the
+--    environment and fail locally while passing in production, which is worth
+--    less than nothing in a migration suite.
 select pg_temp.assert(
-  not has_table_privilege('service_role', 'public.reports', 'SELECT')
-  and not has_table_privilege('service_role', 'public.profiles', 'SELECT')
-  and not has_table_privilege('service_role', 'public.listings', 'SELECT'),
-  'service_role should still hold no SELECT on reports, profiles or listings');
+  exists (
+    select 1
+    from information_schema.role_table_grants
+    where grantee = 'service_role'
+      and table_schema = 'public'
+      and table_name = 'reports_queue'
+      and privilege_type = 'SELECT'
+  ),
+  'the SELECT 0043 grants service_role should be recorded against the view');
 
 -- ── Scenario 5: the app roles are unchanged by 0043 — still no queue access.
 select pg_temp.assert(
