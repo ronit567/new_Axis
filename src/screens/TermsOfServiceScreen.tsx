@@ -54,7 +54,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           There is no tolerance for objectionable content or abusive behaviour on
           Axis. You may not post or send content that is harassing, hateful,
           threatening, sexually explicit, discriminatory, or otherwise objectionable,
-          in any listing, photo, message, review, or profile. Report anything that
+          in any listing, photo, message, or profile. Report anything that
           breaks this rule and our team will review it within 24 hours. Content that
           violates these terms or our Community Guidelines is removed, and the
           accounts responsible for it are suspended or permanently banned from Axis.

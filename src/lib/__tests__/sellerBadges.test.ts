@@ -1,31 +1,17 @@
 import { getSellerBadges } from '../sellerBadges';
 
 describe('getSellerBadges', () => {
-  it('awards both badges when rating, review count, and reply time all qualify', () => {
-    const badges = getSellerBadges({
-      averageRating: 4.9,
-      reviewCount: 8,
-      replyTime: 'within an hour',
-    });
-    expect(badges).toEqual([
-      { icon: 'shield-checkmark-outline', label: 'Trusted seller' },
+  it('awards "Fast replier" for a minute- or hour-scale reply time', () => {
+    expect(getSellerBadges({ replyTime: 'within an hour' })).toEqual([
       { icon: 'flash-outline', label: 'Fast replier' },
     ]);
   });
 
-  it('awards neither badge when nothing qualifies', () => {
-    expect(
-      getSellerBadges({ averageRating: 3.5, reviewCount: 2, replyTime: '2 days' }),
-    ).toEqual([]);
-  });
-
-  it('withholds "Trusted seller" when rating is high but review count is low', () => {
-    const badges = getSellerBadges({ averageRating: 5, reviewCount: 2, replyTime: '' });
-    expect(badges.find((b) => b.label === 'Trusted seller')).toBeUndefined();
+  it('awards no badge when the reply time is empty', () => {
+    expect(getSellerBadges({ replyTime: '' })).toEqual([]);
   });
 
   it('does not treat a day-scale reply time as "Fast replier"', () => {
-    const badges = getSellerBadges({ averageRating: 4.9, reviewCount: 8, replyTime: '2 days' });
-    expect(badges.find((b) => b.label === 'Fast replier')).toBeUndefined();
+    expect(getSellerBadges({ replyTime: '2 days' })).toEqual([]);
   });
 });

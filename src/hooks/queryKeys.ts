@@ -16,13 +16,10 @@ export const queryKeys = {
   // The thread is the person (0026): all messages with a partner share one
   // cache entry regardless of which listing each message was about.
   messages: (partnerId: string) => ['messages', partnerId] as const,
-  hasChattedWith: (userId: string, partnerId: string) =>
-    ['hasChattedWith', userId, partnerId] as const,
   blockedUsers: (userId: string) => ['blockedUsers', userId] as const,
   following: (userId: string) => ['following', userId] as const,
   isFollowing: (userId: string, sellerId: string) =>
     ['isFollowing', userId, sellerId] as const,
-  sellerReviews: (sellerId: string) => ['sellerReviews', sellerId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   unreadNotificationCount: (userId: string) => ['unreadNotificationCount', userId] as const,
   // 0021: UX-only "is this listing already engaged" check + "is there a

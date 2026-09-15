@@ -18,7 +18,7 @@ PostgREST call cannot skip them.
 
 | Control | Where | Covers |
 | --- | --- | --- |
-| Objectionable-text filter | `BEFORE` triggers (`0032`) | `listings.title`, `listings.description`, `messages.body`, `profiles.name`, `profiles.bio`, `reviews.body` |
+| Objectionable-text filter | `BEFORE` triggers (`0032`) | `listings.title`, `listings.description`, `messages.body`, `profiles.name`, `profiles.bio` |
 | Message rate limit | `trg_messages_rate_limit` (`0036`) | One account flooding another's inbox |
 | Report rate limit | `trg_reports_rate_limit` (`0036`) | Burying the queue in noise |
 | Mutual blocking | RLS `is_blocked()` (`0002`) | Feed, search, profile and inbox, both directions |
@@ -130,7 +130,7 @@ where id = '<user_id>';
 ```
 
 **Never `delete from public.profiles` to remove one bad listing.** That cascades
-to every listing, message, review and block the account owns. Removing a
+to every listing, message and block the account owns. Removing a
 profile row is account termination, not content removal — reach for it only when
 that is the intended outcome.
 

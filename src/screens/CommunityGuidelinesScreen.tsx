@@ -56,7 +56,7 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>Nothing sexually explicit</Text>
         <Text style={styles.paragraph}>
-          Listings, photos, profiles, reviews, and messages must stay free of
+          Listings, photos, profiles, and messages must stay free of
           sexually explicit or otherwise objectionable content. This is enforced on
           our servers, not just in the app — some language is rejected the moment
           you try to post it.

@@ -224,8 +224,6 @@ describe('toSellerProfile', () => {
       bio: 'Loves campus food.',
       year: 2,
       verified: true,
-      rating: 0,
-      reviewCount: 0,
       avatarColor: '#5C2D91',
       avatarUrl: null,
       stats,

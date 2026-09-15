@@ -1,14 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants/theme';
 import type { SellerBadge } from '../lib/sellerBadges';
 
 type Props = {
-  reviewCount: number;
-  averageRating: number;
-  // Jumps to the Reviews tab — the rating segment is the one tappable part.
-  onPressRating: () => void;
   // Each is omitted from the " · " row when absent (0 / null / empty) rather
   // than shown as a hollow "0 sold". ProfileScreen simply doesn't pass
   // replyTime, so no reply-time segment appears there.
@@ -18,43 +14,16 @@ type Props = {
   badges: SellerBadge[];
 };
 
-// Shared profile trust header: a muted, " · "-separated trust row (tappable
-// rating · sold · joined · replies) above the earned-badge chips. Both profile
-// screens render this so the two can't drift. Rating always shows (as "New"
-// pre-reviews) so it isn't mistaken for missing.
+// Shared profile trust header: a muted, " · "-separated trust row
+// (sold · joined · replies) above the earned-badge chips. Both profile
+// screens render this so the two can't drift.
 export default function TrustStack({
-  reviewCount,
-  averageRating,
-  onPressRating,
   soldCount,
   joinedDate,
   replyTime,
   badges,
 }: Props) {
-  const hasReviews = reviewCount > 0;
-
-  const segments: React.ReactNode[] = [
-    <TouchableOpacity
-      key="rating"
-      style={styles.trustSegmentRow}
-      onPress={onPressRating}
-      accessibilityRole="button"
-      accessibilityLabel={
-        hasReviews
-          ? `${averageRating.toFixed(1)} stars, ${reviewCount} reviews`
-          : 'No ratings yet'
-      }
-    >
-      <Ionicons
-        name={hasReviews ? 'star' : 'star-outline'}
-        size={13}
-        color={COLORS.warning}
-      />
-      <Text style={styles.trustText}>
-        {hasReviews ? ` ${averageRating.toFixed(1)} (${reviewCount})` : ' New'}
-      </Text>
-    </TouchableOpacity>,
-  ];
+  const segments: React.ReactNode[] = [];
   if (soldCount && soldCount > 0) {
     segments.push(
       <Text key="sold" style={styles.trustText}>
@@ -114,10 +83,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trustSegmentRow: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   trustText: {
