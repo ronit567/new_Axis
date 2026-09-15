@@ -73,4 +73,18 @@ export const ReviewRepository = {
     })
     if (error) throw error
   },
+
+  // Withdraw your own review. reviews_delete_reviewer (0020) and the DELETE
+  // grant have allowed this since the table existed; only the client never
+  // offered it, so an author could edit a review down but never take it back.
+  // The reviewer_id filter is belt-and-braces — RLS already scopes the delete
+  // to the caller's own rows.
+  async deleteOwn(reviewerId: string, reviewId: string): Promise<void> {
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId)
+      .eq('reviewer_id', reviewerId)
+    if (error) throw error
+  },
 }

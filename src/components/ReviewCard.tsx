@@ -1,18 +1,47 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SIZES } from '../constants/theme';
+import { haptics } from '../lib/haptics';
 import { Review } from '../types';
 import Avatar from './Avatar';
+import PressableScale from './PressableScale';
 
 type Props = {
   review: Review;
+  // Report someone else's review. Omitted on your own, where there is nothing
+  // to report — you can delete it instead.
+  onReport?: () => void;
+  // Withdraw your own review. Omitted on everyone else's.
+  onDelete?: () => void;
 };
 
 // One written review: reviewer identity, star rating, relative time, body.
 // Shared by SellerProfileScreen and the own Profile tab so the two renderings
 // can't drift.
-export default function ReviewCard({ review }: Props) {
+//
+// The overflow action only appears when the parent passes a handler, so a card
+// never offers something the viewer cannot do. Exactly one of the two applies
+// at a time: you can report a review you did not write, or delete one you did.
+export default function ReviewCard({ review, onReport, onDelete }: Props) {
+  const hasMenu = !!onReport || !!onDelete;
+
+  const openMenu = () => {
+    haptics.tap();
+    if (onDelete) {
+      Alert.alert(
+        'Delete your review',
+        'This removes your review of this seller. You can write a new one later.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: onDelete },
+        ],
+      );
+      return;
+    }
+    onReport?.();
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
@@ -39,6 +68,21 @@ export default function ReviewCard({ review }: Props) {
           </View>
         </View>
         <Text style={styles.time}>{review.timeAgo}</Text>
+        {hasMenu && (
+          <PressableScale
+            style={styles.menuBtn}
+            onPress={openMenu}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={onDelete ? 'Delete your review' : 'Report this review'}
+          >
+            <Ionicons
+              name={onDelete ? 'trash-outline' : 'flag-outline'}
+              size={15}
+              color={COLORS.textMuted}
+            />
+          </PressableScale>
+        )}
       </View>
       <Text style={styles.body}>{review.body}</Text>
     </View>
@@ -79,6 +123,10 @@ const styles = StyleSheet.create({
   time: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
+  },
+  menuBtn: {
+    padding: 4,
+    marginRight: -4,
   },
   body: {
     fontSize: SIZES.md,

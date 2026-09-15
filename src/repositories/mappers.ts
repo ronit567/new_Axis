@@ -152,6 +152,8 @@ export function toMyListing(row: ListingRow, saves: number): MyListing {
     thumbUrls: row.image_urls.map((url, i) => row.thumb_urls[i] ?? url),
     // No separate "sale price" column — a sold listing keeps its list price.
     soldFor: row.status === 'sold' ? row.price : undefined,
+    isFree: row.is_free,
+    isTrade: row.is_trade,
   };
 }
 

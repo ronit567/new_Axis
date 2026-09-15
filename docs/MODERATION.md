@@ -44,11 +44,40 @@ Open it in the **Supabase Studio SQL editor**:
 select * from public.reports_queue;
 ```
 
-> **`service_role` will not work for this**, despite the name. It holds only
-> `REFERENCES, TRIGGER, TRUNCATE` on `reports`, `listings` and `profiles` — no
-> `SELECT` — so a service-key REST call fails on privileges. Studio works
-> because it connects as `postgres`. If moderation ever moves off Studio, that
-> role needs grants first.
+> **`service_role` cannot read the underlying tables**, despite the name. It
+> holds only `REFERENCES, TRIGGER, TRUNCATE` on `reports`, `listings` and
+> `profiles` — no `SELECT` — so a service-key REST call against those fails on
+> privileges. Studio works because it connects as `postgres`.
+>
+> `0043` grants `service_role` `SELECT` on the **`reports_queue` view alone**,
+> so the alerter below can read a report it was notified about. The view is not
+> `security_invoker`, so that grant exposes the triage columns and nothing more;
+> the tables beneath are still closed to that role.
+
+## Getting told a report exists
+
+`0043` puts an `AFTER INSERT` trigger on `reports` that posts the report id to
+the `report-alert` edge function, which reads the joined row and emails it to
+the moderator mailbox. Reports no longer wait to be noticed.
+
+It is deliberately a migration rather than a dashboard Database Webhook, so the
+alerting path is reviewable in git and survives the project being rebuilt.
+
+What it guarantees, and what it does not:
+
+- **A failed alert never costs a report.** Missing Vault secrets, an
+  unreachable function, a dead mail provider — the trigger warns and the insert
+  still commits. Alerting is an accelerator on the schedule below, not a
+  replacement for it.
+- **Rate-limited reports raise no mail.** The trigger is `AFTER`, and
+  `trg_reports_rate_limit` (`0036`) is `BEFORE`, so a report the limiter
+  rejects never reaches the alerter.
+- **The twice-daily Studio check below still stands.** If mail silently stops,
+  that check is what catches it. Do not drop it because alerts are arriving.
+
+Setup lives in the header of `supabase/migrations/0043_report_alerts.sql`: two
+Vault secrets, two function secrets, one deploy.
+
 
 ## The commitment
 

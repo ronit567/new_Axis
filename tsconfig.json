@@ -5,5 +5,12 @@
     "paths": {
       "@/*": ["./src/*"]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    // Edge functions run on Deno, not the React Native runtime: they import
+    // from jsr:/npm: specifiers and use the Deno global, neither of which this
+    // config knows about. They are type-checked by `deno check` instead.
+    "supabase/functions"
+  ]
 }

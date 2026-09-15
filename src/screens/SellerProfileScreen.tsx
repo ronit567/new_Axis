@@ -31,7 +31,7 @@ import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
 import { useHasChattedWith } from '../hooks/useMessages';
-import { useSellerReviews, useUpsertReview } from '../hooks/useReviews';
+import { useSellerReviews, useUpsertReview, useDeleteReview } from '../hooks/useReviews';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { averageRating } from '../lib/reviewStats';
 import { useAuth } from '../context/AuthContext';
@@ -70,6 +70,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   } = useSellerListings(seller.id);
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
+  const deleteReview = useDeleteReview();
+  // The review whose report sheet is open. Held rather than a bare boolean
+  // because the sheet needs the review's author to name and to block.
+  const [reportingReview, setReportingReview] = useState<Review | null>(null);
   const blockUser = useBlockUser();
   // Reachable with your own profile (e.g. via a chat with yourself in dev, or
   // deep links later) — hide partner-only actions rather than render a
@@ -172,7 +176,23 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     }
     return (
       <View style={styles.reviewItem}>
-        <ReviewCard review={item.review} />
+        <ReviewCard
+          review={item.review}
+          onReport={
+            item.review.reviewer.id === user?.id
+              ? undefined
+              : () => setReportingReview(item.review)
+          }
+          onDelete={
+            item.review.reviewer.id === user?.id
+              ? () =>
+                  deleteReview.mutate({
+                    reviewId: item.review.id,
+                    sellerId: item.review.sellerId,
+                  })
+              : undefined
+          }
+        />
       </View>
     );
   };
@@ -368,6 +388,32 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           createReport.mutateAsync({ targetType: 'user', targetUserId: seller.id, reason })
         }
         onBlock={() => blockUser.mutateAsync(seller.id)}
+      />
+
+      {/* Reporting a review is a separate sheet from reporting the seller: the
+          thing being reported is the text, but the person who gets blocked is
+          its author, who is not this profile's owner. */}
+      <ReportModal
+        visible={!!reportingReview}
+        target="review"
+        targetName={
+          reportingReview ? `${reportingReview.reviewer.name}'s review` : undefined
+        }
+        blockName={reportingReview?.reviewer.name}
+        onClose={() => setReportingReview(null)}
+        onSubmit={(reason) =>
+          createReport.mutateAsync({
+            targetType: 'review',
+            targetReviewId: reportingReview!.id,
+            targetUserId: reportingReview!.reviewer.id,
+            reason,
+          })
+        }
+        onBlock={
+          reportingReview?.reviewer.id
+            ? () => blockUser.mutateAsync(reportingReview.reviewer.id!)
+            : undefined
+        }
       />
     </Screen>
   );

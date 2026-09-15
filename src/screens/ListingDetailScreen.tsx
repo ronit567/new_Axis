@@ -30,6 +30,13 @@ import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
 import { formatYearOfStudy } from '../lib/formatYear';
+import {
+  formatPrice,
+  priceBadge,
+  acceptsOffers,
+  enquiryMessage,
+  shareMessage,
+} from '../lib/formatPrice';
 import { useAuth } from '../context/AuthContext';
 import { useListing, useMarkListingSold, useRelistListing, useDeleteListing } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
@@ -85,6 +92,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   }, [refetch]);
 
   const isOwnListing = !!listing && user?.id === listing.seller.id;
+  const freeOrTradeLabel = listing ? priceBadge(listing) : null;
   // Owner-guarded: a viewer browsing someone else's listing has no edit
   // requests of their own to see for it (listing_edit_requests_select_own
   // scopes rows to the requester, always the seller), so skip the query
@@ -335,7 +343,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           <View style={styles.content}>
             {/* Price + condition */}
             <View style={styles.priceRow}>
-              <Text style={styles.price}>${listing.price}</Text>
+              <Text style={styles.price}>{formatPrice(listing)}</Text>
+              {freeOrTradeLabel && (
+                <View style={styles.priceBadge}>
+                  <Text style={styles.priceBadgeText}>{freeOrTradeLabel}</Text>
+                </View>
+              )}
               <View style={styles.conditionBadge}>
                 <Text style={styles.conditionText}>{listing.condition}</Text>
               </View>
@@ -439,7 +452,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
             onPress={async () => {
               haptics.tap();
               try {
-                await Share.share({ message: `${listing.title} — $${listing.price} on Axis` });
+                await Share.share({ message: shareMessage(listing) });
               } catch {
                 // Silently ignore — the user cancelling the share sheet isn't an error.
               }
@@ -494,19 +507,17 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       {/* Bottom Action Bar */}
       {!isOwnListing && (
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <PressableScale
-            style={styles.offerBtn}
-            onPress={() =>
-              openChat(
-                `Hi! I'm interested in your "${listing.title}" ($${listing.price}). Would you consider an offer?`,
-              )
-            }
-            scaleTo={0.97}
-            accessibilityRole="button"
-            accessibilityLabel="Make an offer by message"
-          >
-            <Text style={styles.offerText}>Make offer</Text>
-          </PressableScale>
+          {acceptsOffers(listing) && (
+            <PressableScale
+              style={styles.offerBtn}
+              onPress={() => openChat(enquiryMessage(listing))}
+              scaleTo={0.97}
+              accessibilityRole="button"
+              accessibilityLabel="Make an offer by message"
+            >
+              <Text style={styles.offerText}>Make offer</Text>
+            </PressableScale>
+          )}
           <PressableScale
             style={styles.messageBtn}
             scaleTo={0.97}
@@ -705,6 +716,17 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.extraBold,
     color: COLORS.text,
     fontVariant: ['tabular-nums'],
+  },
+  priceBadge: {
+    backgroundColor: COLORS.successSoft,
+    borderRadius: SIZES.borderRadiusSm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  priceBadgeText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontFamily: FONTS.semibold,
   },
   conditionBadge: {
     backgroundColor: COLORS.primaryTint,

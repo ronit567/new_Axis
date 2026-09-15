@@ -18,6 +18,7 @@ import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import HeaderIconButton from '../components/layout/HeaderIconButton';
 import { haptics } from '../lib/haptics';
+import { formatPrice } from '../lib/formatPrice';
 import {
   useMyListings,
   useMarkListingSold,
@@ -89,7 +90,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
               </View>
             </View>
             <Text style={styles.price}>
-              ${isSold ? item.soldFor : item.price}
+              {formatPrice({ ...item, price: isSold ? item.soldFor ?? item.price : item.price })}
             </Text>
             <View style={styles.statsRow}>
               <View style={styles.statChip}>

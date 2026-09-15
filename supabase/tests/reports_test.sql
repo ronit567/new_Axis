@@ -20,11 +20,19 @@ values
    now(), '{}', '{}', now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-777777777777',
    'authenticated', 'authenticated', 'other@test.uwo.ca', 'test-fixture-not-a-real-hash',
+   now(), '{}', '{}', now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', '99999999-9999-4999-8999-999999999999',
+   'authenticated', 'authenticated', 'third@test.uwo.ca', 'test-fixture-not-a-real-hash',
    now(), '{}', '{}', now(), now(), '', '', '', '');
 
 insert into public.profiles (id, name) values
   ('66666666-6666-6666-6666-666666666666', 'Reporter'),
-  ('77777777-7777-7777-7777-777777777777', 'Other');
+  ('77777777-7777-7777-7777-777777777777', 'Other'),
+  -- Scenario 2's impersonation attempt has to name someone REPORTER has not
+  -- already reported, or 0036's duplicate guard (a BEFORE trigger, so it runs
+  -- ahead of the RLS check this scenario is actually testing) rejects the row
+  -- first and the assertion never reaches RLS at all.
+  ('99999999-9999-4999-8999-999999999999', 'Unreported Third Party');
 
 insert into public.listings (id, seller_id, title, status) values
   ('88888888-8888-8888-8888-888888888888',
@@ -98,7 +106,7 @@ do $$
 begin
   insert into public.reports (reporter_id, target_type, target_user_id, reason)
     values ('66666666-6666-6666-6666-666666666666', 'user',
-            '77777777-7777-7777-7777-777777777777', 'spam');
+            '99999999-9999-4999-8999-999999999999', 'spam');
   raise exception 'REPORTS TEST FAILED: a user was able to insert a report impersonating another reporter_id';
 exception
   when insufficient_privilege then null; -- expected

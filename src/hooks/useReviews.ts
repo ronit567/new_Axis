@@ -36,3 +36,22 @@ export function useUpsertReview() {
     },
   })
 }
+
+// Withdraw your own review. sellerId is carried so the list it came from can
+// be invalidated — the mutation itself only needs the review id.
+export function useDeleteReview() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: { reviewId: string; sellerId: string }) => {
+      if (!user) throw new Error('Not signed in')
+      return ReviewRepository.deleteOwn(user.id, input.reviewId)
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.sellerReviews(input.sellerId),
+      })
+    },
+  })
+}
