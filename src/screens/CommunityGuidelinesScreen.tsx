@@ -76,7 +76,7 @@ export default function CommunityGuidelinesScreen({ navigation }: Props) {
           from. Reports are confidential and help keep Axis safe for everyone.
         </Text>
         <Text style={styles.paragraph}>
-          Our team reviews every report and responds within 24 hours. Content that
+          Our team reviews every report. Content that
           violates these guidelines is removed, and the accounts responsible for it
           are suspended or permanently banned from Axis.
         </Text>
