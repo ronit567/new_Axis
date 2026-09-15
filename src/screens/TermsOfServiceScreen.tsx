@@ -97,6 +97,17 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           </Text>
           .
         </Text>
+        <Text style={styles.paragraph}>
+          These are also published at{' '}
+          <Text
+            style={styles.emailLink}
+            onPress={() => Linking.openURL('https://dataaxis.org/terms')}
+            accessibilityRole="link"
+          >
+            dataaxis.org/terms
+          </Text>
+          .
+        </Text>
       </ScrollView>
     </Screen>
   );
