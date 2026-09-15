@@ -258,6 +258,12 @@ export default function WelcomeScreen({ navigation }: Props) {
                 <Text style={styles.signInBtnText}>Sign in</Text>
               </PressableScale>
             </Animated.View>
+
+            {/* Axis names Western on this screen to say who can join. This line
+                keeps that from reading as the university's own app. */}
+            <Animated.Text style={[styles.affiliationNote, { opacity: opacityOf(signInV) }]}>
+              Not affiliated with Western University
+            </Animated.Text>
           </View>
 
         </View>
@@ -407,5 +413,11 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  affiliationNote: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: SIZES.sm,
+    textAlign: 'center',
+    marginTop: 2,
   },
 });
