@@ -2,7 +2,8 @@
 --
 -- Same harness as reports_queue_test.sql: BEGIN ... ROLLBACK, identity via
 -- set local role, raises on the first failed assertion, prints
--- ALL REPORT_ALERTS TESTS PASSED on success. Run after 0011, 0012 and 0043.
+-- ALL REPORT_ALERTS TESTS PASSED on success. Run after 0011, 0012 and 0043
+-- (and 0046, for scenario 7).
 --
 -- The property that matters most here is the negative one: filing a report
 -- must succeed even when alerting cannot run. The vault secrets are absent in
@@ -119,6 +120,25 @@ select pg_temp.assert(
   not has_function_privilege('anon', 'public.notify_new_report()', 'EXECUTE')
   and not has_function_privilege('authenticated', 'public.notify_new_report()', 'EXECUTE'),
   'notify_new_report must not be executable by anon or authenticated');
+
+-- ── Scenario 7 (0046): the same report filed twice is still rejected, and the
+--    message — which the app shows verbatim — no longer promises a response
+--    time. Scenario 1's report is still open, so this collides with it.
+do $$
+begin
+  insert into public.reports (reporter_id, target_type, target_listing_id, target_user_id, reason)
+    values ('aaaa1111-1111-4111-8111-111111111111', 'listing',
+            'cccc3333-3333-4333-8333-333333333333',
+            'bbbb2222-2222-4222-8222-222222222222', 'spam');
+  raise exception 'REPORT_ALERTS TEST FAILED: a duplicate report was accepted';
+exception
+  when raise_exception then
+    if sqlerrm like 'REPORT_ALERTS TEST FAILED%' then raise; end if;
+    if sqlerrm ~* '24|hour' then
+      raise exception 'REPORT_ALERTS TEST FAILED: the duplicate-report message still promises a response time: %', sqlerrm;
+    end if;
+end;
+$$;
 
 select 'ALL REPORT_ALERTS TESTS PASSED' as result;
 

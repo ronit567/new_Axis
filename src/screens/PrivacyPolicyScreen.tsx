@@ -25,7 +25,7 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
+        <Text style={styles.lastUpdated}>Last updated: September 15, 2026</Text>
 
         <Text style={styles.intro}>
           Axis is a marketplace built for verified university students. This policy
@@ -53,7 +53,8 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
           We use your information to verify your student status, show your listings
           to other buyers, deliver messages, keep the marketplace safe, and improve
           the app. We may send you service notifications about your account, your
-          listings, or your conversations.
+          listings, or your conversations, and we email you a confirmation when you
+          report something.
         </Text>
 
         <Text style={styles.sectionTitle}>How we share information</Text>
@@ -63,9 +64,11 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
           not use it for advertising or tracking.
         </Text>
         <Text style={styles.paragraph}>
-          Two service providers process data on our behalf, and both are contractually
+          Three service providers process data on our behalf, and all are contractually
           required to protect it: Supabase hosts our database, file storage, and
-          sign-in, and Sentry receives crash reports when the app fails. Crash reports
+          sign-in; Resend delivers the emails about reports, including the confirmation
+          sent to your email address when you file one; and Sentry receives crash
+          reports when the app fails. Crash reports
           contain the technical details of the failure and your device model — never
           your name, email, messages, or listings. We share data otherwise only when
           required by law or to protect the safety of our community.

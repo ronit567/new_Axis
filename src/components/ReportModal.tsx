@@ -141,7 +141,8 @@ export default function ReportModal({
             </View>
             <Text style={styles.confirmTitle}>Report submitted</Text>
             <Text style={styles.confirmBody}>
-              Thanks for letting us know. Our team will review this {targetLabel}.
+              Thanks for letting us know. Our team will review this {targetLabel}, and
+              we'll email you a confirmation.
             </Text>
             {onBlock && (
               <TouchableOpacity

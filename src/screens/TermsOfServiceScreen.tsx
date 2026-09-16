@@ -25,7 +25,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
+        <Text style={styles.lastUpdated}>Last updated: September 15, 2026</Text>
 
         <Text style={styles.intro}>
           Welcome to Axis. By creating an account or using the app you agree to
@@ -55,7 +55,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           Axis. You may not post or send content that is harassing, hateful,
           threatening, sexually explicit, discriminatory, or otherwise objectionable,
           in any listing, photo, message, or profile. Report anything that
-          breaks this rule and our team will review it within 24 hours. Content that
+          breaks this rule and our team will review it. Content that
           violates these terms or our Community Guidelines is removed, and the
           accounts responsible for it are suspended or permanently banned from Axis.
         </Text>
