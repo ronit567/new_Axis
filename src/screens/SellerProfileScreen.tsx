@@ -337,7 +337,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             )}
             <HeaderIconButton
               icon="ellipsis-horizontal"
-              accessibilityLabel="More options"
+              accessibilityLabel="Report or block"
               color={COLORS.text}
               size={20}
               onPress={() => {
@@ -388,6 +388,9 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           createReport.mutateAsync({ targetType: 'user', targetUserId: seller.id, reason })
         }
         onBlock={() => blockUser.mutateAsync(seller.id)}
+        // Their profile and listings are RLS-hidden from the moment the block
+        // lands, so there is nothing left on this screen to look at.
+        onBlocked={() => navigation.goBack()}
       />
 
       {/* Reporting a review is a separate sheet from reporting the seller: the
