@@ -33,6 +33,11 @@ type Props = {
   // button would otherwise offer to "Block Vintage Desk Lamp". Defaults to
   // targetName, which is already the person for 'user' and 'chat'.
   blockName?: string;
+  // Called after a block succeeds and the user dismisses the confirmation.
+  // Screens use it to leave: the blocked person's listings, profile and
+  // conversation are hidden by RLS from that moment, so staying put would show
+  // content that is no longer theirs to see.
+  onBlocked?: () => void;
 };
 
 export default function ReportModal({
@@ -43,6 +48,7 @@ export default function ReportModal({
   onSubmit,
   onBlock,
   blockName,
+  onBlocked,
 }: Props) {
   const [selected, setSelected] = useState<ReportReason | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -108,8 +114,16 @@ export default function ReportModal({
           'User blocked',
           `${blockTarget} has been blocked. You will no longer see their content.`,
           // Close (rather than fall back to the reason-picker view) once the
-          // user has acknowledged the block.
-          [{ text: 'OK', onPress: handleClose }],
+          // user has acknowledged the block, then let the screen move on.
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                handleClose();
+                onBlocked?.();
+              },
+            },
+          ],
         );
       }
     } catch {
@@ -120,6 +134,38 @@ export default function ReportModal({
       setBlocking(false);
     }
   };
+
+  // Blocking is reversible but not trivial — it hides both people from each
+  // other everywhere — so it is confirmed from either place it is offered.
+  const confirmBlock = () => {
+    if (blocking) return;
+    haptics.tap();
+    Alert.alert(
+      `Block ${blockTarget}?`,
+      "They won't be able to message you, and neither of you will see the other's " +
+        'profile or listings. You can unblock them any time in Settings > Blocked users.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Block', style: 'destructive', onPress: handleBlock },
+      ],
+    );
+  };
+
+  const blockButton = onBlock ? (
+    <TouchableOpacity
+      style={[styles.blockBtn, blocking && styles.blockBtnDisabled]}
+      onPress={confirmBlock}
+      disabled={blocking}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`Block ${blockTarget}`}
+    >
+      <Ionicons name="hand-left-outline" size={16} color={COLORS.error} />
+      <Text style={styles.blockBtnText}>
+        {blocking ? 'Blocking…' : `Block ${blockTarget}`}
+      </Text>
+    </TouchableOpacity>
+  ) : null;
 
   const targetLabel =
     target === 'listing' ? 'listing' : target === 'chat' ? 'conversation' : 'user';
@@ -144,19 +190,7 @@ export default function ReportModal({
               Thanks for letting us know. Our team will review this {targetLabel}, and
               we'll email you a confirmation.
             </Text>
-            {onBlock && (
-              <TouchableOpacity
-                style={[styles.blockBtn, blocking && styles.blockBtnDisabled]}
-                onPress={handleBlock}
-                disabled={blocking}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="hand-left-outline" size={16} color={COLORS.error} />
-                <Text style={styles.blockBtnText}>
-                  {blocking ? 'Blocking…' : `Block ${blockTarget}`}
-                </Text>
-              </TouchableOpacity>
-            )}
+            {blockButton}
             <TouchableOpacity style={styles.doneBtn} onPress={handleClose} activeOpacity={0.85}>
               <Text style={styles.doneBtnText}>Done</Text>
             </TouchableOpacity>
@@ -214,6 +248,19 @@ export default function ReportModal({
                 {submitting ? 'Submitting…' : 'Submit report'}
               </Text>
             </TouchableOpacity>
+
+            {/* Blocking must not require filing a report first (Guideline 1.2):
+                someone may just want a person gone without accusing them. */}
+            {blockButton && (
+              <>
+                <View style={styles.orRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>or</Text>
+                  <View style={styles.orLine} />
+                </View>
+                {blockButton}
+              </>
+            )}
           </>
         )}
       </View>
@@ -377,6 +424,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     width: '100%',
     justifyContent: 'center',
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 14,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.divider,
+  },
+  orText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
   },
   blockBtnDisabled: {
     opacity: 0.5,

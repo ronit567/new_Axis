@@ -494,9 +494,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 scaleTo={0.9}
                 accessibilityRole="button"
-                accessibilityLabel="Report listing"
+                accessibilityLabel="Report or block"
               >
-                <Ionicons name="flag-outline" size={20} color={COLORS.text} />
+                <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
               </PressableScale>
             </>
           )}
@@ -607,6 +607,8 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
         }
         // targetName is the listing; the block applies to whoever posted it.
         blockName={listing.seller.name}
+        // The listing is RLS-hidden from the moment the block lands.
+        onBlocked={() => navigation.goBack()}
       />
       <ImageViewerModal
         visible={viewerIndex !== null}

@@ -283,10 +283,10 @@ export default function ChatScreen({ navigation, route }: Props) {
               onPress={() => setReportVisible(true)}
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               scaleTo={0.9}
-              accessibilityLabel="Report conversation"
+              accessibilityLabel="Report or block"
               accessibilityRole="button"
             >
-              <Ionicons name="flag-outline" size={20} color={COLORS.textMuted} />
+              <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textMuted} />
             </PressableScale>
           </>
         }
@@ -381,6 +381,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           })
         }
         onBlock={() => blockUser.mutateAsync(partnerId)}
+        // messages_select_participant (0002) has no block check, so the open
+        // thread would keep showing their messages. The inbox drops it.
+        onBlocked={() => navigation.goBack()}
       />
     </Screen>
   );

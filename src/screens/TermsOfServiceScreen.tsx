@@ -41,6 +41,14 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           on your account.
         </Text>
 
+        <Text style={styles.sectionTitle}>About Axis</Text>
+        <Text style={styles.paragraph}>
+          Axis is an independent service. It is not affiliated with, endorsed by,
+          sponsored by, or operated by Western University. We refer to Western and
+          its email domains only to describe who can join, and Western's names and
+          marks belong to the university.
+        </Text>
+
         <Text style={styles.sectionTitle}>Acceptable use</Text>
         <Text style={styles.paragraph}>
           Use Axis honestly and respectfully. Do not post misleading listings,
