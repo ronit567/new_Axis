@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react-native'
+import { scrubBreadcrumb, scrubEvent } from './sentryScrub'
 
 // The DSN is not a secret (it only authorises *writes* to the project), but it
 // is environment-specific, so it comes from the env like the Supabase vars.
@@ -26,11 +27,15 @@ export function initCrashReporting(): void {
     sendDefaultPii: false,
 
     // Breadcrumbs are the useful half of a crash report and the risky half for
-    // privacy: console breadcrumbs would capture whatever was logged near the
-    // failure. The app logs nothing in production, but this makes it structural
-    // rather than a property of today's code.
+    // privacy. Console breadcrumbs are dropped, and every recorded URL loses
+    // its query string, where Supabase carries user ids and search text — see
+    // sentryScrub.ts. Both hooks run it: beforeBreadcrumb catches crumbs as
+    // they are recorded, and beforeSend catches the ones the native SDKs merge
+    // into the event without passing through beforeBreadcrumb.
     enableCaptureFailedRequests: false,
     maxBreadcrumbs: 30,
+    beforeBreadcrumb: scrubBreadcrumb,
+    beforeSend: scrubEvent,
 
     // No performance tracing. It samples every navigation and network call for
     // data we have no use for yet, and each sampled transaction is another
