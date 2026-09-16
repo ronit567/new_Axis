@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "check:arch": "sh scripts/check-architecture.sh",
     "check:migrations": "sh scripts/check-migrations.sh",
+    "check:store": "sh scripts/store-readiness.sh",
     "test": "jest",
     "test:watch": "jest --watch"
   },
