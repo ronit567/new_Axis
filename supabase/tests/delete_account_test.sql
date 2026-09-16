@@ -3,8 +3,13 @@
 -- Same harness as rls_policies_test.sql / messages_read_receipts_test.sql:
 -- runs inside BEGIN ... ROLLBACK, switches identity via `set local role` +
 -- `request.jwt.claims`, raises on the first failed assertion, prints
--- 'ALL ACCOUNT-DELETION TESTS PASSED' on success. Apply 0010, 0014 and 0029
--- before running (0014 creates the buckets the storage fixtures below need).
+-- 'ALL ACCOUNT-DELETION TESTS PASSED' on success. Apply 0010, 0014, 0029,
+-- 0030 and 0047 before running (0014 creates the buckets the storage fixtures
+-- below need).
+--
+-- The suite installs Supabase Storage's delete guard if the local stack lacks
+-- it (see "Storage delete guard" below), so it tests against the same storage
+-- behaviour as the hosted project whatever storage image is running locally.
 --
 -- Two users: DYING (calls delete_own_account() on themself) and SURVIVOR
 -- (an unrelated party who also shares a message thread with DYING). The
@@ -85,6 +90,59 @@ values
   ('aaaaaaaa-0000-0000-0000-000000000003', 'listing-images',
    '77777777-7777-7777-7777-777777777777/77777777-1111-1111-1111-111111111111/photo.jpg');
 
+-- ── Storage delete guard ────────────────────────────────────────────────────
+-- storage.protect_delete() (supabase/storage#817) rejects any DELETE on
+-- storage.objects unless storage.allow_delete_query = 'true'. It is what made
+-- 0029/0030 fail on the hosted project, and 0047 is the fix. A local stack
+-- only has it if its storage image is new enough, and without it this suite
+-- passes against exactly the bug it should catch — so install the same guard
+-- when it is missing. The stand-in function lives in public, not storage,
+-- because the test role may not be allowed to create objects in the storage
+-- schema. Rolled back with everything else.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'storage'
+      and c.relname = 'objects'
+      and t.tgname = 'protect_objects_delete'
+  ) then
+    create function public.test_storage_protect_delete()
+      returns trigger
+      language plpgsql
+    as $guard$
+    begin
+      if coalesce(current_setting('storage.allow_delete_query', true), 'false') != 'true' then
+        raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+          using errcode = '42501';
+      end if;
+      return null;
+    end;
+    $guard$;
+
+    create trigger protect_objects_delete
+      before delete on storage.objects
+      for each statement
+      execute function public.test_storage_protect_delete();
+  end if;
+end;
+$$;
+
+-- ── Scenario 0: the guard is active. If a plain DELETE gets through, nothing
+--    below proves 0047 works.
+do $$
+begin
+  delete from storage.objects where id = 'aaaaaaaa-0000-0000-0000-000000000003';
+  raise exception 'ACCOUNT-DELETION TEST FAILED: the storage delete guard is not active';
+exception
+  when insufficient_privilege then
+    null; -- expected: 42501 from the storage delete guard
+end;
+$$;
+
 -- ── Scenario 1: anon has no EXECUTE grant — mirrors is_blocked()'s exclusion
 --    in rls_policies_test.sql. Only `authenticated` should ever reach this.
 set local role anon;
@@ -109,6 +167,12 @@ reset role;
 
 -- Back to the privileged role to inspect everything, including auth.users
 -- (authenticated has no direct select on it either way).
+
+-- 0047 sets storage.allow_delete_query only around its own deletes. If it
+-- leaked, every later statement in the transaction could bypass the guard.
+select pg_temp.assert(
+  coalesce(current_setting('storage.allow_delete_query', true), 'false') <> 'true',
+  'delete_own_account() must restore storage.allow_delete_query when it is done');
 
 select pg_temp.assert(
   not exists (select 1 from auth.users where id = '66666666-6666-6666-6666-666666666666'),
@@ -185,6 +249,24 @@ select set_config('request.jwt.claims',
        '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
 select public.delete_own_account();
 reset role;
+
+-- ── Scenario 4: deleting a single listing (0030's trigger, fixed in 0047)
+--    removes that listing's images and leaves the guard armed afterwards.
+set local role authenticated;
+select set_config('request.jwt.claims',
+       '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}', true);
+delete from public.listings where id = '77777777-1111-1111-1111-111111111111';
+reset role;
+
+select pg_temp.assert(
+  not exists (select 1 from public.listings where id = '77777777-1111-1111-1111-111111111111'),
+  'a seller must be able to delete their own listing');
+select pg_temp.assert(
+  not exists (select 1 from storage.objects where id = 'aaaaaaaa-0000-0000-0000-000000000003'),
+  'deleting a listing must remove its images');
+select pg_temp.assert(
+  coalesce(current_setting('storage.allow_delete_query', true), 'false') <> 'true',
+  'cleanup_deleted_listing_images() must restore storage.allow_delete_query when it is done');
 
 select 'ALL ACCOUNT-DELETION TESTS PASSED' as result;
 
