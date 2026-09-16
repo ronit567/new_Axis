@@ -25,7 +25,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.lastUpdated}>Last updated: August 30, 2026</Text>
+        <Text style={styles.lastUpdated}>Last updated: September 15, 2026</Text>
 
         <Text style={styles.intro}>
           Welcome to Axis. By creating an account or using the app you agree to
@@ -39,6 +39,14 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
           complete verification. You are
           responsible for keeping your login credentials secure and for all activity
           on your account.
+        </Text>
+
+        <Text style={styles.sectionTitle}>About Axis</Text>
+        <Text style={styles.paragraph}>
+          Axis is an independent service. It is not affiliated with, endorsed by,
+          sponsored by, or operated by Western University. We refer to Western and
+          its email domains only to describe who can join, and Western's names and
+          marks belong to the university.
         </Text>
 
         <Text style={styles.sectionTitle}>Acceptable use</Text>
