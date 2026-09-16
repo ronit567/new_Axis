@@ -64,7 +64,8 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 
 // EXPO_PUBLIC_* vars are inlined at bundle time, so a missing value would
 // otherwise surface as a cryptic "supabaseUrl is required" crash on the first
-// import. Fail loudly with a fix instead.
+// import. Fail loudly with a fix instead. EAS release builds never get this
+// far: app.config.js refuses to build them without these values.
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
     'Missing Supabase environment variables. Copy .env.example to .env and set ' +
