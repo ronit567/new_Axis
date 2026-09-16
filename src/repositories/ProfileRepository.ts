@@ -22,8 +22,7 @@ export type UpsertProfileInput = {
 }
 
 // listings/sold stay 0 until AX-111 gives ProfileRepository real listing
-// counts to aggregate (same deferral toSellerProfile already applies to
-// rating/reviewCount pending AX-702).
+// counts to aggregate.
 function toProfile(row: ProfileRow): SellerProfile {
   return toSellerProfile(row, { listings: 0, sold: 0, replyTime: row.reply_time ?? '' })
 }

@@ -148,24 +148,6 @@ export const MessageRepository = {
     return ((data ?? []) as MessageRow[]).map(toMessage).reverse()
   },
 
-  // Mirrors the reviews_insert_reviewer policy gate (0020): a review can only
-  // be written by someone who has an existing message with the seller, in
-  // either direction. Used to decide whether to even show the review UI.
-  async hasChattedWith(userId: string, partnerId: string): Promise<boolean> {
-    assertUuid(userId, 'userId')
-    assertUuid(partnerId, 'partnerId')
-    const { data, error } = await supabase
-      .from('messages')
-      .select('id')
-      .or(
-        `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),` +
-          `and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`,
-      )
-      .limit(1)
-    if (error) throw error
-    return (data ?? []).length > 0
-  },
-
   async send(senderId: string, data: SendMessageInput): Promise<Message> {
     // Screens hide the message actions on your own listing, but a deep link or
     // stale route params can still target yourself — reject before the insert

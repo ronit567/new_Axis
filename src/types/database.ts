@@ -30,8 +30,6 @@
 // hand-added alongside migration 0010 (AX-704 account deletion RPC). Drop
 // this note once regenerated.
 //
-// MANUAL ADDITION (pending regen): `reports.target_review_id` was hand-added
-// alongside 0044 (report a review).
 // MANUAL ADDITION (pending regen): the `reports` table + ReportRow alias were
 // hand-added alongside migration 0011 (AX-703 report/block). Same deal —
 // regenerate after applying 0011.
@@ -48,10 +46,6 @@
 // MANUAL ADDITION (pending regen): the `follows` table + FollowRow alias were
 // hand-added alongside migration 0019 (persisted profile follows). Drop this
 // note once regenerated.
-//
-// MANUAL ADDITION (pending regen): the `reviews` table + ReviewRow alias were
-// hand-added alongside migration 0020 (seller reviews). Drop this note once
-// regenerated.
 //
 // MANUAL ADDITION (pending regen): the `listing_edit_requests` table +
 // ListingEditRequestRow alias, and the `is_listing_engaged`/`apply_listing_edit`
@@ -417,7 +411,6 @@ export type Database = {
           reporter_id: string
           status: string
           target_listing_id: string | null
-          target_review_id: string | null
           target_type: string
           target_user_id: string | null
         }
@@ -428,7 +421,6 @@ export type Database = {
           reporter_id: string
           status?: string
           target_listing_id?: string | null
-          target_review_id?: string | null
           target_type: string
           target_user_id?: string | null
         }
@@ -439,7 +431,6 @@ export type Database = {
           reporter_id?: string
           status?: string
           target_listing_id?: string | null
-          target_review_id?: string | null
           target_type?: string
           target_user_id?: string | null
         }
@@ -463,48 +454,6 @@ export type Database = {
             columns: ["target_listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reviews: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          rating: number
-          reviewer_id: string
-          seller_id: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          rating: number
-          reviewer_id: string
-          seller_id: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          rating?: number
-          reviewer_id?: string
-          seller_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reviews_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -637,7 +586,6 @@ export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']
 export type BlockRow = DefaultSchema['Tables']['blocks']['Row']
 export type ReportRow = DefaultSchema['Tables']['reports']['Row']
 export type FollowRow = DefaultSchema['Tables']['follows']['Row']
-export type ReviewRow = DefaultSchema['Tables']['reviews']['Row']
 export type ListingEditRequestRow = DefaultSchema['Tables']['listing_edit_requests']['Row']
 // One row from my_blocked_users() (0033) — block + joined profile display info.
 export type BlockedUserRow = DefaultSchema['Functions']['my_blocked_users']['Returns'][number]

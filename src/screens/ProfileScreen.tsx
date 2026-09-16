@@ -13,17 +13,13 @@ import { NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
-import { RootStackParamList, MyListing, Review } from '../types';
+import { RootStackParamList, MyListing } from '../types';
 import PressableScale from '../components/PressableScale';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import HeaderIconButton from '../components/layout/HeaderIconButton';
 import Avatar from '../components/Avatar';
 import VerifiedTick from '../components/VerifiedTick';
-import ReviewCard from '../components/ReviewCard';
-import ReportModal from '../components/ReportModal';
-import SegmentedTabs from '../components/SegmentedTabs';
-import ReviewSummary from '../components/ReviewSummary';
 import TrustStack from '../components/TrustStack';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -31,15 +27,9 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import RemoteImage from '../components/RemoteImage';
 import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
-import { useSellerReviews } from '../hooks/useReviews';
-import { useCreateReport } from '../hooks/useReports';
-import { useBlockUser } from '../hooks/useBlocks';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { formatPrice } from '../lib/formatPrice';
 import { getSellerBadges } from '../lib/sellerBadges';
-import { averageRating } from '../lib/reviewStats';
-
-const TABS = ['Listings', 'Reviews'];
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -75,12 +65,6 @@ function ListingThumb({ item, size }: { item: MyListing; size: { width: number; 
 export default function ProfileScreen({ navigation }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const thumb = thumbSize(windowWidth);
-  const createReport = useCreateReport();
-  const blockUser = useBlockUser();
-  // These are reviews *of* you, so you are never their author and can never
-  // delete one — reporting is the whole remedy available here, which is why
-  // its absence was the gap.
-  const [reportingReview, setReportingReview] = useState<Review | null>(null);
   // Real own-listings preview (first 3) — mock ids here would navigate to a
   // ListingDetail that now fetches from the DB and comes back empty.
   const { data: myListings = [], refetch: refetchListings } = useMyListings();
@@ -91,19 +75,9 @@ export default function ProfileScreen({ navigation }: Props) {
     isError: profileError,
     refetch: refetchProfile,
   } = useCurrentProfile();
-  // What others wrote about me (0020). Also feeds the trust row's rating
-  // segment — profile.rating/reviewCount are the mapper's deferred zeros,
-  // never shown.
-  const { data: myReviews = [] } = useSellerReviews(profile?.id ?? '');
-  const average = averageRating(myReviews);
-  const [activeTab, setActiveTab] = useState(0);
   const soldCount = myListings.filter((l) => l.status === 'sold').length;
 
-  const badges = getSellerBadges({
-    averageRating: average,
-    reviewCount: myReviews.length,
-    replyTime: profile?.stats.replyTime ?? '',
-  });
+  const badges = getSellerBadges({ replyTime: profile?.stats.replyTime ?? '' });
 
   // Spinner only for user-initiated pulls — refresh both the profile and the
   // own-listings preview together.
@@ -197,9 +171,6 @@ export default function ProfileScreen({ navigation }: Props) {
           {!!profile?.bio && <Text style={styles.bioText}>{profile.bio}</Text>}
 
           <TrustStack
-            reviewCount={myReviews.length}
-            averageRating={average}
-            onPressRating={() => setActiveTab(1)}
             soldCount={soldCount}
             joinedDate={profile?.joinedDate}
             badges={badges}
@@ -217,106 +188,51 @@ export default function ProfileScreen({ navigation }: Props) {
           </PressableScale>
         </View>
 
-        {/* ── Tabs ── */}
-        <View style={styles.tabsWrap}>
-          <SegmentedTabs tabs={TABS} activeIndex={activeTab} onChange={setActiveTab} />
-        </View>
-
-        {activeTab === 0 ? (
-          /* ── My Listings ── */
-          <View style={styles.listingsBlock}>
-            <View style={styles.listingsTopRow}>
-              <Text style={styles.listingsTitle}>My listings</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
-                <Text style={styles.manageText}>Manage</Text>
-              </TouchableOpacity>
-            </View>
-            {myListings.length > 0 ? (
-              <View style={styles.listingsRow}>
-                {myListings.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={{ width: thumb.width }}
-                    onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-                    activeOpacity={0.85}
+        {/* ── My Listings ── */}
+        <View style={styles.listingsBlock}>
+          <View style={styles.listingsTopRow}>
+            <Text style={styles.listingsTitle}>My listings</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
+              <Text style={styles.manageText}>Manage</Text>
+            </TouchableOpacity>
+          </View>
+          {myListings.length > 0 ? (
+            <View style={styles.listingsRow}>
+              {myListings.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={{ width: thumb.width }}
+                  onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+                  activeOpacity={0.85}
+                >
+                  <ListingThumb item={item} size={thumb} />
+                  <Text
+                    style={[
+                      styles.priceText,
+                      item.status === 'sold' ? styles.priceTextSold : null,
+                    ]}
                   >
-                    <ListingThumb item={item} size={thumb} />
-                    <Text
-                      style={[
-                        styles.priceText,
-                        item.status === 'sold' ? styles.priceTextSold : null,
-                      ]}
-                    >
-                      {formatPrice({
-                        ...item,
-                        price: item.status === 'sold' ? item.soldFor ?? item.price : item.price,
-                      })}
-                    </Text>
-                    <Text style={styles.statusText}>
-                      {item.status === 'sold' ? 'Sold' : 'Active'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <EmptyState
-                icon="storefront-outline"
-                title="No listings yet — post your first item."
-                ctaLabel="Post a listing"
-                onCta={() => navigation.navigate('CreateListing')}
-              />
-            )}
-          </View>
-        ) : (
-          /* ── Reviews about me ── */
-          <View style={styles.reviewsBlock}>
-            <Text style={styles.listingsTitle}>Reviews ({myReviews.length})</Text>
-            {myReviews.length > 0 ? (
-              <>
-                <ReviewSummary reviews={myReviews} />
-                <View style={styles.reviewsList}>
-                  {myReviews.map((review) => (
-                    <ReviewCard
-                      key={review.id}
-                      review={review}
-                      onReport={() => setReportingReview(review)}
-                    />
-                  ))}
-                </View>
-              </>
-            ) : (
-              <Text style={styles.noListingsText}>
-                No reviews yet — they&apos;ll show up after your first sale.
-              </Text>
-            )}
-          </View>
-        )}
+                    {formatPrice({
+                      ...item,
+                      price: item.status === 'sold' ? item.soldFor ?? item.price : item.price,
+                    })}
+                  </Text>
+                  <Text style={styles.statusText}>
+                    {item.status === 'sold' ? 'Sold' : 'Active'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <EmptyState
+              icon="storefront-outline"
+              title="No listings yet — post your first item."
+              ctaLabel="Post a listing"
+              onCta={() => navigation.navigate('CreateListing')}
+            />
+          )}
+        </View>
       </ScrollView>
-
-      {/* A review on your own profile: you cannot remove it, so reporting it —
-          and blocking its author — is the remedy. */}
-      <ReportModal
-        visible={!!reportingReview}
-        target="review"
-        targetName={
-          reportingReview ? `${reportingReview.reviewer.name}'s review` : undefined
-        }
-        blockName={reportingReview?.reviewer.name}
-        onClose={() => setReportingReview(null)}
-        onSubmit={(reason) =>
-          createReport.mutateAsync({
-            targetType: 'review',
-            targetReviewId: reportingReview!.id,
-            targetUserId: reportingReview!.reviewer.id,
-            reason,
-          })
-        }
-        onBlock={
-          reportingReview?.reviewer.id
-            ? () => blockUser.mutateAsync(reportingReview.reviewer.id!)
-            : undefined
-        }
-      />
     </Screen>
   );
 }
@@ -385,12 +301,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
 
-  /* tabs */
-  tabsWrap: {
-    marginHorizontal: H_PAD,
-    marginBottom: 16,
-  },
-
   /* listings */
   listingsBlock: {
     marginHorizontal: H_PAD,
@@ -449,19 +359,5 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: SIZES.xs,
     color: COLORS.textSecondary,
-  },
-  noListingsText: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-
-  /* reviews */
-  reviewsBlock: {
-    marginHorizontal: H_PAD,
-    marginTop: 8,
-  },
-  reviewsList: {
-    gap: 10,
-    marginTop: 12,
   },
 });

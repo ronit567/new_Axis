@@ -25,8 +25,6 @@ export type SellerProfile = {
   location: string;
   bio: string;
   joinedDate: string;
-  rating: number;
-  reviewCount: number;
   year: YearOfStudy;
   verified: boolean;
   stats: { listings: number; sold: number; replyTime: string };
@@ -153,26 +151,12 @@ export type Conversation = {
   type: 'Buying' | 'Selling';
 };
 
-// A written seller review (migration 0020). Screens compute the average
-// rating / count by aggregating these — the SellerProfile.rating field stays
-// the deferred-to-AX-702 zero and is not used for display anymore.
-export type Review = {
-  id: string;
-  sellerId: string;
-  // Reviewer display info; reviewer.id is always set (needed to spot "my"
-  // review so the write modal seeds an edit instead of a duplicate).
-  reviewer: Contact;
-  rating: number; // 1–5 stars
-  body: string;
-  timeAgo: string; // relative label via timeAgo ("2d ago")
-};
-
 // AX-703: report + block. ReportTarget mirrors the ReportModal UI's entry
-// points (listing detail, seller profile, chat, and a single review — 0044);
-// ReportReason is the finite list its reason picker offers. Single source of
-// truth for both the component and ReportRepository, so they can't drift.
-// Kept in step with reports_target_type_check.
-export type ReportTarget = 'listing' | 'user' | 'chat' | 'review';
+// points (listing detail, seller profile, chat); ReportReason is the finite
+// list its reason picker offers. Single source of truth for both the component
+// and ReportRepository, so they can't drift. Kept in step with
+// reports_target_type_check.
+export type ReportTarget = 'listing' | 'user' | 'chat';
 export type ReportReason = 'spam' | 'prohibited_item' | 'harassment' | 'other';
 
 // One row on the Blocked users screen (migration 0033's my_blocked_users()).

@@ -1,11 +1,12 @@
 # Moderation
 
-Axis publishes a 24-hour response commitment in three places a user can read:
-`CommunityGuidelinesScreen`, `TermsOfServiceScreen`, and
-[dataaxis.org/guidelines](https://dataaxis.org/guidelines). It is also stated in
-the App Store Review notes.
+Axis tells users, in `CommunityGuidelinesScreen`, `TermsOfServiceScreen` and
+[dataaxis.org/guidelines](https://dataaxis.org/guidelines), that every report is
+reviewed and that violating content is removed. It does not publish a response
+time: the 24-hour figure was withdrawn in `0046`. Every reporter is emailed a
+confirmation instead.
 
-This document is the process behind that promise. It exists because Guideline
+This document is the process behind what is published. It exists because Guideline
 1.2 makes the developer responsible for removing violating content, and App
 Review can ask how compliance will improve when violating content is found —
 which is much easier to answer from a written process than to invent under time
@@ -18,7 +19,7 @@ PostgREST call cannot skip them.
 
 | Control | Where | Covers |
 | --- | --- | --- |
-| Objectionable-text filter | `BEFORE` triggers (`0032`) | `listings.title`, `listings.description`, `messages.body`, `profiles.name`, `profiles.bio`, `reviews.body` |
+| Objectionable-text filter | `BEFORE` triggers (`0032`) | `listings.title`, `listings.description`, `messages.body`, `profiles.name`, `profiles.bio` |
 | Message rate limit | `trg_messages_rate_limit` (`0036`) | One account flooding another's inbox |
 | Report rate limit | `trg_reports_rate_limit` (`0036`) | Burying the queue in noise |
 | Mutual blocking | RLS `is_blocked()` (`0002`) | Feed, search, profile and inbox, both directions |
@@ -57,8 +58,17 @@ select * from public.reports_queue;
 ## Getting told a report exists
 
 `0043` puts an `AFTER INSERT` trigger on `reports` that posts the report id to
-the `report-alert` edge function, which reads the joined row and emails it to
-the moderator mailbox. Reports no longer wait to be noticed.
+the `report-alert` edge function, which reads the joined row and sends two
+emails: the full report to the moderator mailbox, and a confirmation to the
+reporter's own address. Reports no longer wait to be noticed, and reporters
+know theirs arrived.
+
+The confirmation says what was reported, the reason, the filing time and a
+short reference, and nothing about the other party that the reporter didn't
+already see. It deliberately promises no response time and no follow-up about
+the outcome. Its Reply-To is the moderator mailbox, so a reporter adding detail
+reaches a person. Its wording lives in `supabase/functions/report-alert/email.ts`
+and is pinned by `email_test.ts` (`deno test`).
 
 It is deliberately a migration rather than a dashboard Database Webhook, so the
 alerting path is reviewable in git and survives the project being rebuilt.
@@ -79,9 +89,11 @@ Setup lives in the header of `supabase/migrations/0043_report_alerts.sql`: two
 Vault secrets, two function secrets, one deploy.
 
 
-## The commitment
+## The internal target
 
-**Every report gets a decision within 24 hours of being filed.**
+**Aim to decide every report within 24 hours of it being filed.** This is an
+internal operating target, not a promise to users. Nothing user-facing states a
+response time, and nothing should, unless this schedule is reliably met first.
 
 One person owns the queue. Until there is a second, that is the project owner.
 
@@ -90,10 +102,9 @@ One person owns the queue. Until there is a second, that is the project owner.
   of violence, sexual content involving minors, or a credible risk to someone's
   physical safety. These do not wait for the next check.
 
-A 24-hour clock with two checks a day leaves room for one missed check without
-breaking the promise. If checks are missed for more than a day, the honest fix
-is to change the number published in the app and on the site — not to let the
-published figure drift away from what actually happens.
+A 24-hour target with two checks a day leaves room for one missed check. If
+checks are regularly missed, fix the schedule or the staffing. Do not
+reintroduce a published response time as a way of creating pressure to meet it.
 
 ## Acting on a report
 
@@ -130,7 +141,7 @@ where id = '<user_id>';
 ```
 
 **Never `delete from public.profiles` to remove one bad listing.** That cascades
-to every listing, message, review and block the account owns. Removing a
+to every listing, message and block the account owns. Removing a
 profile row is account termination, not content removal — reach for it only when
 that is the intended outcome.
 

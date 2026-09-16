@@ -15,7 +15,6 @@ import type {
   MyListing,
   Notification,
   NotificationType,
-  Review,
   Seller,
   SellerProfile,
 } from '../types';
@@ -26,7 +25,6 @@ import type {
   MessageRow,
   NotificationRow,
   ProfileRow,
-  ReviewRow,
 } from '../types/database';
 import { timeAgo } from '../lib/timeAgo';
 
@@ -187,32 +185,12 @@ export function toSellerProfile(row: ProfileRow, stats: SellerStats): SellerProf
     location: row.location ?? '',
     bio: row.bio ?? '',
     joinedDate: formatJoinedDate(row.created_at),
-    // rating / reviewCount are 0 until the reviews table exists (AX-702).
-    // The SellerProfile UI hides the rating block when there are no reviews.
-    rating: 0,
-    reviewCount: 0,
     // null year => grad student; surface the 'Grad' sentinel, don't coerce to 1.
     year: row.year ?? 'Grad',
     verified: row.verified,
     stats,
     avatarColor: row.avatar_color ?? pickAvatarColor(row.id),
     avatarUrl: row.avatar_url,
-  };
-}
-
-// --- Reviews (0020) -----------------------------------------------------------
-
-// `reviewer` is non-null by contract: ReviewRepository drops rows whose
-// reviewer profile is RLS-hidden before mapping (same convention as
-// NotificationRepository dropping actorless notifications).
-export function toReview(row: ReviewRow, reviewer: ProfileRow): Review {
-  return {
-    id: row.id,
-    sellerId: row.seller_id,
-    reviewer: toContact(reviewer),
-    rating: row.rating,
-    body: row.body,
-    timeAgo: timeAgo(row.created_at),
   };
 }
 
