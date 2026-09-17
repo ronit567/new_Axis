@@ -10,6 +10,7 @@
     "check:arch": "sh scripts/check-architecture.sh",
     "check:migrations": "sh scripts/check-migrations.sh",
     "check:store": "sh scripts/store-readiness.sh",
+    "check:store:submit": "sh scripts/store-readiness.sh --submit",
     "test": "jest",
     "test:watch": "jest --watch"
   },

@@ -92,16 +92,40 @@ have been re-checked against it.
 
 ## NEEDS YOU
 
-In the order App Store Connect will ask. Keep this in step with the `you` rows
-above.
+Keep this in step with the `you` rows above. `check:store` lists these as
+reminders; `check:store:submit` fails until every one is marked `done`.
+
+### No App Store Connect access needed
+
+These are yours and can happen any time, in this order.
 
 1. **R01** — finish the report-handling setup (see the private launch notes).
 2. **R04** — review the dashboard-only auth settings (see the private launch notes).
-3. **R02** — create the app record, fill the three identifiers in `eas.json`.
-4. **R03** — two demo accounts on a non-support mailbox, seeded with real content.
+3. **R03** — two demo accounts on a non-support mailbox, seeded with real content.
+4. **R16** — capture the screenshots (simulator is fine). Uploading them is in the next list.
+
+### Needs the App Store Connect account
+
+The account holder does these, or invites you so you can. In the order App
+Store Connect asks for them.
+
 5. **R18** — account and program readiness.
-6. **R14** — App Privacy labels, exactly the eight manifest types.
-7. **R15** — age rating questionnaire with the social media questions.
-8. **R13** — export compliance answer.
-9. **R16** — screenshots.
-10. **R17** — preview build on a real iPhone and an iPad, every flow.
+6. **R02** — create the app record, then the three identifiers into `eas.json`.
+7. **R14** — App Privacy labels, exactly the eight manifest types.
+8. **R15** — age rating questionnaire with the social media questions.
+9. **R13** — export compliance answer.
+10. **R17** — preview build on a real iPhone and an iPad, every flow. Signing a device build needs the Apple team.
+
+## Hand-off for the account holder
+
+Better than sharing a login: in App Store Connect, **Users and Access → invite**
+the developer's own Apple ID with the **App Manager** role. Shared logins break
+on two-factor prompts, and an individual role can be removed later.
+
+If they would rather do it themselves, this is everything needed from them:
+
+1. Confirm the Developer Program membership is active and the latest agreement is accepted (R18).
+2. Create the app: platform iOS, name `Axis`, bundle ID `com.axis.app`, primary language English. If that bundle ID is taken, say so before anything else — it changes `app.json`.
+3. Send back three values for `eas.json`: the Apple ID email on the account, the numeric Apple ID of the new app (App Information → General), and the Team ID (Membership details).
+4. Create an API key: Users and Access → Integrations → App Store Connect API, role App Manager. Send the issuer ID, key ID and the `.p8` file over a private channel. The `.p8` downloads once, and must never be committed (`*.p8` is gitignored).
+5. Leave the listing text, privacy labels, age rating and export answers — those will be filled from `store/metadata/`, `store/REVIEW_NOTES.md` and this ledger once access exists.

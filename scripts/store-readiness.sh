@@ -12,10 +12,16 @@
 # live in the "NEEDS YOU" section of docs/STORE_READINESS.md.
 #
 # This script only READS. It never builds, submits, pushes or touches the
-# production database. There is deliberately no flag to skip a gate.
+# production database.
 #
-# Usage:
-#   npm run check:store
+# Two modes, and the flag only ever makes it stricter — there is deliberately
+# no way to skip a gate:
+#   npm run check:store          repo readiness. Work that needs App Store
+#                                Connect access is listed as NEEDS YOU, because
+#                                no amount of work in this repo can close it.
+#   npm run check:store:submit   the last check before `eas submit`. The Apple
+#                                identifiers must be filled in and every row
+#                                owned by `you` in the ledger must be closed.
 #
 # The last line is always one of:
 #   STORE-READINESS: PASS
@@ -30,12 +36,20 @@ GUARD="${APP_STORE_GUARD:-$HOME/.claude/hooks/app-store-compliance-guard.sh}"
 SKILL_DIR="${APP_STORE_SKILL_DIR:-$HOME/.claude/skills/app-store-compliance}"
 LEGAL_URLS="https://dataaxis.org/privacy https://dataaxis.org/terms https://dataaxis.org/guidelines https://dataaxis.org/support"
 
+SUBMIT=0
+[ "${1:-}" = "--submit" ] && SUBMIT=1
+
 FAILS=0
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; FAILS=$((FAILS + 1)); }
+# Something only a person with store access can close: a failure once we are
+# about to submit, a reminder before that.
+needs_you() {
+  if [ "$SUBMIT" -eq 1 ]; then fail "$1"; else echo "NEEDS YOU: $1"; fi
+}
 
 # Run a command quietly; on failure show the tail so the cause is in the log.
 run_check() {
@@ -59,7 +73,11 @@ ledger_rows() {
   ' "$LEDGER"
 }
 
-echo "==> Store readiness gate (iOS)"
+if [ "$SUBMIT" -eq 1 ]; then
+  echo "==> Store readiness gate (iOS) — submit mode"
+else
+  echo "==> Store readiness gate (iOS) — repo mode"
+fi
 
 if [ ! -f "$LEDGER" ]; then
   echo "FATAL: $LEDGER not found. Every gate below reads it."
@@ -131,8 +149,10 @@ fi
 # ── G3 Build configuration ──────────────────────────────────────────────────
 echo ""
 echo "--- G3 Build configuration"
+# The three identifiers come out of App Store Connect, so they are not
+# something this repo can produce on its own.
 if grep -q 'REPLACE_WITH_' eas.json; then
-  fail "eas.json still has placeholder identifiers:"
+  needs_you "eas.json still has placeholder Apple identifiers:"
   grep -n 'REPLACE_WITH_' eas.json | sed 's/^/      /'
 else
   pass "eas.json has no placeholder identifiers"
@@ -251,12 +271,20 @@ NEEDS=$(ledger_rows "Items" | awk -F'|' '
   o == "you" && s == "open" { n++ }
   END { print n + 0 }
 ')
-echo "    $NEEDS open item(s) need you — see the NEEDS YOU section of $LEDGER"
+if [ "$NEEDS" -eq 0 ]; then
+  pass "no open items owned by you"
+else
+  needs_you "$NEEDS open item(s) owned by you — see the NEEDS YOU section of $LEDGER"
+fi
 
 echo ""
 if [ "$FAILS" -eq 0 ]; then
-  echo "Machine-checkable gates are green. This is not a clearance to submit:"
-  echo "$NEEDS item(s) in $LEDGER can only be done by a person."
+  if [ "$SUBMIT" -eq 1 ]; then
+    echo "Every gate is green and every item in $LEDGER is closed."
+  else
+    echo "The repo is ready. This is not a clearance to submit: $NEEDS item(s) in"
+    echo "$LEDGER can only be done by a person. Run check:store:submit before eas submit."
+  fi
   echo "STORE-READINESS: PASS"
   exit 0
 else
