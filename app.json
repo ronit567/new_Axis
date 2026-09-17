@@ -3,7 +3,6 @@
     "name": "Axis",
     "slug": "axis-app",
     "version": "1.0.0",
-    "scheme": "axis",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
