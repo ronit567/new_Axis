@@ -132,15 +132,20 @@ else
         fail "HIGH $ID is neither fixed nor waived"
         continue
       fi
-      # Evidence is the third cell: `path:line`, and the line has to exist.
+      # Evidence is `path:line` plus text that must be on that line. A bare
+      # line number goes stale the moment the file above it changes — a
+      # lockfile shifts on every install — and a stale citation proves nothing.
       EV=$(echo "$ROW" | awk -F'|' '{print $3}' | tr -d ' `')
+      WANT=$(echo "$ROW" | awk -F'|' '{print $4}' | sed 's/^ *`*//; s/`* *$//')
       EV_FILE=${EV%%:*}
       EV_LINE=${EV##*:}
       case "$EV_LINE" in ''|*[!0-9]*) EV_LINE=0 ;; esac
-      if [ -f "$EV_FILE" ] && [ "$EV_LINE" -gt 0 ] && [ "$(wc -l <"$EV_FILE")" -ge "$EV_LINE" ]; then
+      if [ ! -f "$EV_FILE" ] || [ "$EV_LINE" -le 0 ] || [ -z "$WANT" ]; then
+        fail "HIGH $ID waiver needs a real file:line and the text on it (have '$EV')"
+      elif sed -n "${EV_LINE}p" "$EV_FILE" | grep -qF -- "$WANT"; then
         pass "HIGH $ID waived with evidence $EV"
       else
-        fail "HIGH $ID waiver evidence '$EV' is not a real file:line"
+        fail "HIGH $ID waiver is stale: $EV no longer contains '$WANT'"
       fi
     done <"$TMP/highs"
   fi

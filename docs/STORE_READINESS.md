@@ -26,9 +26,9 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R02 | B2 | you | open | `eas.json` still carries the three `REPLACE_WITH_` Apple identifiers. Needs the App Store Connect app record first. |
 | R03 | B3 | you | open | Demo accounts. `0035_review_demo_account.sql:37` whitelists `axis.app@outlook.com`, which is also the published support address. Create two accounts on a non-support mailbox, seed listings, photos and a conversation. |
 | R04 | H1 / LIVE | you | open | Dashboard-only auth settings need reviewing before launch. Details are kept out of this public repository, in the maintainer's private launch notes. |
-| R05 | H3 | agent | open | Export compliance. `src/lib/supabase.ts:6` bundles `aes-js` while `app.json:20` declares no non-exempt encryption. Work through the skill's `PLATFORM-MECHANICS-2026.md`, write the reasoning into the review notes, then hand the declaration to R13. |
-| R06 | GUARD / L1 | agent | open | The `axis` scheme in `app.json:6` is registered and nothing handles it (no `linking` config, no `Linking` listener in `src/`). Remove it, or wire it properly. |
-| R07 | G3 | agent | open | expo-doctor: `expo`, `jest-expo` and `@types/react` are off the versions SDK 54 expects. |
+| R05 | H3 | agent | open | Export compliance. `src/lib/supabase.ts:6` bundles `aes-js` while `app.json:19` declares no non-exempt encryption. Work through the skill's `PLATFORM-MECHANICS-2026.md`, write the reasoning into the review notes, then hand the declaration to R13. |
+| R06 | GUARD / L1 | agent | done | Removed the `axis` scheme from `app.json`: nothing handled it (no `linking` config, no `Linking` listener, share sheets send plain text). The guard finding stays because Expo registers the bundle id as a scheme; see the waiver. |
+| R07 | G3 | agent | done | expo-doctor 18/18. `expo`, `jest-expo`, `@types/react` aligned to SDK 54; `expo-constants` de-duplicated; `babel-preset-expo` declared as a dev dependency because `babel.config.js` names it and it had only been reachable through npm hoisting. |
 | R08 | GUARD | agent | open | Accessibility. Run the skill's `accessibility-audit.py`. Known going in: `COLORS.textMuted` `#9E9EAE` (`src/constants/theme.ts:20`) is about 2.6:1 on white. Compare screens against each other before changing any one. |
 | R09 | G6 | agent | open | Draft the listing into `store/metadata/`: name, subtitle, keywords, description, promotional text, privacy and support URLs. Claim only what the app does; no other-platform mentions. Local only, nothing pushed. |
 | R10 | G6 | agent | open | Write `store/REVIEW_NOTES.md` from the skill template: the `@uwo.ca` gate, where report / block / blocked users / guidelines live, the image-moderation gap from `docs/MODERATION.md`, external services. No credentials in the repo. |
@@ -47,14 +47,15 @@ compliance guard, `LIVE` was read from the production Supabase project,
 ## Guard waivers
 
 A HIGH finding that is wrong about this app, with the line that proves it. The
-gate checks that the evidence is a real `file:line`. Never clear a finding by
-editing the guard or by seeding keywords into source.
+gate checks that the cited line still holds the text in the third column, so a
+citation that drifts fails loudly. Never clear a finding by editing the guard or
+by seeding keywords into source.
 
-| Pattern | Evidence | Why it does not apply |
-| --- | --- | --- |
-| APPLE-ACCOUNT-DELETION-WEAK | `supabase/migrations/0029_delete_account_storage.sql:48` | Fires when "delete account" and `mailto:` both appear anywhere. Deletion is real: Settings calls the `delete_own_account()` RPC (`src/repositories/ProfileRepository.ts:58`), which deletes the `auth.users` row and cascades. The `mailto:` links are support contacts on the legal screens. |
-| WEB-TRACKING-TECHNOLOGIES | `package-lock.json:5420` | The `gtag` pattern matches `es-set-tostringtag` in the lockfile and the saved docket HTML in the repo root. `package.json` has no analytics, advertising or attribution SDK. |
-| BOTH-UNSAFE-DEEPLINK | `app.json:17` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit when R06 lands or if deep links are ever wired. |
+| Pattern | Evidence | Line contains | Why it does not apply |
+| --- | --- | --- | --- |
+| APPLE-ACCOUNT-DELETION-WEAK | `supabase/migrations/0029_delete_account_storage.sql:48` | `delete from auth.users where id = uid` | Fires when "delete account" and `mailto:` both appear anywhere. Deletion is real: Settings calls the `delete_own_account()` RPC (`src/repositories/ProfileRepository.ts:58`), which deletes the `auth.users` row and cascades. The `mailto:` links are support contacts on the legal screens. |
+| WEB-TRACKING-TECHNOLOGIES | `package-lock.json:5296` | `es-set-tostringtag` | The `gtag` pattern matches `es-set-tostringtag` in the lockfile and the saved docket HTML in the repo root. `package.json` has no analytics, advertising or attribution SDK. |
+| BOTH-UNSAFE-DEEPLINK | `app.json:16` | `"bundleIdentifier": "com.axis.app"` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit if deep links are ever wired. |
 
 ## Reviewed dependencies
 
