@@ -339,9 +339,6 @@ export default function ChatScreen({ navigation, route }: Props) {
 
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <PressableScale style={styles.emojiBtn} scaleTo={0.9} accessibilityLabel="Add emoji">
-            <Ionicons name="happy-outline" size={24} color={COLORS.textMuted} />
-          </PressableScale>
           <TextInput
             style={styles.textInput}
             value={inputText}
@@ -547,9 +544,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.divider,
     gap: 8,
     backgroundColor: COLORS.white,
-  },
-  emojiBtn: {
-    paddingBottom: 6,
   },
   textInput: {
     flex: 1,
