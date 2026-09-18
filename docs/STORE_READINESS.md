@@ -29,7 +29,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R05 | H3 | agent | done | Export compliance worked through against Apple's own matrix; see "Export compliance" below. `app.json:19` stays `false`, which is accurate only under the condition recorded there. The declaration itself is R13. |
 | R06 | GUARD / L1 | agent | done | Removed the `axis` scheme from `app.json`: nothing handled it (no `linking` config, no `Linking` listener, share sheets send plain text). The guard finding stays because Expo registers the bundle id as a scheme; see the waiver. |
 | R07 | G3 | agent | done | expo-doctor 18/18. `expo`, `jest-expo`, `@types/react` aligned to SDK 54; `expo-constants` de-duplicated; `babel-preset-expo` declared as a dev dependency because `babel.config.js` names it and it had only been reachable through npm hoisting. |
-| R08 | GUARD | agent | open | Accessibility. Run the skill's `accessibility-audit.py`. Known going in: `COLORS.textMuted` `#9E9EAE` (`src/constants/theme.ts:20`) is about 2.6:1 on white. Compare screens against each other before changing any one. |
+| R08 | GUARD | agent | done | Accessibility. The skill's `accessibility-audit.py` reports clean but only scans native files (7 here) and never opens a `.tsx`, so it proves nothing for this app; the pass was done by hand. `textMuted` 2.6:1 → 5.0:1 (`src/constants/theme.ts`). 37 tappable controls that had no role now have role, name and state, including icon-only buttons VoiceOver could not name and the terms checkbox, which announced no checked state. Tests added for the shared primitives. **Not done:** a Dynamic Type strategy (sizes are fixed), and a VoiceOver pass on a device, which belongs to R17. |
 | R09 | G6 | agent | open | Draft the listing into `store/metadata/`: name, subtitle, keywords, description, promotional text, privacy and support URLs. Claim only what the app does; no other-platform mentions. Local only, nothing pushed. |
 | R10 | G6 | agent | open | Write `store/REVIEW_NOTES.md` from the skill template: the `@uwo.ca` gate, where report / block / blocked users / guidelines live, the image-moderation gap from `docs/MODERATION.md`, external services. No credentials in the repo. |
 | R11 | L4 | agent | open | `src/types/database.ts` still has ten `MANUAL ADDITION (pending regen)` blocks. Production is migrated through `0047`, so regenerate and drop them. |
@@ -43,6 +43,8 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R19 | LIVE | agent | done | Migration drift. Production has all 46 local migrations, `0001`–`0047` (there is no `0027` on either side). Read via Supabase MCP 2026-09-19. |
 | R20 | LIVE | agent | done | Security advisors reviewed 2026-09-19: no ERROR-level findings. The warnings are tracked privately. |
 | R21 | M1 M2 M3 M6 H2 | agent | done | Closed by commits since the docket: Free/Trade rendering, 8-char passwords, reviews removed, drift guard fixed. |
+| R22 | 2.1 | agent | done | Dead control removed: the chat input bar had an "Add emoji" button with no handler. Found during the accessibility pass; no other no-op handlers exist in `src/`. |
+| R23 | M1 | agent | done | The docket's "$0" fix missed the chat banner, which printed `$0` for Free and Trade listings. It now prints a price only when there is one. Chat is handed a bare number; passing the Free/Trade flags through would need a change to the `conversation_list` view in production. |
 
 ## Guard waivers
 
