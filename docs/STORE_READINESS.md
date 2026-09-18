@@ -26,7 +26,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R02 | B2 | you | open | `eas.json` still carries the three `REPLACE_WITH_` Apple identifiers. Needs the App Store Connect app record first. |
 | R03 | B3 | you | open | Demo accounts. `0035_review_demo_account.sql:37` whitelists `axis.app@outlook.com`, which is also the published support address. Create two accounts on a non-support mailbox, seed listings, photos and a conversation. |
 | R04 | H1 / LIVE | you | open | Dashboard-only auth settings need reviewing before launch. Details are kept out of this public repository, in the maintainer's private launch notes. |
-| R05 | H3 | agent | open | Export compliance. `src/lib/supabase.ts:6` bundles `aes-js` while `app.json:19` declares no non-exempt encryption. Work through the skill's `PLATFORM-MECHANICS-2026.md`, write the reasoning into the review notes, then hand the declaration to R13. |
+| R05 | H3 | agent | done | Export compliance worked through against Apple's own matrix; see "Export compliance" below. `app.json:19` stays `false`, which is accurate only under the condition recorded there. The declaration itself is R13. |
 | R06 | GUARD / L1 | agent | done | Removed the `axis` scheme from `app.json`: nothing handled it (no `linking` config, no `Linking` listener, share sheets send plain text). The guard finding stays because Expo registers the bundle id as a scheme; see the waiver. |
 | R07 | G3 | agent | done | expo-doctor 18/18. `expo`, `jest-expo`, `@types/react` aligned to SDK 54; `expo-constants` de-duplicated; `babel-preset-expo` declared as a dev dependency because `babel.config.js` names it and it had only been reachable through npm hoisting. |
 | R08 | GUARD | agent | open | Accessibility. Run the skill's `accessibility-audit.py`. Known going in: `COLORS.textMuted` `#9E9EAE` (`src/constants/theme.ts:20`) is about 2.6:1 on white. Compare screens against each other before changing any one. |
@@ -34,7 +34,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R10 | G6 | agent | open | Write `store/REVIEW_NOTES.md` from the skill template: the `@uwo.ca` gate, where report / block / blocked users / guidelines live, the image-moderation gap from `docs/MODERATION.md`, external services. No credentials in the repo. |
 | R11 | L4 | agent | open | `src/types/database.ts` still has ten `MANUAL ADDITION (pending regen)` blocks. Production is migrated through `0047`, so regenerate and drop them. |
 | R12 | L3 | agent | open | `PRODUCTION_AUDIT.md` (2026-07-12) and `AI_context.md` (2026-07-01) describe blockers that are long closed. Mark them superseded by this ledger. |
-| R13 | H3 | you | open | Answer the export compliance question in App Store Connect to match `ITSAppUsesNonExemptEncryption`. Depends on R05. |
+| R13 | H3 | you | open | Export compliance answer in App Store Connect, **and** set availability so France is excluded (recommended: Canada only). The two go together; see "Export compliance" below. |
 | R14 | 5.1.1 | you | open | App Privacy labels, matching the eight types in `app.json` `privacyManifests` exactly. Not exposed by the API. Table is in `PRODUCTION_AUDIT.md` under "Privacy manifest — done". |
 | R15 | M5 | you | open | Age rating questionnaire, including the social media capability questions. |
 | R16 | 2.3.3 | you | open | Screenshots at 6.9" and 6.5" showing the app in use, never the login or splash screen. |
@@ -56,6 +56,50 @@ by seeding keywords into source.
 | APPLE-ACCOUNT-DELETION-WEAK | `supabase/migrations/0029_delete_account_storage.sql:48` | `delete from auth.users where id = uid` | Fires when "delete account" and `mailto:` both appear anywhere. Deletion is real: Settings calls the `delete_own_account()` RPC (`src/repositories/ProfileRepository.ts:58`), which deletes the `auth.users` row and cascades. The `mailto:` links are support contacts on the legal screens. |
 | WEB-TRACKING-TECHNOLOGIES | `package-lock.json:5296` | `es-set-tostringtag` | The `gtag` pattern matches `es-set-tostringtag` in the lockfile and the saved docket HTML in the repo root. `package.json` has no analytics, advertising or attribution SDK. |
 | BOTH-UNSAFE-DEEPLINK | `app.json:16` | `"bundleIdentifier": "com.axis.app"` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit if deep links are ever wired. |
+
+## Export compliance
+
+Worked through on 2026-09-20 against Apple's
+[export compliance documentation matrix](https://developer.apple.com/help/app-store-connect/reference/export-compliance-documentation-for-encryption/)
+and [Complying with Encryption Export Regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations).
+This is a legal declaration, so the account holder makes it; this is the
+reasoning and a recommendation, not the decision.
+
+**What the app does.** HTTPS and the keychain are Apple's. On top of that,
+`src/lib/supabase.ts` encrypts the stored session with AES-256-CTR from `aes-js`,
+because a Supabase session overflows SecureStore's 2 KB cap. AES is an industry
+standard algorithm, but that copy of it is ours, not the operating system's.
+
+**Where that lands in Apple's matrix.** "Your app uses an industry standard
+algorithm, not provided within the Apple operating system" → a French encryption
+declaration must be uploaded, and the footnote limits that to apps "distributing
+... on the App Store in France". No CCATS is needed; nothing here is proprietary.
+
+**What `ITSAppUsesNonExemptEncryption: false` claims.** Apple: set it to `NO` if the
+app "only uses forms of encryption that are exempt from export compliance
+documentation requirements". With `aes-js` in the binary that is true **only if
+the app is not distributed in France**. Sold in France with the flag at `false`,
+the declaration would be wrong.
+
+**Recommendation: make Axis available in Canada only.** It is gated to `@uwo.ca`
+addresses, so nobody outside the Western community can sign in anyway, and
+Apple's own page notes that export rules attach to distribution "outside the
+U.S. or Canada". With that, the flag is accurate as it stands and no document
+is owed to anyone. In App Store Connect's encryption questions the honest
+answers are: uses encryption → yes; standard algorithms in addition to the
+operating system's → yes; available in France → no.
+
+**If worldwide availability is ever wanted**, pick one before widening it:
+file the ANSSI declaration and switch the flag to `true` with the compliance
+code Apple returns; or remove `aes-js` by splitting the session across several
+SecureStore entries under 2 KB each, which leaves only operating-system
+encryption and takes the app out of this matrix entirely. The second is a change
+to session storage and should not be made in a hurry before a launch.
+
+Not verified here: whether a year-end self-classification report to the US BIS
+applies. Apple says exempt encryption "might" require one. It is an EAR question
+for whoever owns the developer account, and it does not arise for Canada-only
+distribution.
 
 ## Reviewed dependencies
 
@@ -114,7 +158,7 @@ Store Connect asks for them.
 6. **R02** — create the app record, then the three identifiers into `eas.json`.
 7. **R14** — App Privacy labels, exactly the eight manifest types.
 8. **R15** — age rating questionnaire with the social media questions.
-9. **R13** — export compliance answer.
+9. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
 10. **R17** — preview build on a real iPhone and an iPad, every flow. Signing a device build needs the Apple team.
 
 ## Hand-off for the account holder
