@@ -162,6 +162,8 @@ export default function HomeScreen({ navigation }: Props) {
             style={styles.searchBar}
             onPress={() => openSearch()}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Search listings"
           >
             <Ionicons name="search-outline" size={17} color={COLORS.textMuted} />
             <Text style={styles.searchPlaceholder}>Search textbooks, furniture...</Text>

@@ -55,6 +55,8 @@ export default function CategoryDropdown({ value, onChange, locked, onLockedPres
                 onChange(c);
                 setOpen(false);
               }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: c === value }}
             >
               <Text
                 style={[

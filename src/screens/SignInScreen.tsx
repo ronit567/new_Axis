@@ -81,6 +81,7 @@ export default function SignInScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.forgotRow}
               onPress={() => navigation.navigate('ForgotPassword')}
+              accessibilityRole="button"
             >
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
@@ -95,7 +96,10 @@ export default function SignInScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>New to Axis? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CreateAccount')}
+              accessibilityRole="button"
+            >
               <Text style={styles.footerLink}>Create account</Text>
             </TouchableOpacity>
           </View>

@@ -148,6 +148,9 @@ export default function CreateAccountScreen({ navigation }: Props) {
                 style={styles.checkboxHit}
                 onPress={() => setAgreed(!agreed)}
                 activeOpacity={0.8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: agreed }}
+                accessibilityLabel="I agree to the Terms, Privacy Policy and Community Guidelines"
               >
                 <View style={[styles.checkbox, agreed ? styles.checkboxChecked : null]}>
                   {agreed && (
@@ -195,7 +198,10 @@ export default function CreateAccountScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SignIn')}
+              accessibilityRole="button"
+            >
               <Text style={styles.footerLink}>Sign in</Text>
             </TouchableOpacity>
           </View>
