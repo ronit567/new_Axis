@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as Crypto from 'expo-crypto'
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -24,6 +25,8 @@ import { queryKeys } from './queryKeys'
 import { MyListing } from '../types'
 
 const SEARCH_DEBOUNCE_MS = 300
+// Matches QueryProvider's default; named because the feed reasons about it.
+const FEED_STALE_MS = 2 * 60 * 1000
 
 // Home feed. Gated on auth because listings RLS requires an authenticated user.
 // Offset-paginated so pull-to-refresh/onEndReached hit real queries instead of
@@ -49,6 +52,10 @@ export function useListings(category?: string) {
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
     enabled: !!user,
+    staleTime: FEED_STALE_MS,
+    // Handled by the effect below. Left on, a stale remount refetches EVERY
+    // loaded page, strictly one after another.
+    refetchOnMount: false,
   })
 
   // Pull-to-refresh should re-check the top of the feed, not re-run one
@@ -64,6 +71,23 @@ export function useListings(category?: string) {
     )
     return queryClient.refetchQueries({ queryKey, exact: true })
   }
+
+  // MainScreen unmounts a tab when you leave it, so coming back to Home is a
+  // remount, and the list is back at the top either way. Someone who scrolled
+  // eight pages, spent three minutes in Messages and returned used to trigger
+  // sixteen sequential requests to repaint a list showing page one. A stale
+  // return now costs what pull-to-refresh costs: the first page. A first load
+  // (no data yet) is untouched — the query fetches that itself.
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    const state = queryClient.getQueryState(queryKey)
+    if (!state?.data) return
+    const stale = state.isInvalidated || Date.now() - state.dataUpdatedAt > FEED_STALE_MS
+    if (stale) void refreshFirstPage()
+    // Once per mount and per category; refreshFirstPage is a fresh closure each
+    // render and must not re-trigger this.
+  }, [userId, category])
 
   return { ...query, refreshFirstPage }
 }
@@ -112,6 +136,12 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < SEARCH_PAGE_SIZE ? undefined : allPages.length * SEARCH_PAGE_SIZE,
     enabled: !!user,
+    // Every debounced keystroke is a new query key, which starts with no data —
+    // so the screen tore the whole results grid down to skeletons and rebuilt
+    // it from nothing, several times per typed phrase. Keeping the previous
+    // results on screen until the new ones land avoids both the flash and the
+    // churn; `isPlaceholderData` tells the screen it is showing the old set.
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -149,14 +179,13 @@ export function useCreateListing() {
         throw error
       }
     },
+    // The poster's own feed and search never show their own listings (see
+    // invalidateAfterListingMutation), so only their manage list and their own
+    // storefront can change — not every storefront, and not the feed.
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listings'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
-      if (user) queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
-      // The seller-storefront cache lives outside the ['listings'] prefix, so
-      // without this a just-posted listing stays invisible on the seller's
-      // public profile until the stale timer expires.
-      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
+      if (!user) return
+      queryClient.invalidateQueries({ queryKey: queryKeys.myListings(user.id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellerListings(user.id) })
     },
   })
 }
@@ -181,10 +210,19 @@ export function useSellerListings(sellerId: string) {
   })
 }
 
-// Every cache a status change / delete can affect. Home feed, search, and
-// storefronts all filter status='active', so a sold/deleted row must drop (and a
-// relisted row reappear); the owner's saved list drops it if they saved their own
-// listing; the detail cache flips status or becomes null after delete.
+// Every cache on THIS device that a change to one of the user's own listings can
+// affect: their manage list, their own storefront, the listing's detail, and
+// their saved list (in case they saved their own listing before that was
+// hidden).
+//
+// Not the Home feed or search. Both exclude the caller's own listings in the
+// query itself (`.neq('seller_id', userId)` in ListingRepository.getAll and
+// .search), so nothing the user does to their own listing can change a row in
+// either. Invalidating them anyway refetched every loaded page of the feed and
+// of each cached search, two requests per page, on every create, mark-sold,
+// relist, delete and edit — busiest at the start of term, when posting peaks.
+// Other people's devices pick the change up on their own next fetch.
+//
 // Exported so useUpdateListing (useListingEdits.ts) can reuse it for the same
 // invalidation surface a direct listing update affects.
 export function invalidateAfterListingMutation(
@@ -192,9 +230,7 @@ export function invalidateAfterListingMutation(
   userId: string,
   listingId: string,
 ) {
-  queryClient.invalidateQueries({ queryKey: ['listings'] })
-  queryClient.invalidateQueries({ queryKey: ['search'] })
-  queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
+  queryClient.invalidateQueries({ queryKey: queryKeys.sellerListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.myListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.savedListings(userId) })
   queryClient.invalidateQueries({ queryKey: queryKeys.listing(listingId) })

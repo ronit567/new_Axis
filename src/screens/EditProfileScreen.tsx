@@ -98,7 +98,14 @@ function EditProfileForm({
     });
     if (!result.canceled) {
       const asset = result.assets[0];
-      setPickedPhoto({ uri: asset.uri, mimeType: asset.mimeType ?? null });
+      // Dimensions let the upload resize without decoding the photo just to
+      // measure it.
+      setPickedPhoto({
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? null,
+        width: asset.width,
+        height: asset.height,
+      });
     }
   };
 

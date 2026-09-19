@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -77,12 +77,15 @@ export default function HomeScreen({ navigation }: Props) {
     hasNextPage,
     isFetchingNextPage,
   } = useListings(category);
-  const toggleSavedMutation = useToggleSaved();
+  // `mutate` is stable across renders; the object useMutation returns is not.
+  const { mutate: toggleSaved } = useToggleSaved();
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
   const { data: profile } = useCurrentProfile();
   const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
 
-  const listings = data?.pages.flatMap(page => page.items) ?? [];
+  // Same array until the pages change, so FlatList sees unchanged data when
+  // something unrelated re-renders this screen.
+  const listings = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
 
   const pulseAnim = useSkeletonPulse(isLoading);
 
@@ -92,17 +95,21 @@ export default function HomeScreen({ navigation }: Props) {
 
   // Stable across re-renders so the memoized ListingCard cells don't re-render
   // when unrelated parent state changes (e.g. a category switch).
+  const openListing = useCallback(
+    (item: Listing) => navigation.navigate('ListingDetail', { listingId: item.id }),
+    [navigation],
+  );
   const renderItem = useCallback(
     ({ item, index }: { item: Listing; index: number }) => (
       <FadeInItem index={index} style={styles.card}>
         <ListingCard
           item={item}
-          onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-          onSave={() => toggleSavedMutation.mutate(item)}
+          onPress={openListing}
+          onSave={toggleSaved}
         />
       </FadeInItem>
     ),
-    [navigation, toggleSavedMutation],
+    [openListing, toggleSaved],
   );
 
   const keyExtractor = useCallback((item: Listing) => item.id, []);

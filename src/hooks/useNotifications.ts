@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NotificationRepository } from '../repositories/NotificationRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
+import { cancelScheduledInvalidate, scheduleInvalidate } from './coalescedInvalidate'
+import { scheduleCatchUp } from './useCatchUp'
 import { Notification } from '../types'
 import type { NotificationRow } from '../types/database'
 
@@ -56,19 +58,36 @@ export function useNotificationsRealtime(onNotify?: (row: NotificationRow) => vo
 
   useEffect(() => {
     if (!userId) return undefined
-    const invalidate = () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications(userId) })
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.unreadNotificationCount(userId),
-      })
-    }
-    return NotificationRepository.subscribe(userId, {
+    const listKey = queryKeys.notifications(userId)
+    const burst = `notifications:${userId}`
+    // Coalesced: ten people saving a listing at once, or one UPDATE echoing
+    // back as a row per notification, is one refresh rather than one each.
+    const refresh = () =>
+      scheduleInvalidate(queryClient, burst, [
+        listKey,
+        queryKeys.unreadNotificationCount(userId),
+      ])
+    const unsubscribe = NotificationRepository.subscribe(userId, {
       onInsert: (row) => {
-        invalidate()
+        refresh()
         onNotifyRef.current?.(row)
       },
-      onUpdate: invalidate,
+      // A read made on this device was already applied optimistically, so its
+      // echo carries nothing new. Only a row the cache disagrees with (a read
+      // from another device) is worth a refetch.
+      onUpdate: (row) => {
+        const cached = queryClient
+          .getQueryData<Notification[]>(listKey)
+          ?.find((n) => n.id === row.id)
+        if (cached && cached.read === row.read) return
+        refresh()
+      },
+      onResubscribed: () => scheduleCatchUp(queryClient, userId),
     })
+    return () => {
+      unsubscribe()
+      cancelScheduledInvalidate(burst)
+    }
   }, [userId, queryClient])
 }
 
@@ -103,13 +122,12 @@ export function useMarkNotificationRead() {
 
       return { listKey, countKey, previousList, previousCount }
     },
+    // On success the optimistic state is exactly what the server now holds, so
+    // there is nothing to fetch. Only a failure needs the server's view.
     onError: (_err, _id, context) => {
       if (!context) return
       queryClient.setQueryData(context.listKey, context.previousList)
       queryClient.setQueryData(context.countKey, context.previousCount)
-    },
-    onSettled: (_data, _err, _id, context) => {
-      if (!context) return
       queryClient.invalidateQueries({ queryKey: context.listKey })
       queryClient.invalidateQueries({ queryKey: context.countKey })
     },
@@ -145,13 +163,12 @@ export function useMarkAllNotificationsRead() {
 
       return { listKey, countKey, previousList, previousCount }
     },
+    // As above: exact on success, reconciled with the server only on failure.
+    // This used to cost 4 requests here plus 4 more per echoed row.
     onError: (_err, _vars, context) => {
       if (!context) return
       queryClient.setQueryData(context.listKey, context.previousList)
       queryClient.setQueryData(context.countKey, context.previousCount)
-    },
-    onSettled: (_data, _err, _vars, context) => {
-      if (!context) return
       queryClient.invalidateQueries({ queryKey: context.listKey })
       queryClient.invalidateQueries({ queryKey: context.countKey })
     },

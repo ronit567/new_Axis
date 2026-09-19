@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { clearAvatarUrlCache } from '../lib/avatarUrls'
+import { isRetryableError, MAX_QUERY_RETRIES, retryDelayMs } from '../lib/retryPolicy'
 
 function isUnauthorized(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false
@@ -67,8 +68,12 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 2,
       gcTime: 1000 * 60 * 10,
       // Don't waste retries on an expired token — fail fast so the 401 handler
-      // signs the user out immediately instead of after seconds of backoff.
-      retry: (failureCount, error) => !isUnauthorized(error) && failureCount < 2,
+      // signs the user out immediately instead of after seconds of backoff. For
+      // everything else see retryPolicy: only errors that might not recur are
+      // retried, once, with jitter.
+      retry: (failureCount, error) =>
+        !isUnauthorized(error) && isRetryableError(error) && failureCount < MAX_QUERY_RETRIES,
+      retryDelay: (attempt) => retryDelayMs(attempt),
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
     },

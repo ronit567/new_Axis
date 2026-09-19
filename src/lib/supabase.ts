@@ -6,6 +6,7 @@ import * as Crypto from 'expo-crypto'
 import * as aesjs from 'aes-js'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
+import { createFetchWithTimeout } from './fetchWithTimeout'
 
 // expo-secure-store caps a stored value at 2048 bytes, but a Supabase session
 // (access JWT + refresh token + user object) routinely runs several KB and
@@ -80,6 +81,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
+  // Every request (database, auth, storage) gives up rather than hanging; see
+  // fetchWithTimeout. Realtime is a websocket and is not affected.
+  global: { fetch: createFetchWithTimeout() },
 })
 
 // autoRefreshToken schedules background timers to keep the access token fresh so

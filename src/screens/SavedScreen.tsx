@@ -44,7 +44,8 @@ const TABS = ['Items', 'Saved profiles'];
 export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   const [activeTab, setActiveTab] = useState('Items');
   const { data, isLoading, isError, refetch } = useSavedListings();
-  const toggleSavedMutation = useToggleSaved();
+  // `mutate` is stable across renders; the object useMutation returns is not.
+  const { mutate: toggleSaved } = useToggleSaved();
   const savedItems = data ?? [];
   const { data: following, isPending: isFollowingPending } = useFollowing();
   const toggleFollow = useToggleFollow();
@@ -65,16 +66,20 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
 
   // Stable so the memoized ListingCard cells skip re-rendering on tab switches.
   const keyExtractor = useCallback((item: { id: string }) => item.id, []);
+  const openListing = useCallback(
+    (item: Listing) => navigation.navigate('ListingDetail', { listingId: item.id }),
+    [navigation],
+  );
   const renderItem = useCallback(
     ({ item }: { item: Listing }) => (
       <ListingCard
         item={item}
-        onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
-        onSave={() => toggleSavedMutation.mutate(item)}
+        onPress={openListing}
+        onSave={toggleSaved}
         style={styles.card}
       />
     ),
-    [navigation, toggleSavedMutation],
+    [openListing, toggleSaved],
   );
 
   const renderProfileRow = ({ item }: { item: SellerProfile }) => (
