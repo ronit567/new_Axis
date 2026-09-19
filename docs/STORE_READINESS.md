@@ -157,11 +157,11 @@ The account holder does these, or invites you so you can. In the order App
 Store Connect asks for them.
 
 5. **R18** — account and program readiness.
-6. **R02** — create the app record, then the three identifiers into `eas.json`.
-7. **R14** — App Privacy labels, exactly the eight manifest types.
+6. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; confirm `com.axis.app` is free), then the three identifiers into `eas.json`.
+7. **R14** — App Privacy labels, exactly the eight manifest types. The table to enter is in `store/APP_STORE_CONNECT_ANSWERS.md`, as are the answers for the next two.
 8. **R15** — age rating questionnaire with the social media questions.
 9. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
-10. **R17** — preview build on a real iPhone and an iPad, every flow. Signing a device build needs the Apple team.
+10. **R17** — preview build on a real iPhone and an iPad, every flow, once with VoiceOver on. Signing a device build needs the Apple team.
 
 ## Hand-off for the account holder
 
