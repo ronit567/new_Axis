@@ -1,5 +1,14 @@
 # Axis — Production Readiness Audit
 
+
+> **Superseded for release status (2026-09-20).** This is the July audit, kept for
+> its reasoning. Its verdict and P0 list are no longer true: production is
+> migrated through `0047`, EAS, Sentry and the error boundary exist, reviews were
+> removed, and the "$0" and password findings are fixed. For what actually stands
+> between the repo and a submission, read `docs/STORE_READINESS.md` and run
+> `npm run check:store`. The "Privacy manifest" table below is still current and
+> is what the App Store privacy labels are set from.
+
 **Date:** 2026-07-12 · **Scope:** full app (UI, architecture, backend, release infrastructure)
 **Sources:** full read of all screens/components/repositories/migrations, live Supabase project checks (`fznliobjdeeyhictbepl`), Supabase security & performance advisors, Expo native-UI guidelines.
 

@@ -1,6 +1,10 @@
 # AI_CONTEXT.md — Axis Marketplace App
 
 > Last updated: 2026-07-01
+
+> **Release status lives elsewhere.** This file is the architecture and working
+> protocol, last revised 2026-07-01. For App Store readiness use
+> `docs/STORE_READINESS.md` and `npm run check:store`; do not infer it from here.
 > **Read this entire file before touching a single line of code.**
 
 ---

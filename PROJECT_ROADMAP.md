@@ -1,6 +1,11 @@
 # Axis — Project Roadmap & Ticket Backlog
 
 > Author: planning pass by Claude, 2026-07-02
+
+> **Historical (noted 2026-09-20).** A July planning document. Several tickets
+> describe work that has since shipped or been dropped — reviews and ratings
+> (AX-702) were removed from the app entirely. Release status is tracked in
+> `docs/STORE_READINESS.md`.
 > Scope: everything from "Phase 1 code is done, blocked on Supabase keys" → a shippable v1 student marketplace.
 > Companion to `AI_context.md` (the session protocol / architecture bible). This file is the **what to build next and in what order**; `AI_context.md` is the **how we work**.
 
