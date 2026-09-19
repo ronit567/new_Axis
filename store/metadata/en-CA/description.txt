@@ -1,0 +1,30 @@
+Axis is a buy-and-sell marketplace for university students. Every account is tied to a verified university email address, so you know the person you are messaging belongs to your university community.
+
+Axis currently serves students at Western University in London, Ontario. You need a Western email address (@uwo.ca or @alumni.uwo.ca) to create an account.
+
+What you can do
+
+- Browse listings by category: textbooks, furniture, electronics, tickets, clothing, sports and more
+- Search with filters for category, condition and maximum price
+- Post a listing with photos and a price, or mark it as a giveaway or open to trades
+- Message sellers inside the app and make an offer
+- Save listings and follow sellers
+- Get in-app notifications when someone messages you or saves your listing
+- See a seller's program, year and other listings before you reply
+
+Built to be safe
+
+- Report any listing, conversation or profile. Every report is reviewed.
+- Block anyone. Blocking hides you from each other across the feed, search, profiles and messages.
+- Listings, profiles and messages are filtered for objectionable text.
+- Delete your account and your data at any time from Settings.
+
+How it works
+
+Axis does not process payments. Buyers and sellers agree on a price in chat and exchange items in person.
+
+Axis is an independent app. It is not affiliated with, sponsored by or endorsed by Western University.
+
+Terms of Service: https://dataaxis.org/terms
+Privacy Policy: https://dataaxis.org/privacy
+Community Guidelines: https://dataaxis.org/guidelines
