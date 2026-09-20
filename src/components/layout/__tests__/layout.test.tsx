@@ -47,6 +47,25 @@ describe('ScreenHeader', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it('can present its leading button as a close, for a screen that is a task', () => {
+    const onBack = jest.fn();
+    render(
+      <ScreenHeader
+        title="New listing"
+        onBack={onBack}
+        backIcon="close"
+        backAccessibilityLabel="Close"
+        bordered
+      />,
+    );
+
+    // The label is what a screen reader announces, so it has to follow the
+    // icon rather than stay "Go back".
+    expect(screen.queryByLabelText('Go back')).toBeNull();
+    fireEvent.press(screen.getByLabelText('Close'));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('renders a large title', () => {
     render(<ScreenHeader variant="large" title="Messages" />);
     expect(screen.getByText('Messages')).toBeOnTheScreen();
