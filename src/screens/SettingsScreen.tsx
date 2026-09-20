@@ -376,9 +376,11 @@ const styles = StyleSheet.create({
     ...SHADOWS.card,
   },
   logoutIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    // Matches rowIconBox and dangerIconBox, the other two tiles in this
+    // same list; this one sat 2px smaller.
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: 'rgba(255,59,48,0.12)',
     alignItems: 'center',
     justifyContent: 'center',

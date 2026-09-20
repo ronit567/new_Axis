@@ -232,7 +232,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   body: {
-    paddingHorizontal: 16,
+    // 20 is the gutter every other main-app screen uses (Home, Saved,
+    // Search, Manage listings, Settings); this was the only one at 16.
+    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 40,
   },
