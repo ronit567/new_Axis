@@ -23,7 +23,6 @@ import { useSellerListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
-import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { useAuth } from '../context/AuthContext';
@@ -61,8 +60,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   // deep links later) — hide partner-only actions rather than render a
   // "Follow yourself" button.
   const isOwnProfile = user?.id === seller.id;
-  const { data: following = false } = useIsFollowing(seller.id);
-  const toggleFollow = useToggleFollow();
 
   const badges = getSellerBadges({ replyTime: seller.stats.replyTime });
 
@@ -192,18 +189,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 }
               }}
             />
-            {!isOwnProfile && (
-              <HeaderIconButton
-                icon={following ? 'bookmark' : 'bookmark-outline'}
-                accessibilityLabel={following ? 'Saved — tap to remove' : 'Save profile'}
-                color={following ? COLORS.primary : COLORS.text}
-                size={20}
-                onPress={() => {
-                  haptics.tap();
-                  toggleFollow.mutate({ sellerId: seller.id, next: !following });
-                }}
-              />
-            )}
             <HeaderIconButton
               icon="ellipsis-horizontal"
               accessibilityLabel="Report or block"

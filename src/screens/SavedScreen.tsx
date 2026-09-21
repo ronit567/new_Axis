@@ -1,31 +1,23 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Animated,
 } from 'react-native';
-import CategoryChip from '../components/CategoryChip';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import { NavigationProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import ActivitySpinner from '../components/ActivitySpinner';
-import Avatar from '../components/Avatar';
-import PressableScale from '../components/PressableScale';
 import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
-import { useFollowing, useToggleFollow } from '../hooks/useFollows';
-import { formatYearOfStudy } from '../lib/formatYear';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
-import { haptics } from '../lib/haptics';
-import { RootStackParamList, Listing, SellerProfile } from '../types';
+import { RootStackParamList, Listing } from '../types';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -40,10 +32,7 @@ type Props = {
   onBrowseListings?: () => void;
 };
 
-const TABS = ['Items', 'Saved profiles'];
-
 export default function SavedScreen({ navigation, onBrowseListings }: Props) {
-  const [activeTab, setActiveTab] = useState('Items');
   const { data, isLoading, isError, refetch } = useSavedListings();
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
@@ -51,8 +40,6 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   // An odd count gets one trailing spacer cell, so the last card stays half
   // width in the left column instead of stretching across the row.
   const gridData = useMemo(() => withGridSpacer(savedItems), [savedItems]);
-  const { data: following, isPending: isFollowingPending } = useFollowing();
-  const toggleFollow = useToggleFollow();
   const pulseAnim = useSkeletonPulse(isLoading);
 
   // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
@@ -68,7 +55,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
     { useNativeDriver: true },
   );
 
-  // Stable so the memoized ListingCard cells skip re-rendering on tab switches.
+  // Stable so the memoized ListingCard cells skip re-rendering.
   const keyExtractor = useCallback((item: { id: string }) => item.id, []);
   const openListing = useCallback(
     (item: Listing) => navigation.navigate('ListingDetail', { listingId: item.id }),
@@ -89,77 +76,12 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
     [openListing, toggleSaved],
   );
 
-  const renderProfileRow = ({ item }: { item: SellerProfile }) => (
-    <PressableScale
-      style={styles.profileRow}
-      onPress={() => navigation.navigate('SellerProfile', { seller: item })}
-      scaleTo={0.98}
-      accessibilityRole="button"
-      accessibilityLabel={`View ${item.name}'s profile`}
-    >
-      <Avatar
-        url={item.avatarUrl}
-        initials={item.initials}
-        color={item.avatarColor}
-        size={44}
-        textStyle={styles.profileAvatarText}
-      />
-      <View style={styles.profileRowInfo}>
-        <View style={styles.profileNameRow}>
-          <Text style={styles.profileName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {item.verified && (
-            <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
-          )}
-        </View>
-        <Text style={styles.profileProgram} numberOfLines={1}>
-          {item.program} · {formatYearOfStudy(item.year)}
-        </Text>
-      </View>
-      <PressableScale
-        style={styles.unfollowBtn}
-        onPress={() => {
-          haptics.tap();
-          toggleFollow.mutate({ sellerId: item.id, next: false });
-        }}
-        scaleTo={0.94}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        accessibilityRole="button"
-        accessibilityLabel={`Unfollow ${item.name}`}
-      >
-        <Text style={styles.unfollowText}>Saved</Text>
-      </PressableScale>
-    </PressableScale>
-  );
-
   return (
     <Screen>
-      {/* Fixed header block (title + tabs) with a scroll hairline pinned to
-          its bottom edge. */}
+      {/* Fixed header block with a scroll hairline pinned to its bottom
+          edge. */}
       <View style={styles.headerBlock}>
         <ScreenHeader variant="large" title="Saved" />
-
-        {/* Tabs — the shared chip, same as Home's categories and Messages'
-            filters. These carry a count in the label, which the chip renders
-            as ordinary text. */}
-        <View style={styles.tabRow}>
-          {TABS.map(tab => (
-            <CategoryChip
-              key={tab}
-              label={
-                tab === 'Items'
-                  ? `Items  ${savedItems.length}`
-                  : `Saved profiles  ${(following ?? []).length}`
-              }
-              active={activeTab === tab}
-              onPress={() => {
-                haptics.tap();
-                setActiveTab(tab);
-              }}
-            />
-          ))}
-        </View>
 
         <Animated.View
           pointerEvents="none"
@@ -167,7 +89,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
         />
       </View>
 
-      {isLoading && activeTab === 'Items' ? (
+      {isLoading ? (
         <View style={styles.listContent}>
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
@@ -176,17 +98,13 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
             </View>
           ))}
         </View>
-      ) : isError && activeTab === 'Items' ? (
+      ) : isError ? (
         <ErrorState
           message="Something went wrong. Please try again."
           onRetry={() => refetch()}
         />
-      ) : activeTab === 'Items' ? (
+      ) : (
         <Animated.FlatList
-          // Distinct keys per tab: both lists sit at the same position in this
-          // conditional, so without them React reuses one instance and flipping
-          // tabs changes numColumns on a mounted list — an invariant violation.
-          key="items"
           data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
@@ -203,29 +121,6 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
             <EmptyState
               icon="heart-outline"
               title="No saved items yet. Tap the heart on any listing to save it here."
-              ctaLabel="Browse listings"
-              onCta={() =>
-                onBrowseListings ? onBrowseListings() : navigation.navigate('Main')
-              }
-            />
-          }
-        />
-      ) : isFollowingPending ? (
-        <ActivitySpinner style={styles.spinner} />
-      ) : (
-        <Animated.FlatList
-          key="profiles"
-          data={following ?? []}
-          renderItem={renderProfileRow}
-          keyExtractor={keyExtractor}
-          showsVerticalScrollIndicator={false}
-          onScroll={onScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.profileListContent}
-          ListEmptyComponent={
-            <EmptyState
-              icon="people-outline"
-              title="No saved profiles yet. Bookmark sellers to find them again quickly."
               ctaLabel="Browse listings"
               onCta={() =>
                 onBrowseListings ? onBrowseListings() : navigation.navigate('Main')
@@ -252,12 +147,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.divider,
     ...SHADOWS.card,
   },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 16,
-  },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
@@ -268,58 +157,5 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-  },
-  spinner: {
-    marginTop: 48,
-  },
-  profileListContent: {
-    padding: 20,
-    paddingBottom: FLOATING_TAB_BAR_CLEARANCE,
-    gap: 10,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadius,
-    borderCurve: 'continuous',
-    padding: 12,
-    ...SHADOWS.card,
-  },
-  profileAvatarText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  profileRowInfo: {
-    flex: 1,
-  },
-  profileNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
-  },
-  profileName: {
-    fontSize: SIZES.base,
-    fontWeight: '600',
-    color: COLORS.text,
-    flexShrink: 1,
-  },
-  profileProgram: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-  unfollowBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: COLORS.primarySoft,
-  },
-  unfollowText: {
-    fontSize: SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.primary,
   },
 });
