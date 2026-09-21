@@ -36,6 +36,12 @@ const contexts: MockContext[] = [];
 
 // One context per prepareListingPhoto call. saveAsync's result uri encodes the
 // source + compress level so assertions can tell detail and thumb runs apart.
+// base64 of FF D8 FF — the SOI marker every JPEG starts with, followed by the
+// first byte of the next marker. The upload path checks those bytes before
+// sending anything, so the fixture has to be a real (if minimal) JPEG head
+// rather than arbitrary base64.
+const JPEG_HEAD_BASE64 = '/9j/';
+
 function makeContext(uri: string): MockContext {
   const context: MockContext = {
     resize: jest.fn(),
@@ -44,10 +50,14 @@ function makeContext(uri: string): MockContext {
   };
   context.resize.mockReturnValue(context);
   // base64 is what the real saveAsync returns now that upload reads bytes from
-  // it directly instead of fetching the saved file:// URI. 'AAAA' decodes to
-  // three zero bytes; the content is irrelevant, only that it is valid base64.
+  // it directly instead of fetching the saved file:// URI.
   context.saveAsync.mockImplementation(({ compress }: { compress: number }) =>
-    Promise.resolve({ uri: `${uri}#jpeg-${compress}`, width: 0, height: 0, base64: 'AAAA' }),
+    Promise.resolve({
+      uri: `${uri}#jpeg-${compress}`,
+      width: 0,
+      height: 0,
+      base64: JPEG_HEAD_BASE64,
+    }),
   );
   context.renderAsync.mockResolvedValue({
     width: 4000,
@@ -208,6 +218,39 @@ describe('StorageRepository.uploadListingImages', () => {
     ).rejects.toThrow("Couldn't upload photo 1 of 1: network down");
 
     expect(mockRemove).toHaveBeenCalledWith(['seller-1/listing-1/0.jpg']);
+  });
+
+  it('refuses to upload bytes that are not a JPEG instead of storing them', async () => {
+    mockUpload.mockResolvedValue({ data: {}, error: null });
+    // Valid base64, but not an image: whatever produced it, uploading it would
+    // create a storage object that renders as a broken image with nothing left
+    // to say why. 'AAAA' decodes to three zero bytes.
+    mockManipulate.mockImplementation((uri: string) => {
+      const context = makeContext(uri);
+      context.saveAsync.mockResolvedValue({ uri, width: 0, height: 0, base64: 'AAAA' });
+      return context;
+    });
+
+    await expect(
+      StorageRepository.uploadListingImages('seller-1', 'listing-1', [photo('file:///a.jpg')]),
+    ).rejects.toThrow('Image encoding produced unreadable data');
+
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it('refuses to upload when the encoder returns no data at all', async () => {
+    mockUpload.mockResolvedValue({ data: {}, error: null });
+    mockManipulate.mockImplementation((uri: string) => {
+      const context = makeContext(uri);
+      context.saveAsync.mockResolvedValue({ uri, width: 0, height: 0, base64: undefined });
+      return context;
+    });
+
+    await expect(
+      StorageRepository.uploadListingImages('seller-1', 'listing-1', [photo('file:///a.jpg')]),
+    ).rejects.toThrow('Image encoding returned no data');
+
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 
   it('does not attempt cleanup when the very first upload fails', async () => {
