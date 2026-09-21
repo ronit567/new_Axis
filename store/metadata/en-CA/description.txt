@@ -8,7 +8,8 @@ What you can do
 - Search with filters for category, condition and maximum price
 - Post a listing with photos and a price, or mark it as a giveaway or open to trades
 - Message sellers inside the app and make an offer
-- Save listings and follow sellers
+- Save listings to come back to later
+- Keep one conversation per listing, and delete any you no longer need
 - Get in-app notifications when someone messages you or saves your listing
 - See a seller's program, year and other listings before you reply
 

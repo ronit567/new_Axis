@@ -44,7 +44,7 @@ with the manifest is the most common privacy rejection.
 | User Content → Photos or Videos | Yes | No | App Functionality | Listing photos, avatar |
 | User Content → Emails or Text Messages | Yes | No | App Functionality | Buyer and seller messages |
 | User Content → Other User Content | Yes | No | App Functionality | Listing title and description, bio, program, year, pickup location as free text, report reasons |
-| Usage Data → Product Interaction | Yes | No | App Functionality | Listing views, saves, follows, read receipts |
+| Usage Data → Product Interaction | Yes | No | App Functionality | Listing views, saves, read receipts |
 | Diagnostics → Crash Data | **No** | No | App Functionality | Sentry, with `sendDefaultPii: false` and no `setUser()` call (`src/lib/sentry.ts`) |
 
 Deliberately **not** declared, because the app does not collect them: phone
@@ -62,7 +62,7 @@ Answer the content questions "None" throughout, **except**:
 | --- | --- | --- |
 | User-generated content | Yes | Listings, profiles and photos are all written by users |
 | Messaging or chat | Yes | Buyer and seller direct messages |
-| Does the app include social media capabilities? | **Yes** | Apple's definition is the ability to "interact with user-generated content through a social feed or similar discovery method that visibly spreads content to many users". The Home feed shows every user's listings to every other user, and users can save, follow and message from it. Answering yes sets a 13+ minimum, which costs nothing here. |
+| Does the app include social media capabilities? | **Yes** | Apple's definition is the ability to "interact with user-generated content through a social feed or similar discovery method that visibly spreads content to many users". The Home feed shows every user's listings to every other user, and users can save listings and message sellers from it. Answering yes sets a 13+ minimum, which costs nothing here. |
 | Are those capabilities disabled for under-13s? | Not applicable | Accounts require a university email; the Privacy Policy excludes under-13s |
 | Unrestricted web access | No | Links out only to dataaxis.org and mailto |
 | Gambling, contests, alcohol, tobacco, drugs, violence, sexual content, horror, medical | None | No such content is built in. User content that contained it would breach the Community Guidelines and is handled by filtering, reporting and removal. |
