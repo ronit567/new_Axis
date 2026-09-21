@@ -1,6 +1,6 @@
-// StorageRepository (AX-401/0023): mocks supabase.storage, global fetch (used
-// to turn a local file:// URI into the arraybuffer the SDK's upload() expects),
-// and expo-image-manipulator (the on-device resize step). Every listing photo
+// StorageRepository (AX-401/0023): mocks supabase.storage and
+// expo-image-manipulator (the on-device resize step, which also returns the
+// encoded bytes as base64 for upload). Every listing photo
 // now uploads as two JPEG variants: a detail image and a _thumb grid variant.
 
 const mockUpload = jest.fn();
@@ -43,8 +43,11 @@ function makeContext(uri: string): MockContext {
     saveAsync: jest.fn(),
   };
   context.resize.mockReturnValue(context);
+  // base64 is what the real saveAsync returns now that upload reads bytes from
+  // it directly instead of fetching the saved file:// URI. 'AAAA' decodes to
+  // three zero bytes; the content is irrelevant, only that it is valid base64.
   context.saveAsync.mockImplementation(({ compress }: { compress: number }) =>
-    Promise.resolve({ uri: `${uri}#jpeg-${compress}`, width: 0, height: 0 }),
+    Promise.resolve({ uri: `${uri}#jpeg-${compress}`, width: 0, height: 0, base64: 'AAAA' }),
   );
   context.renderAsync.mockResolvedValue({
     width: 4000,
@@ -53,12 +56,6 @@ function makeContext(uri: string): MockContext {
   });
   contexts.push(context);
   return context;
-}
-
-function mockFetchResolving(bytes = 8) {
-  (global as any).fetch = jest.fn().mockResolvedValue({
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(bytes)),
-  });
 }
 
 function photo(uri: string, width = 4000, height = 3000): LocalPhoto {
@@ -87,7 +84,6 @@ beforeEach(() => {
 
 describe('StorageRepository.uploadListingImages', () => {
   it('uploads a detail + thumb JPEG pair per photo under {sellerId}/{listingId}/{index} and returns URLs + paths in order', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: { path: 'ignored' }, error: null });
     mockGetPublicUrl.mockImplementation((path: string) => ({
       data: { publicUrl: `https://cdn.test/${path}` },
@@ -125,7 +121,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('resizes by the long edge: landscape by width, portrait by height', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: {}, error: null });
     mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
 
@@ -151,7 +146,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('never upscales a photo already smaller than the target size', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: {}, error: null });
     mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
 
@@ -164,7 +158,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('decodes once to measure when the picker reported no dimensions', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: {}, error: null });
     mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://cdn.test/x' } });
 
@@ -183,7 +176,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('rolls back every uploaded variant and reports the failing photo number when a detail upload fails', async () => {
-    mockFetchResolving();
     mockUpload
       .mockResolvedValueOnce({ data: {}, error: null })
       .mockResolvedValueOnce({ data: {}, error: null })
@@ -206,7 +198,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('rolls back the already-uploaded detail variant when the thumb upload fails', async () => {
-    mockFetchResolving();
     mockUpload
       .mockResolvedValueOnce({ data: {}, error: null })
       .mockResolvedValueOnce({ data: null, error: new Error('network down') });
@@ -220,7 +211,6 @@ describe('StorageRepository.uploadListingImages', () => {
   });
 
   it('does not attempt cleanup when the very first upload fails', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: null, error: new Error('network down') });
 
     await expect(
@@ -233,7 +223,6 @@ describe('StorageRepository.uploadListingImages', () => {
 
 describe('StorageRepository.uploadListingImageAdditions', () => {
   it('uploads pairs under {sellerId}/{listingId}/{timestamp}-{index}, never colliding with index-named live objects', async () => {
-    mockFetchResolving();
     mockUpload.mockResolvedValue({ data: {}, error: null });
     mockGetPublicUrl.mockImplementation((path: string) => ({
       data: { publicUrl: `https://cdn.test/${path}` },
@@ -258,7 +247,6 @@ describe('StorageRepository.uploadListingImageAdditions', () => {
   });
 
   it('rolls back already-uploaded variants and throws an actionable error when a later upload fails', async () => {
-    mockFetchResolving();
     mockUpload
       .mockResolvedValueOnce({ data: {}, error: null })
       .mockResolvedValueOnce({ data: {}, error: null })

@@ -1,5 +1,6 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { supabase } from '../lib/supabase'
+import { decodeBase64 } from '../lib/base64'
 
 const LISTING_IMAGES_BUCKET = 'listing-images'
 const AVATARS_BUCKET = 'avatars'
@@ -36,7 +37,7 @@ export type LocalPhoto = {
 // a follow-up pass over the result (the thumb) never needs a probe decode.
 // Lives here — not in the form hook — so upload code paths can't forget it
 // and tests can mock it alongside the storage client.
-type PreparedPhoto = { uri: string; width: number; height: number }
+type PreparedPhoto = { uri: string; bytes: Uint8Array; width: number; height: number }
 
 async function prepareListingPhoto(
   photo: LocalPhoto,
@@ -59,10 +60,28 @@ async function prepareListingPhoto(
   }
 
   const rendered = await context.renderAsync()
-  const saved = await rendered.saveAsync({ compress, format: SaveFormat.JPEG })
+  // `base64: true` hands the encoded JPEG straight back. Reading it off the
+  // saved file:// URI instead — which is what this used to do, via fetch() —
+  // routes a local file read through Expo's native fetch, where it
+  // intermittently hangs and rejects with "fetch failed: UnexpectedException:
+  // The request timed out" from ExpoModulesCore. The bytes never need to touch
+  // the network stack, so they no longer do.
+  const saved = await rendered.saveAsync({ compress, format: SaveFormat.JPEG, base64: true })
+
+  if (!saved.base64) {
+    // Defensive: the option is honoured on both platforms, but an empty result
+    // here would otherwise surface as a zero-byte upload that only shows up as
+    // a broken image much later.
+    throw new Error('Image encoding returned no data. Please try another photo.')
+  }
 
   const scale = Math.min(1, longEdge / Math.max(width, height))
-  return { uri: saved.uri, width: Math.round(width * scale), height: Math.round(height * scale) }
+  return {
+    uri: saved.uri,
+    bytes: decodeBase64(saved.base64),
+    width: Math.round(width * scale),
+    height: Math.round(height * scale),
+  }
 }
 
 export type UploadedListingImages = {
@@ -90,15 +109,12 @@ async function uploadListingPhotoSet(
   const thumbUrls: string[] = []
 
   const uploadVariant = async (
-    localUri: string,
+    bytes: Uint8Array,
     path: string,
   ): Promise<{ url: string; path: string }> => {
-    const response = await fetch(localUri)
-    const arraybuffer = await response.arrayBuffer()
-
     const { error } = await supabase.storage
       .from(LISTING_IMAGES_BUCKET)
-      .upload(path, arraybuffer, { contentType: 'image/jpeg' })
+      .upload(path, bytes, { contentType: 'image/jpeg' })
     if (error) throw error
 
     const { data } = supabase.storage.from(LISTING_IMAGES_BUCKET).getPublicUrl(path)
@@ -121,8 +137,8 @@ async function uploadListingPhotoSet(
       // variant can't leave its sibling still in-flight while the catch
       // below deletes the batch.
       const results = await Promise.allSettled([
-        uploadVariant(detail.uri, pathFor(i, '')),
-        uploadVariant(thumb.uri, pathFor(i, '_thumb')),
+        uploadVariant(detail.bytes, pathFor(i, '')),
+        uploadVariant(thumb.bytes, pathFor(i, '_thumb')),
       ])
 
       for (const result of results) {
@@ -213,12 +229,9 @@ export const StorageRepository = {
     const contentType = 'image/jpeg'
     const path = `${userId}/${Date.now()}.jpg`
 
-    const response = await fetch(prepared.uri)
-    const arraybuffer = await response.arrayBuffer()
-
     const { error } = await supabase.storage
       .from(AVATARS_BUCKET)
-      .upload(path, arraybuffer, { contentType })
+      .upload(path, prepared.bytes, { contentType })
     if (error) {
       const reason = error instanceof Error ? error.message : String(error)
       throw new Error(`Couldn't upload your photo: ${reason}`)
