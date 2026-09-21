@@ -32,6 +32,7 @@ import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
 import GreetingRow, { GREETING_ROW_HEIGHT } from "../components/GreetingRow";
 import { haptics } from "../lib/haptics";
+import { withGridSpacer, isGridSpacer, GridSpacer } from "../lib/gridSpacer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
@@ -174,6 +175,9 @@ export default function SearchScreen({ navigation, route }: Props) {
   // Same array until the pages change: this screen re-renders on every
   // keystroke, and a fresh array each time makes FlatList redo its work.
   const results = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+  // An odd count gets one trailing spacer cell, so the last card stays half
+  // width in the left column instead of stretching across the row.
+  const gridData = useMemo(() => withGridSpacer(results), [results]);
 
   const toggleCategory = (cat: string) =>
     setSelectedCategories((prev) =>
@@ -208,20 +212,23 @@ export default function SearchScreen({ navigation, route }: Props) {
   const resultsCountLabel = hasNextPage ? `${results.length}+` : `${results.length}`;
 
   // Stable so the memoized ListingCard cells don't re-render on each keystroke.
-  const keyExtractor = useCallback((item: Listing) => item.id, []);
+  const keyExtractor = useCallback((item: Listing | GridSpacer) => item.id, []);
   const openListing = useCallback(
     (item: Listing) => navigation.navigate("ListingDetail", { listingId: item.id }),
     [navigation],
   );
   const renderItem = useCallback(
-    ({ item }: { item: Listing }) => (
-      <ListingCard
-        item={item}
-        onPress={openListing}
-        onSave={toggleSaved}
-        style={styles.card}
-      />
-    ),
+    ({ item }: { item: Listing | GridSpacer }) =>
+      isGridSpacer(item) ? (
+        <View style={styles.card} />
+      ) : (
+        <ListingCard
+          item={item}
+          onPress={openListing}
+          onSave={toggleSaved}
+          style={styles.card}
+        />
+      ),
     [openListing, toggleSaved],
   );
 
@@ -425,7 +432,7 @@ export default function SearchScreen({ navigation, route }: Props) {
         />
       ) : (
         <Animated.FlatList
-          data={results}
+          data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           numColumns={2}

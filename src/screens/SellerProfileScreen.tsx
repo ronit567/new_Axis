@@ -25,6 +25,7 @@ import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { useIsFollowing, useToggleFollow } from '../hooks/useFollows';
 import { getSellerBadges } from '../lib/sellerBadges';
+import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { useAuth } from '../context/AuthContext';
 import { Listing, RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -78,16 +79,21 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
   // Memoized, with stable handlers, so tapping a heart or Follow re-renders one
   // card rather than every card of a seller with a couple of hundred listings.
-  const data = useMemo<Row[]>(
+  // An odd count gets one trailing spacer cell, so the last card stays half
+  // width in the left column instead of stretching across the row.
+  const data = useMemo<(Row | GridSpacer)[]>(
     () =>
-      listingsLoading
-        ? LISTING_SKELETONS.map((id): Row => ({ type: 'skeleton', id }))
-        : sellerListings.map((listing): Row => ({ type: 'listing', listing })),
+      withGridSpacer(
+        listingsLoading
+          ? LISTING_SKELETONS.map((id): Row => ({ type: 'skeleton', id }))
+          : sellerListings.map((listing): Row => ({ type: 'listing', listing })),
+      ),
     [listingsLoading, sellerListings],
   );
 
   const keyExtractor = useCallback(
-    (item: Row) => (item.type === 'skeleton' ? item.id : item.listing.id),
+    (item: Row | GridSpacer) =>
+      isGridSpacer(item) || item.type === 'skeleton' ? item.id : item.listing.id,
     [],
   );
 
@@ -97,8 +103,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: Row }) =>
-      item.type === 'skeleton' ? (
+    ({ item }: { item: Row | GridSpacer }) =>
+      isGridSpacer(item) ? (
+        <View style={styles.gridItem} />
+      ) : item.type === 'skeleton' ? (
         <View style={styles.gridItem}>
           <ListingCardSkeleton />
         </View>
