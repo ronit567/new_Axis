@@ -8,6 +8,7 @@ import EmptyState from '../EmptyState';
 import AnimatedIconToggle from '../AnimatedIconToggle';
 import PressableScale from '../PressableScale';
 import { Listing } from '../../types';
+import * as formatPriceModule from '../../lib/formatPrice';
 
 // Smoke + behaviour coverage for the shared UI primitives. These components
 // are mostly animation, and animation is exactly the kind of code a typecheck
@@ -94,6 +95,55 @@ describe('CategoryChip', () => {
     render(<CategoryChip label="Furniture" active={false} onPress={onPress} />);
     fireEvent.press(screen.getByLabelText('Furniture'));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ListingCard memoization', () => {
+  // With two columns FlatList cannot protect its rows, so this memo is what
+  // stops a parent render (a keystroke in Search, the list window moving during
+  // a scroll) from re-rendering every mounted card.
+  // Counts the card's own renders by watching a function its render calls. A
+  // <Profiler> cannot be used for this: it reports a commit whenever its own
+  // fiber re-renders, even when the memoized child inside it bailed out.
+  async function renderCount(makeHandlers: () => { onPress: (l: Listing) => void; onSave: (l: Listing) => void }) {
+    const rendered = jest.spyOn(formatPriceModule, 'formatPrice');
+    const tree = (pass: number) => {
+      const { onPress, onSave } = makeHandlers();
+      return (
+        <Text testID={`parent-${pass}`}>
+          <ListingCard item={listing} onPress={onPress} onSave={onSave} />
+        </Text>
+      );
+    };
+    const view = render(tree(1));
+    // Let mount-time effects (the Reduce Motion lookup) settle first.
+    await act(async () => {});
+    const afterMount = rendered.mock.calls.length;
+    view.rerender(tree(2));
+    const extra = rendered.mock.calls.length - afterMount;
+    rendered.mockRestore();
+    return extra;
+  }
+
+  it('does not re-render when the parent re-renders with the same handlers', async () => {
+    const handlers = { onPress: jest.fn(), onSave: jest.fn() };
+
+    expect(await renderCount(() => handlers)).toBe(0);
+  });
+
+  it('does re-render with a closure per card, which is what the screens used to pass', async () => {
+    expect(await renderCount(() => ({ onPress: () => {}, onSave: () => {} }))).toBeGreaterThan(0);
+  });
+
+  it('hands its own item to the shared handlers', () => {
+    const onPress = jest.fn();
+    const onSave = jest.fn();
+    render(<ListingCard item={listing} onPress={onPress} onSave={onSave} />);
+
+    fireEvent.press(screen.getByLabelText(/save/i));
+
+    expect(onSave).toHaveBeenCalledWith(listing);
+    expect(onPress).not.toHaveBeenCalled();
   });
 });
 

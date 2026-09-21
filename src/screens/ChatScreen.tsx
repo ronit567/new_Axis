@@ -93,6 +93,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [inputText, setInputText] = useState(draftMessage ?? '');
   const [reportVisible, setReportVisible] = useState(false);
   const listRef = useRef<FlatList<ChatItem>>(null);
+  const failedSend = useRef<{ id: string; text: string } | null>(null);
 
   // useState only seeds on mount. When this thread is already in the navigation
   // stack and React Navigation just updates params (Chat → View listing → Make
@@ -117,10 +118,18 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (!text) return;
     haptics.tap();
     setInputText('');
+    // A send that failed on this side may still have reached the database (the
+    // response timed out after the insert committed). Re-sending the restored
+    // text under the same id lets the repository recognise that and report
+    // success, where a fresh id would post the message twice.
+    const retried = failedSend.current?.text === text ? failedSend.current : null;
+    const id = retried?.id ?? Crypto.randomUUID();
+    failedSend.current = null;
     sendMessage.mutate(
-      { id: Crypto.randomUUID(), listingId, receiverId: partnerId, body: text },
+      { id, listingId, receiverId: partnerId, body: text },
       {
         onError: (error) => {
+          failedSend.current = { id, text };
           // Put the failed message back (unless they've already typed more)
           // so it isn't lost with the rolled-back bubble.
           setInputText(current => (current.length > 0 ? current : text));

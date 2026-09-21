@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -52,7 +52,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     isError: listingsError,
     refetch: refetchListings,
   } = useSellerListings(seller.id);
-  const toggleSavedMutation = useToggleSaved();
+  // `mutate` is stable across renders; the object useMutation returns is not.
+  const { mutate: toggleSaved } = useToggleSaved();
   const createReport = useCreateReport();
   const blockUser = useBlockUser();
   // Reachable with your own profile (e.g. via a chat with yourself in dev, or
@@ -75,31 +76,39 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     }
   }, [refetchListings]);
 
-  const data: Row[] = listingsLoading
-    ? LISTING_SKELETONS.map((id): Row => ({ type: 'skeleton', id }))
-    : sellerListings.map((listing): Row => ({ type: 'listing', listing }));
+  // Memoized, with stable handlers, so tapping a heart or Follow re-renders one
+  // card rather than every card of a seller with a couple of hundred listings.
+  const data = useMemo<Row[]>(
+    () =>
+      listingsLoading
+        ? LISTING_SKELETONS.map((id): Row => ({ type: 'skeleton', id }))
+        : sellerListings.map((listing): Row => ({ type: 'listing', listing })),
+    [listingsLoading, sellerListings],
+  );
 
-  const keyExtractor = (item: Row) =>
-    item.type === 'skeleton' ? item.id : item.listing.id;
+  const keyExtractor = useCallback(
+    (item: Row) => (item.type === 'skeleton' ? item.id : item.listing.id),
+    [],
+  );
 
-  const renderItem = ({ item }: { item: Row }) => {
-    if (item.type === 'skeleton') {
-      return (
+  const openListing = useCallback(
+    (listing: Listing) => navigation.navigate('ListingDetail', { listingId: listing.id }),
+    [navigation],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: Row }) =>
+      item.type === 'skeleton' ? (
         <View style={styles.gridItem}>
           <ListingCardSkeleton />
         </View>
-      );
-    }
-    return (
-      <View style={styles.gridItem}>
-        <ListingCard
-          item={item.listing}
-          onPress={() => navigation.navigate('ListingDetail', { listingId: item.listing.id })}
-          onSave={() => toggleSavedMutation.mutate(item.listing)}
-        />
-      </View>
-    );
-  };
+      ) : (
+        <View style={styles.gridItem}>
+          <ListingCard item={item.listing} onPress={openListing} onSave={toggleSaved} />
+        </View>
+      ),
+    [openListing, toggleSaved],
+  );
 
   const ListHeader = (
     <>

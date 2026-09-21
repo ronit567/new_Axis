@@ -28,6 +28,14 @@ export default function Avatar({ url, initials, color, size, style, textStyle }:
   // cache serves the same person's photo everywhere it appears.
   const resolved = useAvatarUrl(url);
 
+  // A stored path is signed afresh on every cold start and every hour, and
+  // expo-image keys its disk cache by uri unless told otherwise — so each new
+  // token made every avatar in the app a cache miss and a full re-download of
+  // an image that had not changed. The path itself is the right key: it is
+  // timestamped per upload (StorageRepository.uploadAvatar), so it identifies
+  // exactly one image forever. Local file:// picks keep the default.
+  const cacheKey = url && !url.includes('://') ? `avatar:${url}` : undefined;
+
   return (
     <View
       style={[
@@ -39,7 +47,8 @@ export default function Avatar({ url, initials, color, size, style, textStyle }:
       <Text style={[styles.initials, { fontSize: size * 0.38 }, textStyle]}>{initials}</Text>
       {resolved ? (
         <Image
-          source={{ uri: resolved }}
+          source={cacheKey ? { uri: resolved, cacheKey } : { uri: resolved }}
+          cachePolicy="memory-disk"
           style={StyleSheet.absoluteFillObject}
           contentFit="cover"
           transition={150}

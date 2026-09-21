@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanst
 import { ListingRepository, ListingsPage } from '../repositories/ListingRepository'
 import { useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
+import { patchQueriesKeepingAge } from './cachePatch'
 import { Listing } from '../types'
 
 export function useSavedListings() {
@@ -84,23 +85,30 @@ export function useToggleSaved() {
             ),
           })),
         }
-      queryClient.setQueriesData<InfiniteData<ListingsPage, number>>(
+      // Patched without touching each cache's age (see cachePatch): a heart tap
+      // says nothing about how fresh the feed is, so it must not restart the
+      // staleness clock, and then there is nothing for onSuccess to repair.
+      patchQueriesKeepingAge<InfiniteData<ListingsPage, number>>(
+        queryClient,
         { queryKey: ['listings'] },
         flipSavedInPages,
       )
-      queryClient.setQueriesData<InfiniteData<ListingsPage, number>>(
+      patchQueriesKeepingAge<InfiniteData<ListingsPage, number>>(
+        queryClient,
         { queryKey: ['search'] },
         flipSavedInPages,
       )
 
       // Seller storefronts are a flat Listing[] (not paged), so patch the
       // matching row's saved flag directly.
-      queryClient.setQueriesData<Listing[]>({ queryKey: ['sellerListings'] }, (old) =>
+      patchQueriesKeepingAge<Listing[]>(queryClient, { queryKey: ['sellerListings'] }, (old) =>
         old?.map((item) => (item.id === listing.id ? { ...item, saved: willSave } : item)),
       )
 
-      queryClient.setQueryData<Listing | null>(listingKey, (old) =>
-        old ? { ...old, saved: willSave } : old,
+      patchQueriesKeepingAge<Listing | null>(
+        queryClient,
+        { queryKey: listingKey, exact: true },
+        (old) => (old ? { ...old, saved: willSave } : old),
       )
 
       return {
@@ -128,24 +136,22 @@ export function useToggleSaved() {
         queryClient.setQueryData(context.listingKey, context.previousListing)
       }
     },
-    onSuccess: (_data, listing) => {
-      if (user) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.savedListings(user.id),
-        })
-      }
-      queryClient.invalidateQueries({ queryKey: ['listings'] })
-      // Search results carry their own `saved` flag (ListingRepository.search),
-      // so a toggle from Home/Saved/Detail needs to bust the search cache too,
-      // not just the toggle done from search itself.
-      queryClient.invalidateQueries({ queryKey: ['search'] })
-      // Seller storefronts were patched optimistically above; invalidate to
-      // reconcile with the server like the other saved-flag caches.
-      queryClient.invalidateQueries({ queryKey: ['sellerListings'] })
-      // Also invalidate the single-listing cache — ListingDetailScreen reads
-      // `saved` off this query too, and without this it never learns the
-      // toggle persisted, so a later refetch there would look unchanged.
-      queryClient.invalidateQueries({ queryKey: queryKeys.listing(listing.id) })
+    // onMutate patched every cache that carries a `saved` flag, and after a
+    // successful toggle the server agrees with that patch. The previous version
+    // invalidated ['listings'], ['search'], ['sellerListings'] and the detail
+    // here, which refetched every loaded page of every mounted feed and search
+    // (two requests per page) on each heart tap, for a boolean the UI was
+    // already showing. Those caches need nothing.
+    //
+    // Only the saved list is marked stale, without refetching: its optimistic
+    // row was built from whichever surface the tap came from, so the next visit
+    // to Saved reconciles it with one request.
+    onSuccess: () => {
+      if (!user) return
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.savedListings(user.id),
+        refetchType: 'none',
+      })
     },
   })
 }

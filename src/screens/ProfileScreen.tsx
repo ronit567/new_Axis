@@ -62,12 +62,22 @@ function ListingThumb({ item, size }: { item: MyListing; size: { width: number; 
   );
 }
 
+// Three rows of three.
+const PREVIEW_LIMIT = 9;
+
 export default function ProfileScreen({ navigation }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const thumb = thumbSize(windowWidth);
-  // Real own-listings preview (first 3) — mock ids here would navigate to a
-  // ListingDetail that now fetches from the DB and comes back empty.
+  // Real own-listings preview — mock ids here would navigate to a ListingDetail
+  // that now fetches from the DB and comes back empty.
   const { data: myListings = [], refetch: refetchListings } = useMyListings();
+  // A preview, so bounded: this is a plain .map inside a ScrollView, which
+  // mounts a touchable and an image per listing in one commit, every time the
+  // tab opens. Fine for a handful; for a seller with a couple of hundred it is
+  // that many image loads at once. The full list lives behind Manage, which is
+  // virtualized.
+  const previewListings = myListings.slice(0, PREVIEW_LIMIT);
+  const hiddenCount = myListings.length - previewListings.length;
   // RootNavigator's profile-existence gate means this is already cached by
   // the time the main app renders; the fallbacks only cover a cold refetch.
   const {
@@ -198,7 +208,7 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
           {myListings.length > 0 ? (
             <View style={styles.listingsRow}>
-              {myListings.map((item) => (
+              {previewListings.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={{ width: thumb.width }}
@@ -222,6 +232,11 @@ export default function ProfileScreen({ navigation }: Props) {
                   </Text>
                 </TouchableOpacity>
               ))}
+              {hiddenCount > 0 && (
+                <Text style={styles.moreText}>
+                  +{hiddenCount} more in Manage
+                </Text>
+              )}
             </View>
           ) : (
             <EmptyState
@@ -358,6 +373,12 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: SIZES.xs,
+    color: COLORS.textSecondary,
+  },
+  // Full width so it sits on its own line under the wrapped grid.
+  moreText: {
+    width: '100%',
+    fontSize: SIZES.sm,
     color: COLORS.textSecondary,
   },
 });
