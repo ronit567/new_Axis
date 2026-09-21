@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   overlayBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: COLORS.overlay,
   },
   filterSheet: {

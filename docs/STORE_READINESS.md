@@ -122,6 +122,9 @@ have been re-checked against it.
 | `@sentry/react-native` | yes | Crash data only. `sendDefaultPii: false`, `setUser()` never called, `tracesSampleRate: 0`, query strings stripped. |
 | `expo-image` | yes | Fetches listing and avatar images from Supabase Storage. Sends nothing of its own. |
 | `@expo-google-fonts/dm-sans` | no | Font files are bundled at build time; no runtime request to Google. |
+| `@expo/vector-icons` | no | Icon fonts, bundled at build time. Was a transitive dependency of `expo` before SDK 57 and is now declared directly; nothing about its behaviour changed. |
+| `expo-asset` | no | Resolves bundled assets. Required by `expo-font` under `@expo/vector-icons`. Production assets ship in the binary; no runtime fetch. |
+| `expo-font` | no | Loads the bundled DM Sans faces and the icon fonts behind `@expo/vector-icons`. A required peer of the latter since SDK 57; without it the app crashes outside Expo Go. Fonts ship in the binary, so nothing is fetched. |
 | `@react-native-async-storage/async-storage` | no | Local storage. |
 | `@react-native-masked-view/masked-view` | no | UI. |
 | `@react-navigation/native` | no | UI. |

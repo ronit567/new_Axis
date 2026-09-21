@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(20, 12, 36, 0.08)',
   },
   pillTint: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: Platform.select({
       android: 'rgba(255,255,255,0.94)',
       default: 'rgba(255,255,255,0.5)',

@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   titleCompactWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
