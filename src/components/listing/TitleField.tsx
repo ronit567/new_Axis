@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, TextInput, Pressable, StyleSheet } from 'react-native';
 import { COLORS, SIZES } from '../../constants/theme';
 import LockedHint from './LockedHint';

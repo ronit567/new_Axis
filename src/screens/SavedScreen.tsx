@@ -1,14 +1,12 @@
-import React, { useRef, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Animated,
 } from 'react-native';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import { NavigationProp } from '@react-navigation/native';
-import { COLORS, FONTS, SIZES, SHADOWS } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import ListingCard from '../components/ListingCard';
 import ListingCardSkeleton from '../components/ListingCardSkeleton';
@@ -19,6 +17,8 @@ import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { useGridColumns } from '../lib/layout';
 import { RootStackParamList, Listing } from '../types';
+import ScrollHairline from '../components/layout/ScrollHairline';
+import { useScrollHairline } from '../hooks/useScrollHairline';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -44,18 +44,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   const gridData = useMemo(() => withGridSpacer(savedItems, columns), [savedItems, columns]);
   const pulseAnim = useSkeletonPulse(isLoading);
 
-  // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
-  // header stays flush at rest and gains definition as content passes under it.
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerBorderOpacity = scrollY.interpolate({
-    inputRange: [0, 14],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true },
-  );
+  const { onScroll, hairlineOpacity } = useScrollHairline();
 
   // Stable so the memoized ListingCard cells skip re-rendering.
   const keyExtractor = useCallback((item: { id: string }) => item.id, []);
@@ -86,10 +75,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
       <View style={styles.headerBlock}>
         <ScreenHeader variant="large" title="Saved" />
 
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
-        />
+        <ScrollHairline opacity={hairlineOpacity} />
       </View>
 
       {isLoading ? (
@@ -146,15 +132,6 @@ const styles = StyleSheet.create({
   headerBlock: {
     position: 'relative',
     zIndex: 1,
-  },
-  scrollHairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.divider,
-    ...SHADOWS.card,
   },
   listContent: {
     paddingHorizontal: 20,

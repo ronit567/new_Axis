@@ -1,7 +1,6 @@
-import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS } from '../constants/theme';
 import PressableScale from './PressableScale';
 
 type Props = {

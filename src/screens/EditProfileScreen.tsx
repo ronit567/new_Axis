@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
-import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { RootStackParamList, SellerProfile, YearOfStudy } from '../types';
 import RotatingChevron from '../components/RotatingChevron';
 import PressableScale from '../components/PressableScale';

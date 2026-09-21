@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, type ImageProps } from 'expo-image';
 
 // A just-uploaded storage object's public URL can briefly 404 at the CDN edge

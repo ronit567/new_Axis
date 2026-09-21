@@ -13,7 +13,7 @@ import { COLORS, SIZES } from '../constants/theme';
 // Length. Supabase defaults vary by when a project was provisioned (6 or 8),
 // and a mismatch is silent: the emailed code simply won't fit the boxes and
 // the user can never submit.
-export const CODE_LENGTH = 6;
+const CODE_LENGTH = 6;
 
 type Props = {
   value: string[];

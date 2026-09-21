@@ -1,15 +1,13 @@
-import React, { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, ComponentProps } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   RefreshControl,
   Animated,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
