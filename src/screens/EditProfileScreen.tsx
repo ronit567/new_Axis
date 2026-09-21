@@ -78,13 +78,37 @@ function EditProfileForm({
   // A freshly-picked photo, previewed immediately but only uploaded on Save
   // (inside useUpsertProfile) — backing out discards it, like every other field.
   const [pickedPhoto, setPickedPhoto] = useState<LocalPhoto | null>(null);
+  // Removing is staged the same way: the preview drops to initials at once,
+  // but the stored photo is only deleted on Save.
+  const [removePhoto, setRemovePhoto] = useState(false);
 
   const [bioFocused, setBioFocused] = useState(false);
 
   const canSave = name.trim().length > 0 && !upsertProfile.isPending;
+  const hasPhoto = pickedPhoto != null || (!removePhoto && profile.avatarUrl != null);
 
-  const handleChangePhoto = async () => {
+  const handlePhotoPress = () => {
     haptics.tap();
+    // Nothing to remove, so there is nothing to choose between.
+    if (!hasPhoto) {
+      void pickFromLibrary();
+      return;
+    }
+    Alert.alert('Profile photo', undefined, [
+      { text: 'Choose a new photo', onPress: () => void pickFromLibrary() },
+      { text: 'Remove photo', style: 'destructive', onPress: removeCurrentPhoto },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const removeCurrentPhoto = () => {
+    setPickedPhoto(null);
+    // Only a saved photo has anything to delete. If the one on screen was
+    // picked this session and never saved, removing it just discards the pick.
+    setRemovePhoto(profile.avatarUrl != null);
+  };
+
+  const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission required', 'Photo library access is needed to pick a photo.');
@@ -106,6 +130,8 @@ function EditProfileForm({
         width: asset.width,
         height: asset.height,
       });
+      // A new photo supersedes a removal made earlier in this session.
+      setRemovePhoto(false);
     }
   };
 
@@ -121,6 +147,7 @@ function EditProfileForm({
         bio: bio.trim(),
         location: pickupArea.trim(),
         photo: pickedPhoto,
+        removePhoto,
       });
       navigation.goBack();
     } catch (e) {
@@ -161,13 +188,13 @@ function EditProfileForm({
           <View style={styles.avatarSection}>
             <PressableScale
               style={styles.avatarWrap}
-              onPress={handleChangePhoto}
+              onPress={handlePhotoPress}
               scaleTo={0.96}
               accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
+              accessibilityLabel={hasPhoto ? 'Change or remove profile photo' : 'Add profile photo'}
             >
               <Avatar
-                url={pickedPhoto?.uri ?? profile.avatarUrl}
+                url={pickedPhoto?.uri ?? (removePhoto ? null : profile.avatarUrl)}
                 initials={deriveInitials(name) || '?'}
                 color={profile.avatarColor}
                 size={84}
@@ -180,13 +207,13 @@ function EditProfileForm({
               </View>
             </PressableScale>
             <PressableScale
-              onPress={handleChangePhoto}
+              onPress={handlePhotoPress}
               scaleTo={0.94}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
+              accessibilityLabel={hasPhoto ? 'Change or remove profile photo' : 'Add profile photo'}
             >
-              <Text style={styles.changePhoto}>Change photo</Text>
+              <Text style={styles.changePhoto}>{hasPhoto ? 'Change photo' : 'Add photo'}</Text>
             </PressableScale>
           </View>
 

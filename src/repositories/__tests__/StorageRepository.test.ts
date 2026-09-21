@@ -323,3 +323,60 @@ describe('StorageRepository.deleteListingImages', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('StorageRepository.removeAvatar', () => {
+  // The listing-images mock above rejects every other bucket, so this suite
+  // routes 'avatars' to its own list/remove pair.
+  const mockList = jest.fn();
+
+  beforeEach(() => {
+    mockList.mockReset();
+    mockFrom.mockImplementation((bucket: string) => {
+      if (bucket !== 'avatars') throw new Error(`Unexpected bucket: ${bucket}`);
+      return {
+        list: (...args: unknown[]) => mockList(...args),
+        remove: (...args: unknown[]) => mockRemove(...args),
+      };
+    });
+  });
+
+  it("deletes every file in the user's own avatar folder", async () => {
+    mockList.mockResolvedValue({
+      data: [{ name: '1700000000000.jpg' }, { name: '1700000999999.jpg' }],
+      error: null,
+    });
+
+    await StorageRepository.removeAvatar('user-1');
+
+    expect(mockList).toHaveBeenCalledWith('user-1');
+    expect(mockRemove).toHaveBeenCalledWith([
+      'user-1/1700000000000.jpg',
+      'user-1/1700000999999.jpg',
+    ]);
+  });
+
+  it('succeeds without a delete call when there is nothing to remove', async () => {
+    mockList.mockResolvedValue({ data: [], error: null });
+
+    await expect(StorageRepository.removeAvatar('user-1')).resolves.toBeUndefined();
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  // Unlike the best-effort sweep in uploadAvatar, a failure here must surface:
+  // the caller only clears profiles.avatar_url after this succeeds, so
+  // swallowing an error would report a photo as removed while it is still
+  // readable in the bucket.
+  it('throws, and deletes nothing, when the folder cannot be listed', async () => {
+    mockList.mockResolvedValue({ data: null, error: { message: 'network down' } });
+
+    await expect(StorageRepository.removeAvatar('user-1')).rejects.toThrow(/network down/);
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('throws when the delete itself fails', async () => {
+    mockList.mockResolvedValue({ data: [{ name: 'a.jpg' }], error: null });
+    mockRemove.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+
+    await expect(StorageRepository.removeAvatar('user-1')).rejects.toThrow(/permission denied/);
+  });
+});

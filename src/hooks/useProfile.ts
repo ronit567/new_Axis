@@ -7,11 +7,17 @@ import { LocalPhoto, StorageRepository } from '../repositories/StorageRepository
 import { signOut, useAuth } from '../context/AuthContext'
 import { queryKeys } from './queryKeys'
 
-// UpsertProfileInput plus an optional freshly-picked photo. The upload happens
-// inside the mutation (same shape as useCreateListing's photos handling) so a
-// screen never orchestrates storage itself: photo present -> upload first,
-// then persist the resulting public URL with the rest of the profile.
-export type UpsertProfileVars = UpsertProfileInput & { photo?: LocalPhoto | null }
+// UpsertProfileInput plus a photo change. Storage work happens inside the
+// mutation (same shape as useCreateListing's photos handling) so a screen never
+// orchestrates storage itself:
+//   - photo present -> upload first, then persist the object path with the rest
+//     of the profile;
+//   - removePhoto   -> delete the stored files first, then clear the path.
+// `photo` wins if both are set, since picking a new one supersedes a removal.
+export type UpsertProfileVars = UpsertProfileInput & {
+  photo?: LocalPhoto | null
+  removePhoto?: boolean
+}
 
 export function useProfile(userId: string) {
   const { user } = useAuth()
@@ -35,10 +41,17 @@ export function useUpsertProfile() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ photo, ...input }: UpsertProfileVars) => {
+    mutationFn: async ({ photo, removePhoto, ...input }: UpsertProfileVars) => {
       if (!user) throw new Error('Not signed in')
       if (photo) {
         input.avatar_url = await StorageRepository.uploadAvatar(user.id, photo)
+      } else if (removePhoto) {
+        // Files first, then the path. If the delete fails nothing has changed
+        // and the user can retry. If the upsert fails after it, the profile
+        // points at a missing object, which Avatar already renders as
+        // initials — so the photo is never shown after being deleted.
+        await StorageRepository.removeAvatar(user.id)
+        input.avatar_url = null
       }
       return ProfileRepository.upsert(user.id, input)
     },

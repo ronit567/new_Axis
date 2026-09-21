@@ -276,4 +276,29 @@ export const StorageRepository = {
 
     return path
   },
+
+  // Delete every avatar object the user has. Used when they remove their
+  // photo, so unlike the sweep above it is NOT best-effort: it throws on
+  // failure, and the caller only clears profiles.avatar_url once this has
+  // succeeded.
+  //
+  // The strictness is about privacy rather than tidiness. 0039 lets any
+  // signed-in user read the avatars bucket, list() included, so a file left
+  // behind stays discoverable even after the profile stops pointing at it —
+  // and a user who taps "Remove photo" is asking for the photo to be gone,
+  // not merely hidden. Deleting first means a reported success is true.
+  async removeAvatar(userId: string): Promise<void> {
+    const { data, error: listError } = await supabase.storage.from(AVATARS_BUCKET).list(userId)
+    if (listError) {
+      throw new Error(`Couldn't remove your photo: ${listError.message}`)
+    }
+
+    const paths = (data ?? []).map(file => `${userId}/${file.name}`)
+    if (paths.length === 0) return
+
+    const { error } = await supabase.storage.from(AVATARS_BUCKET).remove(paths)
+    if (error) {
+      throw new Error(`Couldn't remove your photo: ${error.message}`)
+    }
+  },
 }
