@@ -211,11 +211,29 @@ export function toMessage(row: MessageRow): Message {
 // The columns a Contact and an inbox/notification row are built from. The
 // hydration queries select exactly these (CONTACT_COLUMNS / LISTING_SUMMARY_COLUMNS)
 // instead of '*': a listings row is mostly its description and two URL arrays,
-// none of which these surfaces show, and the inbox pulls one per conversation.
+// and one row is pulled per conversation / per notification. (The inbox does
+// want the URL arrays — see LISTING_THUMB_COLUMNS below — but still not the
+// description.)
 export type ContactRow = Pick<ProfileRow, 'id' | 'name' | 'initials' | 'avatar_color' | 'avatar_url'>;
 export type ListingSummaryRow = Pick<ListingRow, 'id' | 'title' | 'price' | 'seller_id'>;
 export const CONTACT_COLUMNS = 'id, name, initials, avatar_color, avatar_url';
 export const LISTING_SUMMARY_COLUMNS = 'id, title, price, seller_id';
+
+// The inbox needs one thing the notifications list does not: since 0051 made
+// the listing the subject of each thread, every row renders that listing's
+// photo. Kept as its own column set rather than widened into
+// LISTING_SUMMARY_COLUMNS so the notifications hydration doesn't start pulling
+// two URL arrays per row for a surface that shows no images.
+export type ListingThumbRow = ListingSummaryRow & Pick<ListingRow, 'thumb_urls' | 'image_urls'>;
+export const LISTING_THUMB_COLUMNS = `${LISTING_SUMMARY_COLUMNS}, thumb_urls, image_urls`;
+
+// Grid-sized photo for a listing, or null when it has none. Same positional
+// fallback as toListing (0023): a row written before thumbnails existed, or
+// one whose thumbs were cleared by an approved photo edit, falls back to the
+// full-res image rather than rendering nothing.
+function listingThumbUrl(row: ListingThumbRow): string | null {
+  return row.thumb_urls[0] ?? row.image_urls[0] ?? null;
+}
 
 // Chat-header display info from a profile row (conversations list path).
 export function toContact(row: ContactRow): Contact {
@@ -257,7 +275,7 @@ export function toBlockedUser(row: BlockedUserRow): BlockedUser {
 type ConversationParts = {
   partner: ContactRow;
   // Null when the listing row is gone or RLS-hidden; the thread still renders.
-  listing: ListingSummaryRow | null;
+  listing: ListingThumbRow | null;
   lastMessage: MessageRow;
   unreadCount: number;
   currentUserId: string;
@@ -271,6 +289,11 @@ export function toConversation(parts: ConversationParts): Conversation {
     listingId: lastMessage.listing_id,
     listingTitle: listing?.title ?? null,
     listingPrice: listing?.price ?? null,
+    listingThumbUrl: listing ? listingThumbUrl(listing) : null,
+    // Seeded from the id on the message, not the joined row: an RLS-hidden or
+    // deleted listing still gets its own stable placeholder colour, so two
+    // unnamed threads don't render as the same grey square.
+    listingImageColor: lastMessage.listing_id ? pickImageColor(lastMessage.listing_id) : null,
     lastMessage: lastMessage.body,
     lastMessageAt: timeAgo(lastMessage.created_at),
     unreadCount,

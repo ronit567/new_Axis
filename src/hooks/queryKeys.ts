@@ -13,9 +13,13 @@ export const queryKeys = {
   profile: (userId: string) => ['profile', userId] as const,
   currentProfile: ['profile', 'me'] as const,
   conversations: (userId: string) => ['conversations', userId] as const,
-  // The thread is the person (0026): all messages with a partner share one
-  // cache entry regardless of which listing each message was about.
-  messages: (partnerId: string) => ['messages', partnerId] as const,
+  // The thread is the (listing, person) pair (0051), so the cache key is too:
+  // two chats with the same partner about different listings are two entries.
+  // `null` — the listing-less bucket — is spelled 'none' rather than left as
+  // null so the key is a plain string tuple that serializes predictably and
+  // can never collide with a real listing id.
+  messages: (partnerId: string, listingId: string | null) =>
+    ['messages', partnerId, listingId ?? 'none'] as const,
   blockedUsers: (userId: string) => ['blockedUsers', userId] as const,
   following: (userId: string) => ['following', userId] as const,
   isFollowing: (userId: string, sellerId: string) =>

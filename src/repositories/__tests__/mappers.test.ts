@@ -379,7 +379,69 @@ describe('toConversation', () => {
     });
     expect(conversation.listingTitle).toBeNull();
     expect(conversation.listingPrice).toBeNull();
+    expect(conversation.listingThumbUrl).toBeNull();
     expect(conversation.type).toBe('Buying');
+  });
+
+  it('takes the thumbnail from thumb_urls, falling back to image_urls then null (0023)', () => {
+    const withThumb = toConversation({
+      partner: sellerRow,
+      listing: { ...listingRow, thumb_urls: ['thumb.jpg'], image_urls: ['full.jpg'] },
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    const preThumb = toConversation({
+      partner: sellerRow,
+      listing: { ...listingRow, thumb_urls: [], image_urls: ['full.jpg'] },
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    const noPhotos = toConversation({
+      partner: sellerRow,
+      listing: listingRow,
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+
+    expect(withThumb.listingThumbUrl).toBe('thumb.jpg');
+    expect(preThumb.listingThumbUrl).toBe('full.jpg');
+    expect(noPhotos.listingThumbUrl).toBeNull();
+  });
+
+  it('seeds the placeholder colour from the message\'s listing id, so an unreadable listing still has one', () => {
+    // MessagesScreen leads each row with the listing (0051), so a thread whose
+    // listing row is gone or RLS-hidden still needs a stable square to render.
+    const hidden = toConversation({
+      partner: sellerRow,
+      listing: null,
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    const visible = toConversation({
+      partner: sellerRow,
+      listing: listingRow,
+      lastMessage: messageRow,
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+    const listingLess = toConversation({
+      partner: sellerRow,
+      listing: null,
+      lastMessage: { ...messageRow, listing_id: null },
+      unreadCount: 0,
+      currentUserId: 'me',
+    });
+
+    expect(hidden.listingImageColor).toMatch(/^#[0-9A-F]{6}$/i);
+    // Same id in and out of the join => same colour, so the row does not
+    // change appearance when the listing becomes unreadable.
+    expect(hidden.listingImageColor).toBe(visible.listingImageColor);
+    // No listing at all: the row falls back to the partner's avatar instead.
+    expect(listingLess.listingImageColor).toBeNull();
   });
 
   it('formats lastMessageAt through timeAgo', () => {

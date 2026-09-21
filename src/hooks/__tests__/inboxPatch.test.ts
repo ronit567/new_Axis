@@ -13,13 +13,18 @@ import type { Conversation, Message } from '../../types';
 
 const ME = 'me';
 
-function conversation(partnerId: string, over: Partial<Conversation> = {}): Conversation {
+function conversation(
+  partnerId: string,
+  over: Partial<Conversation> = {},
+): Conversation {
   return {
     partnerId,
     partner: { id: partnerId, name: partnerId, initials: 'P', avatarColor: '#000', avatarUrl: null },
     listingId: 'listing-1',
     listingTitle: 'Calculus textbook',
     listingPrice: 45,
+    listingThumbUrl: null,
+    listingImageColor: '#E8E0F5',
     lastMessage: 'old',
     lastMessageAt: '2d ago',
     unreadCount: 0,
@@ -83,11 +88,37 @@ describe('applyMessageToInbox', () => {
     expect(applyMessageToInbox([conversation('blake')], message(), ME, true)).toBeNull();
   });
 
-  it('declines when the message is about a different listing than the row shows', () => {
+  it('declines a first message about a new listing from a known partner: that thread has no row yet', () => {
+    // 0051: (listing, partner) is the thread. A known person asking about a
+    // listing they have never messaged about is a NEW thread, whose title,
+    // price and thumbnail are not in hand — so it needs a rebuild, not a patch
+    // onto their existing thread.
     const inbox = [conversation('avery')];
 
     expect(applyMessageToInbox(inbox, message({ listingId: 'listing-2' }), ME, true)).toBeNull();
     expect(applyMessageToInbox(inbox, message({ listingId: null }), ME, true)).toBeNull();
+  });
+
+  it('patches only the thread whose listing matches, leaving the same partner\'s other thread alone', () => {
+    const inbox = [
+      conversation('avery', { listingId: 'listing-1', unreadCount: 1 }),
+      conversation('avery', { listingId: 'listing-2', unreadCount: 4, lastMessage: 'lamp?' }),
+    ];
+
+    const next = applyMessageToInbox(inbox, message({ listingId: 'listing-2' }), ME, true);
+
+    // The touched thread moves to the top with the new message and count...
+    expect(next?.[0]).toMatchObject({
+      listingId: 'listing-2',
+      lastMessage: 'Is this still available?',
+      unreadCount: 5,
+    });
+    // ...and the other conversation with the same person is untouched.
+    expect(next?.[1]).toMatchObject({
+      listingId: 'listing-1',
+      lastMessage: 'old',
+      unreadCount: 1,
+    });
   });
 });
 
@@ -95,18 +126,42 @@ describe('clearUnreadInInbox', () => {
   it('zeroes one thread and leaves the rest alone', () => {
     const inbox = [conversation('avery', { unreadCount: 4 }), conversation('blake', { unreadCount: 1 })];
 
-    const next = clearUnreadInInbox(inbox, 'avery');
+    const next = clearUnreadInInbox(inbox, 'avery', 'listing-1');
 
     expect(next?.map((c) => c.unreadCount)).toEqual([0, 1]);
     expect(inbox[0].unreadCount).toBe(4);
   });
 
+  it('leaves the same partner\'s other listing still unread', () => {
+    // Opening the chat about one listing only stamps read receipts on that
+    // listing's messages (markConversationRead is scoped the same way), so the
+    // badge on their other conversation must survive.
+    const inbox = [
+      conversation('avery', { listingId: 'listing-1', unreadCount: 4 }),
+      conversation('avery', { listingId: 'listing-2', unreadCount: 3 }),
+    ];
+
+    const next = clearUnreadInInbox(inbox, 'avery', 'listing-1');
+
+    expect(next?.map((c) => c.unreadCount)).toEqual([0, 3]);
+  });
+
+  it('clears the listing-less thread when asked for it by null', () => {
+    const inbox = [
+      conversation('avery', { listingId: null, unreadCount: 2 }),
+      conversation('avery', { listingId: 'listing-1', unreadCount: 5 }),
+    ];
+
+    expect(clearUnreadInInbox(inbox, 'avery', null)?.map((c) => c.unreadCount)).toEqual([0, 5]);
+  });
+
   it('returns the same array when there is nothing to clear', () => {
     const inbox = [conversation('avery')];
 
-    expect(clearUnreadInInbox(inbox, 'avery')).toBe(inbox);
-    expect(clearUnreadInInbox(inbox, 'nobody')).toBe(inbox);
-    expect(clearUnreadInInbox(undefined, 'avery')).toBeUndefined();
+    expect(clearUnreadInInbox(inbox, 'avery', 'listing-1')).toBe(inbox);
+    expect(clearUnreadInInbox(inbox, 'nobody', 'listing-1')).toBe(inbox);
+    expect(clearUnreadInInbox(inbox, 'avery', 'listing-2')).toBe(inbox);
+    expect(clearUnreadInInbox(undefined, 'avery', 'listing-1')).toBeUndefined();
   });
 });
 

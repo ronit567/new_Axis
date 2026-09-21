@@ -25,6 +25,7 @@ import PressableScale from '../components/PressableScale';
 import ActivitySpinner from '../components/ActivitySpinner';
 import ErrorState from '../components/ErrorState';
 import Avatar from '../components/Avatar';
+import RemoteImage from '../components/RemoteImage';
 import { haptics } from '../lib/haptics';
 import { useAuth } from '../context/AuthContext';
 import { useMessages, useSendMessage, useMarkConversationRead } from '../hooks/useMessages';
@@ -53,14 +54,27 @@ type ChatItem = {
 
 export default function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listingId, partnerId, partner, listingTitle, listingPrice, draftMessage, draftNonce } = route.params;
+  const {
+    listingId,
+    partnerId,
+    partner,
+    listingTitle,
+    listingPrice,
+    listingThumbUrl,
+    draftMessage,
+    draftNonce,
+  } = route.params;
   const { user } = useAuth();
 
-  // The thread is the person (0026): all messages with this partner, whatever
-  // listing each was about. listingId/listingTitle/listingPrice are only the
-  // context this chat was opened with — they drive the banner and get stamped
-  // onto new sends, not the fetch.
-  const { data, isPending, isError, refetch } = useMessages(partnerId);
+  // The thread is the (listing, person) pair (0051): only the messages about
+  // this listing, so the same seller's other listings are their own chats.
+  // listingId therefore selects the thread as much as partnerId does — it is
+  // not just banner context — and it is stamped onto every send from here.
+  //
+  // This screen is the one place the *person* is the headline: the inbox row
+  // this was opened from is labelled with the listing, and the partner's name
+  // first appears in the header below.
+  const { data, isPending, isError, refetch } = useMessages(partnerId, listingId);
   // Full profile for the header's tap-through to the partner's SellerProfile
   // page (the route needs a whole SellerProfile, not just the Contact we have).
   const { data: partnerProfile } = useProfile(partnerId);
@@ -111,8 +125,8 @@ export default function ChatScreen({ navigation, route }: Props) {
     const newestUnreadId = unread[unread.length - 1].id;
     if (lastMarkedUnreadId.current === newestUnreadId) return;
     lastMarkedUnreadId.current = newestUnreadId;
-    markRead.mutate({ partnerId });
-  }, [messages, user?.id, partnerId, markRead]);
+    markRead.mutate({ partnerId, listingId });
+  }, [messages, user?.id, partnerId, listingId, markRead]);
 
   const handleSend = () => {
     const text = inputText.trim();
@@ -306,7 +320,16 @@ export default function ChatScreen({ navigation, route }: Props) {
       {/* Listing preview banner */}
       {listingTitle != null && (
         <View style={styles.listingBanner}>
-          <View style={styles.listingThumb} />
+          {listingThumbUrl ? (
+            <RemoteImage
+              uri={listingThumbUrl}
+              style={styles.listingThumb}
+              contentFit="cover"
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <View style={styles.listingThumb} />
+          )}
           <View style={styles.listingInfo}>
             <Text style={styles.listingTitle}>{listingTitle}</Text>
             {/* Chat is handed a bare number, not the Free/Trade flags, and those

@@ -199,6 +199,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
       partner: sellerToContact(listing.seller),
       listingTitle: listing.title,
       listingPrice: listing.price,
+      listingThumbUrl: listing.thumbUrls[0],
       draftMessage,
       // Fresh each tap so re-targeting an already-mounted Chat re-seeds the
       // composer even when the draft string is identical to last time.
