@@ -548,6 +548,105 @@ describe('MessageRepository.getMessages hide filtering', () => {
 
     expect(messages.gt).not.toHaveBeenCalled();
   });
+
+  // Schema lag: a build reaches TestFlight independently of `supabase db
+  // push`, so a shipped client can be asking a database that has never seen
+  // 0052. That is exactly what happened in production — the hide lookup threw
+  // and the whole chat screen showed "Couldn't load messages" for messages
+  // that were sitting in public.messages, readable, the whole time.
+  it('still loads the conversation, unfiltered, when conversation_hides does not exist yet (0052 unapplied)', async () => {
+    const row = makeMessageRow({ id: 'm1', body: 'Is this still available?' });
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [row], error: null });
+    const hides = makeQueryBuilder<null>({
+      data: null,
+      error: {
+        code: 'PGRST205',
+        message: "Could not find the table 'public.conversation_hides' in the schema cache",
+        details: null,
+        hint: null,
+      },
+    });
+    mockTables({ messages, conversation_hides: hides });
+
+    const result = await MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID);
+
+    // The optional feature degrades: no hide filter, and the messages load.
+    expect(messages.gt).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+    expect(result[0].body).toBe('Is this still available?');
+  });
+
+  it('degrades the same way when the table exists but its grants were never issued', async () => {
+    // A half-applied migration: RLS denying a row returns zero rows rather
+    // than an error, so a 42501 can only mean the GRANT to `authenticated`
+    // did not run. Same root cause, same safe default.
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [makeMessageRow()], error: null });
+    const hides = makeQueryBuilder<null>({
+      data: null,
+      error: { code: '42501', message: 'permission denied for table conversation_hides' },
+    });
+    mockTables({ messages, conversation_hides: hides });
+
+    await expect(
+      MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID),
+    ).resolves.toHaveLength(1);
+    expect(messages.gt).not.toHaveBeenCalled();
+  });
+
+  it('still fails the read when the hide lookup could not reach the server', async () => {
+    // The other half of the contract. postgrest-js reports an unanswered
+    // request with an empty code; the answer is unknown, a retry may well get
+    // one, and the user is owed the "try again" state. Treating it as "not
+    // hidden" would also put a deleted thread's history back on screen
+    // whenever the network wobbled.
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    const hides = makeQueryBuilder<null>({
+      data: null,
+      error: { code: '', message: 'FetchError: Network request failed', status: 0 },
+    });
+    mockTables({ messages, conversation_hides: hides });
+
+    await expect(
+      MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID),
+    ).rejects.toMatchObject({ message: 'FetchError: Network request failed' });
+  });
+
+  it('still fails the read on a database error that is not about a missing object', async () => {
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    const hides = makeQueryBuilder<null>({
+      data: null,
+      error: { code: '57014', message: 'canceling statement due to statement timeout' },
+    });
+    mockTables({ messages, conversation_hides: hides });
+
+    await expect(
+      MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID),
+    ).rejects.toMatchObject({ code: '57014' });
+  });
+});
+
+describe('MessageRepository.hideConversation under schema lag', () => {
+  const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
+  const USER_ID = '22222222-2222-4222-8222-222222222222';
+
+  it('reports a missing conversation_hides rather than pretending the delete worked', async () => {
+    // Deliberately the opposite of the read above. The user pressed Delete and
+    // nothing was recorded; swallowing this would have the app claim a delete
+    // it did not perform, and the inbox row would vanish optimistically so the
+    // claim would even look true until the next fetch.
+    const hides = makeQueryBuilder<null>({
+      data: null,
+      error: {
+        code: 'PGRST205',
+        message: "Could not find the table 'public.conversation_hides' in the schema cache",
+      },
+    });
+    mockTables({ conversation_hides: hides });
+
+    await expect(
+      MessageRepository.hideConversation(USER_ID, PARTNER_ID, null),
+    ).rejects.toMatchObject({ code: 'PGRST205' });
+  });
 });
 
 describe('MessageRepository.send', () => {

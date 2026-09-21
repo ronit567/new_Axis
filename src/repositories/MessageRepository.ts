@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { isMissingSchemaError } from '../lib/schemaLag'
 import { resubscribeDetector } from './realtimeStatus'
 import {
   CONTACT_COLUMNS,
@@ -181,6 +182,10 @@ export const MessageRepository = {
     // history back onto the screen, which is not what "delete" means anywhere
     // else. Fetched alongside the messages rather than before them so the
     // extra round trip costs no latency.
+    //
+    // This lookup cannot fail the screen: if 0052 has not reached the database
+    // this build is talking to, getConversationHiddenAt reports "not hidden"
+    // and the thread renders unfiltered. See its doc comment.
     const hiddenAt = await MessageRepository.getConversationHiddenAt(partnerId, listingId)
     const visible = hiddenAt === null ? scoped : scoped.gt('created_at', hiddenAt)
 
@@ -200,6 +205,30 @@ export const MessageRepository = {
    *
    * RLS (0052) scopes conversation_hides to the caller, so no user id is
    * needed here and one cannot be spoofed by a modified client.
+   *
+   * DEGRADES WHEN 0052 IS NOT APPLIED. A build reaches TestFlight independently
+   * of `supabase db push`, so this table can genuinely be absent from the
+   * database a shipped client is talking to. When it is, PostgREST answers
+   * PGRST205 and this returns null — "nobody has hidden anything" — so the
+   * caller shows the conversation unfiltered. Hiding is an optional, additive
+   * feature; being unable to ask about it is a reason to skip the filter, not
+   * a reason to fail the read of the messages themselves. That exact throw is
+   * what turned an unapplied 0052 into "Couldn't load messages" on a chat
+   * whose rows were sitting in public.messages the whole time.
+   *
+   * Only errors that say the object is missing or unexposed are absorbed, via
+   * isMissingSchemaError — which is careful about the distinction, and the
+   * place to read about the codes. Everything else is still thrown: a dropped
+   * connection, a timeout or a 5xx means the answer is unknown and may differ
+   * on a retry, and the user is owed the "try again" state for those. Quietly
+   * treating them as "not hidden" would resurrect a deleted thread's history
+   * on a flaky network, which is a privacy regression, not a graceful one.
+   *
+   * The consequence of degrading is bounded and self-correcting: a user who
+   * had deleted a thread sees it again until the migration lands. The
+   * conversation_list view carries the same filter server-side (0052), so an
+   * unapplied 0052 means the inbox is unfiltered too — the client is agreeing
+   * with the database it actually has, not inventing a third behaviour.
    */
   async getConversationHiddenAt(
     partnerId: string,
@@ -215,7 +244,10 @@ export const MessageRepository = {
     // maybeSingle, not single: "never hidden" is the common case and is not an
     // error.
     const { data, error } = await scoped.maybeSingle()
-    if (error) throw error
+    if (error) {
+      if (isMissingSchemaError(error)) return null
+      throw error
+    }
     return data?.hidden_at ?? null
   },
 
@@ -228,6 +260,15 @@ export const MessageRepository = {
    *
    * Deleting a thread that was already deleted moves the mark forward, which
    * is what clears messages received since the last delete.
+   *
+   * DOES NOT DEGRADE, unlike the read above, and the asymmetry is the point.
+   * If 0052 is missing here the user pressed Delete and nothing was recorded;
+   * the thread will still be there after a refresh. Absorbing that error would
+   * make the app claim a delete it did not perform, and MessagesScreen would
+   * optimistically drop the row — so the lie would even look true until the
+   * next fetch. Throwing surfaces the "Couldn't delete" alert the screen
+   * already shows, which is the honest outcome. Reading messages has a safe
+   * default when the feature is unavailable; writing does not.
    */
   async hideConversation(
     userId: string,

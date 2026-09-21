@@ -40,7 +40,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R16 | 2.3.3 | you | open | Screenshots at 6.9" and 6.5" showing the app in use, never the login or splash screen. |
 | R17 | B2 / M4 | you | open | `eas build --profile preview`, install on a physical iPhone, walk every flow. Check iPad too: `supportsTablet` is false, so it runs in compatibility mode, and App Review tests on one. |
 | R18 | CHECKLIST | you | open | Account and program readiness: membership active, latest agreements accepted, banking and tax not blocking. Walk that section of `PRE-SUBMISSION-CHECKLIST.md`. |
-| R19 | LIVE | agent | done | Migration drift. Production has all 46 local migrations, `0001`–`0047` (there is no `0027` on either side). Read via Supabase MCP 2026-09-19. |
+| R19 | LIVE | agent | done | Migration drift. Production has all 46 local migrations, `0001`–`0047` (there is no `0027` on either side). Read via Supabase MCP 2026-09-19. **That reading is now stale and the row records a completed audit, not a standing guarantee:** `0048`–`0052` were merged after it, and on 2026-09-20 an unapplied `0052` broke the chat screen in production (see R30). Drift is re-checked by `npm run check:migrations`, nightly in CI, and — since that incident — on every push to `main`. |
 | R20 | LIVE | agent | done | Security advisors reviewed 2026-09-19: no ERROR-level findings. The warnings are tracked privately. |
 | R21 | M1 M2 M3 M6 H2 | agent | done | Closed by commits since the docket: Free/Trade rendering, 8-char passwords, reviews removed, drift guard fixed. |
 | R22 | 2.1 | agent | done | Dead control removed: the chat input bar had an "Add emoji" button with no handler. Found during the accessibility pass; no other no-op handlers exist in `src/`. |
@@ -51,6 +51,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R27 | 1.2 | you | open | Confirm mail to the published contact address (`axis.app@outlook.com`, in the three legal screens and two Settings rows) actually reaches whoever watches the report queue. `report-alert` sends to `reports@dataaxis.org`, a different mailbox. Guideline 1.2 requires contact information users can reach, and a reviewer may email it. |
 | R28 | 5.1.1 | you | open | Sentry source maps. The Expo plugin warns `Missing config for organization, project`; without those, or `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` in the EAS environment, maps never upload and crash reports arrive minified. Set them as secrets in the `production` and `preview` environments; the auth token belongs there regardless. |
 | R29 | 2.1 | agent | done | `@sentry/react-native` was declared and registered as a config plugin but absent from `node_modules`, so `tsc --noEmit` failed with three `TS2307` plus a consequent `TS7006`, and the plugin would first have executed on an EAS production build. Clean `npm ci` at current `main` (expo 54.0.37): typecheck exits 0, 331 tests in 32 suites pass, architecture guard passes, `expo config --type prebuild` resolves the plugin without throwing. Remaining config is R28; that a crash reaches Sentry is unverified and belongs to R17. |
+| R30 | LIVE | you | open | Run `npx supabase db push`, then `npm run check:migrations`. `0048`-`0052` all postdate R19's reading, and `0052` is known to be unapplied because it failed in production on 2026-09-20: `MessageRepository.getMessages` asked `conversation_hides` whether the thread was deleted, the table was not there, PostgREST answered `PGRST205`, and a user opening a chat got "Couldn't load messages" for messages that were readable the whole time. The client no longer fails that way -- the hide lookup degrades to "not hidden" when the table is missing or ungranted (`src/lib/schemaLag.ts`) -- so this is a defect rather than an outage, but until the push happens, deleting a conversation errors and a thread deleted on an older build reappears. The others in that window have not been read from production; if `0051` is also absent the inbox is still grouped per partner instead of per listing, which is cosmetic. |
 
 ## Guard waivers
 
@@ -156,15 +157,18 @@ reminders; `check:store:submit` fails until every one is marked `done`.
 
 These are yours and can happen any time, in this order.
 
-1. **R01** — finish the report-handling setup (see the private launch notes).
-2. **R04** — review the dashboard-only auth settings (see the private launch notes).
-3. **R03** — two demo accounts on a non-support mailbox, seeded with real content.
-4. **R16** — capture the screenshots (simulator is fine). Uploading them is in the next list.
-5. **R24** — decide on image moderation: ship as disclosed, or add screening.
-6. **R25** — add a minimum-age clause to the Terms of Service.
-7. **R27** — confirm the published contact address reaches the report queue.
-8. **R28** — Sentry org, project and auth token into the EAS environments.
-9. **R26** — no action unless App Review asks; keep the institutional-name answer ready.
+1. **R30** — `npx supabase db push`, then `npm run check:migrations`. First because it
+   is one command, nothing else here blocks it, and it is the only row that is
+   currently costing shipped users a broken feature.
+2. **R01** — finish the report-handling setup (see the private launch notes).
+3. **R04** — review the dashboard-only auth settings (see the private launch notes).
+4. **R03** — two demo accounts on a non-support mailbox, seeded with real content.
+5. **R16** — capture the screenshots (simulator is fine). Uploading them is in the next list.
+6. **R24** — decide on image moderation: ship as disclosed, or add screening.
+7. **R25** — add a minimum-age clause to the Terms of Service.
+8. **R27** — confirm the published contact address reaches the report queue.
+9. **R28** — Sentry org, project and auth token into the EAS environments.
+10. **R26** — no action unless App Review asks; keep the institutional-name answer ready.
 
 ### Needs the App Store Connect account
 
