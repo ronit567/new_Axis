@@ -33,6 +33,7 @@ import PressableScale from "../components/PressableScale";
 import GreetingRow, { GREETING_ROW_HEIGHT } from "../components/GreetingRow";
 import { haptics } from "../lib/haptics";
 import { withGridSpacer, isGridSpacer, GridSpacer } from "../lib/gridSpacer";
+import { useGridColumns, SHEET_MAX_WIDTH } from "../lib/layout";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
@@ -175,9 +176,10 @@ export default function SearchScreen({ navigation, route }: Props) {
   // Same array until the pages change: this screen re-renders on every
   // keystroke, and a fresh array each time makes FlatList redo its work.
   const results = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
-  // An odd count gets one trailing spacer cell, so the last card stays half
-  // width in the left column instead of stretching across the row.
-  const gridData = useMemo(() => withGridSpacer(results), [results]);
+  // Columns follow the live window width (src/lib/layout.ts). A short last row
+  // is filled with spacer cells so its cards keep their width.
+  const columns = useGridColumns();
+  const gridData = useMemo(() => withGridSpacer(results, columns), [results, columns]);
 
   const toggleCategory = (cat: string) =>
     setSelectedCategories((prev) =>
@@ -420,8 +422,11 @@ export default function SearchScreen({ navigation, route }: Props) {
           {resultsHeader}
           {[0, 1, 2].map((rowIndex) => (
             <View key={rowIndex} style={styles.row}>
-              <ListingCardSkeleton />
-              <ListingCardSkeleton />
+              {/* One skeleton per column, so the real grid lands in the same
+                  geometry. */}
+              {Array.from({ length: columns }, (_, i) => (
+                <ListingCardSkeleton key={i} />
+              ))}
             </View>
           ))}
         </View>
@@ -435,7 +440,10 @@ export default function SearchScreen({ navigation, route }: Props) {
           data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          numColumns={2}
+          // Keyed on the column count: FlatList throws if numColumns changes
+          // on a mounted list, and iPadOS resizes the window live.
+          key={`grid-${columns}`}
+          numColumns={columns}
           columnWrapperStyle={styles.row}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
@@ -797,6 +805,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay,
   },
   filterSheet: {
+    // A Modal renders at the window level, outside Screen's reading column, so
+    // the sheet caps and centres itself or it spans a whole iPad
+    // (src/lib/layout.ts). A phone is narrower than the cap and unchanged.
+    width: '100%',
+    maxWidth: SHEET_MAX_WIDTH,
+    alignSelf: 'center',
     backgroundColor: COLORS.white,
     borderTopLeftRadius: SIZES.borderRadiusXl,
     borderTopRightRadius: SIZES.borderRadiusXl,

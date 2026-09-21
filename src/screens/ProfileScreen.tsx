@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  useWindowDimensions,
   Share,
 } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
@@ -29,6 +28,7 @@ import { useMyListings } from '../hooks/useListings';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { formatYearOfStudy } from '../lib/formatYear';
 import { formatPrice } from '../lib/formatPrice';
+import { useContentWidth } from '../lib/layout';
 import { getSellerBadges } from '../lib/sellerBadges';
 
 type Props = {
@@ -38,11 +38,13 @@ type Props = {
 const H_PAD = 20;
 const CARD_GAP = 8;
 
-// Thumb sizing follows the live window width (not a module-scope
-// Dimensions.get snapshot) so the grid re-lays-out on rotation and on iPad
-// compatibility-mode resizes — App Review exercises iPhone apps on iPad.
-function thumbSize(windowWidth: number) {
-  const width = (windowWidth - H_PAD * 2 - CARD_GAP * 2) / 3;
+// Thumb sizing follows the live content width (not a module-scope
+// Dimensions.get snapshot) so the grid re-lays-out on rotation and as iPadOS
+// resizes the window. Content width, not window width: on iPad this screen sits
+// in the centred reading column, and three thumbs sized against a 1366pt window
+// would not fit a 720pt column.
+function thumbSize(contentWidth: number) {
+  const width = (contentWidth - H_PAD * 2 - CARD_GAP * 2) / 3;
   return { width, height: Math.round(width * 0.95) };
 }
 
@@ -66,8 +68,7 @@ function ListingThumb({ item, size }: { item: MyListing; size: { width: number; 
 const PREVIEW_LIMIT = 9;
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { width: windowWidth } = useWindowDimensions();
-  const thumb = thumbSize(windowWidth);
+  const thumb = thumbSize(useContentWidth());
   // Real own-listings preview — mock ids here would navigate to a ListingDetail
   // that now fetches from the DB and comes back empty.
   const { data: myListings = [], refetch: refetchListings } = useMyListings();

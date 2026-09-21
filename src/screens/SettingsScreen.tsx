@@ -22,6 +22,7 @@ import Card, { SectionLabel } from '../components/layout/Card';
 import { useAuth } from '../context/AuthContext';
 import { useDeleteAccount } from '../hooks/useProfile';
 import { haptics } from '../lib/haptics';
+import { DIALOG_MAX_WIDTH } from '../lib/layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -417,6 +418,9 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
+    // Alert-sized on iPad: the overlay centres the card, and without a cap a
+    // one-decision dialog would stretch to ~1300pt (src/lib/layout.ts).
+    maxWidth: DIALOG_MAX_WIDTH,
     backgroundColor: COLORS.white,
     borderRadius: SIZES.borderRadiusLg,
     padding: 20,

@@ -25,6 +25,7 @@ import FadeInItem from '../components/FadeInItem';
 import GreetingRow from '../components/GreetingRow';
 import { haptics } from '../lib/haptics';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
+import { useGridColumns } from '../lib/layout';
 import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
@@ -87,9 +88,11 @@ export default function HomeScreen({ navigation }: Props) {
   // Same array until the pages change, so FlatList sees unchanged data when
   // something unrelated re-renders this screen.
   const listings = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
-  // An odd count gets one trailing spacer cell, so the last card stays half
-  // width in the left column instead of stretching across the row.
-  const gridData = useMemo(() => withGridSpacer(listings), [listings]);
+  // Columns follow the live window width: 2 on a phone, up to 5 on a landscape
+  // 13" iPad (src/lib/layout.ts). A short last row is filled with spacer cells
+  // so its cards keep their width instead of stretching across the row.
+  const columns = useGridColumns();
+  const gridData = useMemo(() => withGridSpacer(listings, columns), [listings, columns]);
 
   const pulseAnim = useSkeletonPulse(isLoading);
 
@@ -217,8 +220,11 @@ export default function HomeScreen({ navigation }: Props) {
           {ListHeader}
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
-              <ListingCardSkeleton animatedValue={pulseAnim} />
-              <ListingCardSkeleton animatedValue={pulseAnim} />
+              {/* One skeleton per column, so the real grid lands in the same
+                  geometry instead of jumping from 2 across to 4. */}
+              {Array.from({ length: columns }, (_, i) => (
+                <ListingCardSkeleton key={i} animatedValue={pulseAnim} />
+              ))}
             </View>
           ))}
         </ScrollView>
@@ -233,7 +239,10 @@ export default function HomeScreen({ navigation }: Props) {
           data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          numColumns={2}
+          // FlatList throws if numColumns changes on a mounted list, and iPadOS
+          // resizes the window live; keying on it remounts across a breakpoint.
+          key={`grid-${columns}`}
+          numColumns={columns}
           columnWrapperStyle={styles.row}
           initialNumToRender={8}
           maxToRenderPerBatch={8}

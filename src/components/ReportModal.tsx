@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { COLORS, FONTS, SIZES } from '../constants/theme';
 import { haptics } from '../lib/haptics';
+import { SHEET_MAX_WIDTH } from '../lib/layout';
 import { ReportReason, ReportTarget } from '../types';
 
 const REASONS: { key: ReportReason; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -288,10 +289,23 @@ export default function ReportModal({
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
+    // Absolute, not `flex: 1`. As a flex child the backdrop only filled the
+    // space *above* the sheet — invisible on a phone, where the sheet spans the
+    // width, but on iPad the sheet is capped and centred, and the strips beside
+    // it would have shown the live screen undimmed. Covering the whole window
+    // means the sheet is positioned by its own `marginTop: 'auto'` instead.
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {
+    // A Modal renders at the window level, outside Screen's reading column, so
+    // the sheet caps and centres itself or it spans a whole iPad
+    // (src/lib/layout.ts). A phone is narrower than the cap and unchanged.
+    width: '100%',
+    maxWidth: SHEET_MAX_WIDTH,
+    alignSelf: 'center',
+    // Pinned to the bottom now that the backdrop no longer pushes it there.
+    marginTop: 'auto',
     backgroundColor: COLORS.white,
     borderTopLeftRadius: SIZES.borderRadiusXl,
     borderTopRightRadius: SIZES.borderRadiusXl,
