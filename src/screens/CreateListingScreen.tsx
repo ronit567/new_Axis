@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import PressableScale from '../components/PressableScale';
@@ -26,6 +25,7 @@ import PickupPicker from '../components/listing/PickupPicker';
 import { useListingForm, MAX_PHOTOS } from '../components/listing/useListingForm';
 import { haptics } from '../lib/haptics';
 import { useCreateListing } from '../hooks/useListings';
+import ScreenHeader from '../components/layout/ScreenHeader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateListing'>;
 
@@ -63,20 +63,13 @@ export default function CreateListingScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <PressableScale
-          onPress={() => navigation.goBack()}
-          style={styles.headerIconBtn}
-          scaleTo={0.9}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Close"
-          accessibilityRole="button"
-        >
-          <Ionicons name="close" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>New listing</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader
+        title="New listing"
+        onBack={() => navigation.goBack()}
+        backIcon="close"
+        backAccessibilityLabel="Close"
+        bordered
+      />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -170,32 +163,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
-  },
-  headerTitle: {
-    fontSize: SIZES.base,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
   },
   body: {
     paddingHorizontal: 20,

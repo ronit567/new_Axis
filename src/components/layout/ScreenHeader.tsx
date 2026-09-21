@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { ComponentProps } from 'react';
 import { Animated, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SHADOWS, SIZES } from '../../constants/theme';
 import HeaderIconButton from './HeaderIconButton';
+
+type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
 type Props = {
   // Optional so a screen can keep the shared header geometry without a
@@ -14,6 +17,12 @@ type Props = {
   // four tabs a moment the sub-screens deliberately don't get.
   variant?: 'large' | 'compact';
   onBack?: () => void;
+  // A chevron means "back to where you came from". A screen presented as a
+  // self-contained task — creating a listing — reads better with a close, so
+  // the icon and its label can be swapped without the screen rebuilding the
+  // whole bar to do it.
+  backIcon?: IoniconsName;
+  backAccessibilityLabel?: string;
   trailing?: React.ReactNode;
   // Replaces the title with arbitrary content, for headers whose subject
   // isn't a string — Chat shows the conversation partner's avatar and name.
@@ -35,6 +44,8 @@ export default function ScreenHeader({
   title,
   variant = 'compact',
   onBack,
+  backIcon = 'chevron-back',
+  backAccessibilityLabel = 'Go back',
   trailing,
   titleContent,
   scrollY,
@@ -54,9 +65,9 @@ export default function ScreenHeader({
       <View style={styles.row}>
         {onBack ? (
           <HeaderIconButton
-            icon="chevron-back"
+            icon={backIcon}
             onPress={onBack}
-            accessibilityLabel="Go back"
+            accessibilityLabel={backAccessibilityLabel}
             color={COLORS.text}
             size={22}
           />

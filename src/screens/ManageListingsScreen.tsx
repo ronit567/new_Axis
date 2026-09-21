@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import PressableScale from '../components/PressableScale';
@@ -26,6 +26,7 @@ import {
   useDeleteListing,
 } from '../hooks/useListings';
 import { RootStackParamList, MyListing } from '../types';
+import Card from '../components/layout/Card';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ManageListings'>;
 
@@ -68,7 +69,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
   const renderItem = ({ item }: { item: MyListing }) => {
     const isSold = item.status === 'sold';
     return (
-      <View style={styles.card}>
+      <Card style={styles.card}>
         <View style={styles.cardTop}>
           <View style={[styles.thumb, { backgroundColor: item.imageColor }]}>
             {item.thumbUrls[0] ? (
@@ -156,7 +157,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
             <Ionicons name="trash-outline" size={18} color={COLORS.error} />
           </PressableScale>
         </View>
-      </View>
+      </Card>
     );
   };
 
@@ -202,7 +203,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
       {isLoading ? (
         <View style={styles.listContent}>
           {[0, 1, 2].map(i => (
-            <View key={i} style={styles.card}>
+            <Card key={i} style={styles.card}>
               <View style={styles.cardTop}>
                 <SkeletonLoader
                   width={64}
@@ -219,7 +220,7 @@ export default function ManageListingsScreen({ navigation }: Props) {
                 <SkeletonLoader width="100%" height={44} style={styles.skeletonAction} />
                 <SkeletonLoader width="100%" height={44} style={styles.skeletonAction} />
               </View>
-            </View>
+            </Card>
           ))}
         </View>
       ) : (
@@ -269,15 +270,11 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 32,
   },
+  // Background, radius, curve and shadow come from Card; what is left is the
+  // spacing that is this list's own business.
   card: {
-    backgroundColor: COLORS.white,
-    // Was borderRadiusLg (20) while Settings' card used 12 — same name, same
-    // role, different shape. Both now sit on the shared radius.
-    borderRadius: SIZES.borderRadius,
-    borderCurve: 'continuous',
     padding: 14,
     marginBottom: 12,
-    ...SHADOWS.card,
   },
   cardTop: {
     flexDirection: 'row',

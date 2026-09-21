@@ -16,11 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
-import PressableScale from '../components/PressableScale';
 import CodeInput, { emptyCode, isCodeFilled } from '../components/CodeInput';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { isPasswordAcceptable, PASSWORD_HINT, passwordProblem } from '../lib/password';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 
@@ -128,16 +128,14 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <PressableScale
-            style={styles.backBtn}
+          <HeaderIconButton
+            icon="chevron-back"
             onPress={() => navigation.goBack()}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            scaleTo={0.9}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-          </PressableScale>
+            accessibilityLabel="Go back"
+            color={COLORS.text}
+            size={22}
+            style={styles.backBtn}
+          />
 
           <View style={styles.iconWrapper}>
             <Ionicons name="lock-open-outline" size={30} color={COLORS.primary} />
@@ -216,13 +214,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
   },
+  // Size, shape and tint come from HeaderIconButton, the same control every
+  // other header uses; this only positions it.
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.divider,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
     marginBottom: 24,
   },
   iconWrapper: {

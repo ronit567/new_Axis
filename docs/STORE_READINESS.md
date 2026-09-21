@@ -58,6 +58,7 @@ by seeding keywords into source.
 | APPLE-ACCOUNT-DELETION-WEAK | `supabase/migrations/0029_delete_account_storage.sql:48` | `delete from auth.users where id = uid` | Fires when "delete account" and `mailto:` both appear anywhere. Deletion is real: Settings calls the `delete_own_account()` RPC (`src/repositories/ProfileRepository.ts:58`), which deletes the `auth.users` row and cascades. The `mailto:` links are support contacts on the legal screens. |
 | WEB-TRACKING-TECHNOLOGIES | `package-lock.json:5296` | `es-set-tostringtag` | The `gtag` pattern matches `es-set-tostringtag` in the lockfile and the saved docket HTML in the repo root. `package.json` has no analytics, advertising or attribution SDK. |
 | BOTH-UNSAFE-DEEPLINK | `app.json:16` | `"bundleIdentifier": "com.axis.app"` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit if deep links are ever wired. |
+| BOTH-SUBSCRIPTION-HARD-CANCEL | `src/lib/fetchWithTimeout.ts:32` | `caller's signal (React Query cancelling` | Axis sells nothing: no subscriptions, no in-app purchases, no payments. The rule pairs the word "subscribe" with "call ... cancel" anywhere in the source. Here "subscribe" is realtime channel and AppState subscriptions, and the cited line is a comment about a caller's AbortSignal cancelling a request. |
 
 ## Export compliance
 

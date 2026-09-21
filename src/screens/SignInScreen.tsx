@@ -11,14 +11,13 @@ import {
 } from 'react-native';
 import Screen from '../components/layout/Screen';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
-import PressableScale from '../components/PressableScale';
 import InputField from '../components/InputField';
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { haptics } from '../lib/haptics';
+import HeaderIconButton from '../components/layout/HeaderIconButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
@@ -55,9 +54,14 @@ export default function SignInScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <PressableScale style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9} accessibilityRole="button" accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-          </PressableScale>
+          <HeaderIconButton
+            icon="chevron-back"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back"
+            color={COLORS.text}
+            size={22}
+            style={styles.backBtn}
+          />
 
           <Text style={styles.title}>Welcome back</Text>
           <Text style={styles.subtitle}>Sign in to your Axis account.</Text>
@@ -120,13 +124,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 40,
   },
+  // Size, shape and tint come from HeaderIconButton, the same control every
+  // other header uses; this only positions it.
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.divider,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
     marginBottom: 32,
   },
   title: {

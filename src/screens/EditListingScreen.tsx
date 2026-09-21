@@ -13,10 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { Listing, ListingEditRequest, RootStackParamList } from '../types';
 import ErrorState from '../components/ErrorState';
-import PressableScale from '../components/PressableScale';
 import PrimaryButton from '../components/PrimaryButton';
 import PhotoPicker from '../components/listing/PhotoPicker';
 import TitleField from '../components/listing/TitleField';
@@ -38,6 +37,8 @@ import {
 } from '../hooks/useListingEdits';
 import type { UpdateListingInput } from '../repositories/ListingRepository';
 import { useAuth } from '../context/AuthContext';
+import ScreenHeader from '../components/layout/ScreenHeader';
+import Card from '../components/layout/Card';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditListing'>;
 
@@ -241,24 +242,15 @@ function EditListingForm({
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <PressableScale
-          style={styles.headerIconBtn}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          scaleTo={0.9}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </PressableScale>
-        <Text style={styles.headerTitle}>Edit listing</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader
+        title="Edit listing"
+        onBack={() => navigation.goBack()}
+        bordered
+      />
 
       {pendingRequest && (
         <View style={styles.pendingBannerWrap}>
-          <View style={styles.pendingBanner}>
+          <Card style={styles.pendingBanner}>
             <View style={styles.pendingIconTile}>
               <Ionicons name="time-outline" size={18} color={COLORS.primary} />
             </View>
@@ -268,7 +260,7 @@ function EditListingForm({
                 Changes to photos, title, category, or condition are pending review.
               </Text>
             </View>
-          </View>
+          </Card>
         </View>
       )}
 
@@ -377,44 +369,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
-  },
-  headerTitle: {
-    fontSize: SIZES.base,
-    fontFamily: FONTS.bold,
-    color: COLORS.text,
-  },
   pendingBannerWrap: {
     paddingHorizontal: 20,
     paddingTop: 16,
   },
+  // Was borderRadiusLg (20) while every other white card surface sits on 12.
+  // Card owns the shape now, so what is left here is layout.
   pendingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.borderRadiusLg,
     padding: 14,
-    ...SHADOWS.card,
   },
   pendingIconTile: {
     width: 40,
