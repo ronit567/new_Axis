@@ -31,6 +31,23 @@ export type LocalPhoto = {
   height?: number
 }
 
+// Every JPEG begins with the SOI marker (FF D8) immediately followed by
+// another marker, which always starts FF. Checking those three bytes is the
+// cheapest end-to-end proof that what is about to be uploaded really is the
+// image the encoder said it produced.
+//
+// This exists because the failure it catches is silent: a decode that returns
+// empty, bit-shifted or otherwise wrong bytes still uploads fine, and only
+// shows up much later as a listing photo or avatar that will not render, with
+// nothing left to explain why. Anything that breaks the base64 -> bytes step
+// breaks it from byte 0, so this catches the whole class at the one point
+// where it can still be reported to the person uploading.
+function assertJpegBytes(bytes: Uint8Array): void {
+  if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) {
+    throw new Error('Image encoding produced unreadable data. Please try another photo.')
+  }
+}
+
 // Resize a picked photo to `longEdge` (never upscaling) and re-encode as
 // JPEG at `compress`. Returns a local file uri for the resized copy plus its
 // output dimensions — computed here rather than read back from saveAsync, so
@@ -75,10 +92,13 @@ async function prepareListingPhoto(
     throw new Error('Image encoding returned no data. Please try another photo.')
   }
 
+  const bytes = decodeBase64(saved.base64)
+  assertJpegBytes(bytes)
+
   const scale = Math.min(1, longEdge / Math.max(width, height))
   return {
     uri: saved.uri,
-    bytes: decodeBase64(saved.base64),
+    bytes,
     width: Math.round(width * scale),
     height: Math.round(height * scale),
   }
