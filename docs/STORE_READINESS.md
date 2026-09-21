@@ -23,7 +23,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | Id | Source | Owner | Status | What and evidence |
 | --- | --- | --- | --- | --- |
 | R01 | B4 / LIVE | you | open | Report handling: one server-side piece is not set up yet. Details are kept out of this public repository, in the maintainer's private launch notes. |
-| R02 | B2 | you | open | `eas.json` still carries the three `REPLACE_WITH_` Apple identifiers. Needs the App Store Connect app record first. |
+| R02 | B2 | you | open | The App Store Connect app record does not exist yet. `eas submit` creates it on first run: name `Axis: Campus Marketplace`, bundle ID `org.dataaxis.axis`. `eas.json` no longer carries placeholders — it holds only the team ID (`2BTM73D29W`, public in every signed binary). The Apple ID email and the App Store Connect app ID are deliberately **not** committed: this repository is public, and `eas submit` asks for the Apple ID and finds the app by bundle ID, so neither is needed in the file. |
 | R03 | B3 | you | open | Demo accounts, restarted 2026-09-20. The previous `axis.app@outlook.com` auth user was deleted by hand; `signup_email_exceptions` was never touched, so `0035`'s whitelist row for it is still live. `0050` upserts both demo addresses (`axis.app@outlook.com`, `axis.app2@outlook.com`) so one migration lists the pair. Apply `0050` **before** creating either user — the `0018` before-user-created hook fires on dashboard-created users too. Then: Add user twice with *Auto Confirm User* ticked, insert a `public.profiles` row for each (nothing auto-creates one, so the reviewer would otherwise land in `SetupProfile`), then sign in on a real build and seed listings, photos and a conversation between them. Note both demo logins share the published support mailbox, which R27 would rather they did not; accepted deliberately. `store/REVIEW_NOTES.md` already promises App Review two working accounts — not true until this row closes. |
 | R04 | H1 / LIVE | you | open | Dashboard-only auth settings need reviewing before launch. Details are kept out of this public repository, in the maintainer's private launch notes. |
 | R05 | H3 | agent | done | Export compliance worked through against Apple's own matrix; see "Export compliance" below. `app.json:19` stays `false`, which is accurate only under the condition recorded there. The declaration itself is R13. |
@@ -176,7 +176,7 @@ The account holder does these, or invites you so you can. In the order App
 Store Connect asks for them.
 
 10. **R18** — account and program readiness.
-11. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; bundle ID `org.dataaxis.axis` — `com.axis.app` belongs to another developer), then the three identifiers into `eas.json`.
+11. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; bundle ID `org.dataaxis.axis` — `com.axis.app` belongs to another developer), most simply by running `eas submit --platform ios --latest`, which offers to create it.
 12. **R14** — App Privacy labels, exactly the eight manifest types. The table to enter is in `store/APP_STORE_CONNECT_ANSWERS.md`, as are the answers for the next two.
 13. **R15** — age rating questionnaire with the social media questions.
 14. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
@@ -192,6 +192,6 @@ If they would rather do it themselves, this is everything needed from them:
 
 1. Confirm the Developer Program membership is active and the latest agreement is accepted (R18).
 2. Create the app: platform iOS, name `Axis`, bundle ID `org.dataaxis.axis`, primary language English. (`com.axis.app` was the original choice and is registered to another developer; this is reverse-DNS of dataaxis.org, which Axis already uses for its policies.)
-3. Send back three values for `eas.json`: the Apple ID email on the account, the numeric Apple ID of the new app (App Information → General), and the Team ID (Membership details).
+3. Nothing to send back for `eas.json`: it holds only the team ID, and `eas submit` asks for the Apple ID at submit time rather than having it committed to this public repository.
 4. Create an API key: Users and Access → Integrations → App Store Connect API, role App Manager. Send the issuer ID, key ID and the `.p8` file over a private channel. The `.p8` downloads once, and must never be committed (`*.p8` is gitignored).
 5. Leave the listing text, privacy labels, age rating and export answers — those will be filled from `store/metadata/`, `store/REVIEW_NOTES.md` and this ledger once access exists.
