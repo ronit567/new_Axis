@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { useFollowing, useToggleFollow } from '../hooks/useFollows';
 import { formatYearOfStudy } from '../lib/formatYear';
+import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { haptics } from '../lib/haptics';
 import { RootStackParamList, Listing, SellerProfile } from '../types';
 
@@ -46,7 +47,10 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   const { data, isLoading, isError, refetch } = useSavedListings();
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
-  const savedItems = data ?? [];
+  const savedItems = useMemo(() => data ?? [], [data]);
+  // An odd count gets one trailing spacer cell, so the last card stays half
+  // width in the left column instead of stretching across the row.
+  const gridData = useMemo(() => withGridSpacer(savedItems), [savedItems]);
   const { data: following, isPending: isFollowingPending } = useFollowing();
   const toggleFollow = useToggleFollow();
   const pulseAnim = useSkeletonPulse(isLoading);
@@ -71,14 +75,17 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
     [navigation],
   );
   const renderItem = useCallback(
-    ({ item }: { item: Listing }) => (
-      <ListingCard
-        item={item}
-        onPress={openListing}
-        onSave={toggleSaved}
-        style={styles.card}
-      />
-    ),
+    ({ item }: { item: Listing | GridSpacer }) =>
+      isGridSpacer(item) ? (
+        <View style={styles.card} />
+      ) : (
+        <ListingCard
+          item={item}
+          onPress={openListing}
+          onSave={toggleSaved}
+          style={styles.card}
+        />
+      ),
     [openListing, toggleSaved],
   );
 
@@ -180,7 +187,7 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
           // conditional, so without them React reuses one instance and flipping
           // tabs changes numColumns on a mounted list — an invariant violation.
           key="items"
-          data={savedItems}
+          data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           numColumns={2}

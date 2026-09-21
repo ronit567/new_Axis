@@ -24,6 +24,7 @@ import CategoryChip from '../components/CategoryChip';
 import FadeInItem from '../components/FadeInItem';
 import GreetingRow from '../components/GreetingRow';
 import { haptics } from '../lib/haptics';
+import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
@@ -86,6 +87,9 @@ export default function HomeScreen({ navigation }: Props) {
   // Same array until the pages change, so FlatList sees unchanged data when
   // something unrelated re-renders this screen.
   const listings = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
+  // An odd count gets one trailing spacer cell, so the last card stays half
+  // width in the left column instead of stretching across the row.
+  const gridData = useMemo(() => withGridSpacer(listings), [listings]);
 
   const pulseAnim = useSkeletonPulse(isLoading);
 
@@ -100,19 +104,22 @@ export default function HomeScreen({ navigation }: Props) {
     [navigation],
   );
   const renderItem = useCallback(
-    ({ item, index }: { item: Listing; index: number }) => (
-      <FadeInItem index={index} style={styles.card}>
-        <ListingCard
-          item={item}
-          onPress={openListing}
-          onSave={toggleSaved}
-        />
-      </FadeInItem>
-    ),
+    ({ item, index }: { item: Listing | GridSpacer; index: number }) =>
+      isGridSpacer(item) ? (
+        <View style={styles.card} />
+      ) : (
+        <FadeInItem index={index} style={styles.card}>
+          <ListingCard
+            item={item}
+            onPress={openListing}
+            onSave={toggleSaved}
+          />
+        </FadeInItem>
+      ),
     [openListing, toggleSaved],
   );
 
-  const keyExtractor = useCallback((item: Listing) => item.id, []);
+  const keyExtractor = useCallback((item: Listing | GridSpacer) => item.id, []);
 
   const ListHeader = (
     <View style={styles.sectionHeader}>
@@ -223,7 +230,7 @@ export default function HomeScreen({ navigation }: Props) {
       ) : (
         <Animated.FlatList
           style={styles.contentArea}
-          data={listings}
+          data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           numColumns={2}
