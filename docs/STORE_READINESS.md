@@ -64,7 +64,7 @@ by seeding keywords into source.
 | --- | --- | --- | --- |
 | APPLE-ACCOUNT-DELETION-WEAK | `supabase/migrations/0029_delete_account_storage.sql:48` | `delete from auth.users where id = uid` | Fires when "delete account" and `mailto:` both appear anywhere. Deletion is real: Settings calls the `delete_own_account()` RPC (`src/repositories/ProfileRepository.ts:58`), which deletes the `auth.users` row and cascades. The `mailto:` links are support contacts on the legal screens. |
 | WEB-TRACKING-TECHNOLOGIES | `package-lock.json:5180` | `es-set-tostringtag` | The `gtag` pattern matches `es-set-tostringtag` in the lockfile. (Lockfile line numbers move whenever dependencies change — this citation drifted once already, from 5296, in the SDK 57 upgrade.) `package.json` has no analytics, advertising or attribution SDK. |
-| BOTH-UNSAFE-DEEPLINK | `app.json:16` | `"bundleIdentifier": "com.axis.app"` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit if deep links are ever wired. |
+| BOTH-UNSAFE-DEEPLINK | `app.json:12` | `"bundleIdentifier": "org.dataaxis.axis"` | Expo registers the bundle identifier as a URL scheme on every prebuild, so this fires for any Expo app. No handler exists for any scheme and no token, reset link or credential is ever passed through one; auth uses emailed codes. Revisit if deep links are ever wired. |
 | BOTH-SUBSCRIPTION-HARD-CANCEL | `src/lib/fetchWithTimeout.ts:32` | `caller's signal (React Query cancelling` | Axis sells nothing: no subscriptions, no in-app purchases, no payments. The rule pairs the word "subscribe" with "call ... cancel" anywhere in the source. Here "subscribe" is realtime channel and AppState subscriptions, and the cited line is a comment about a caller's AbortSignal cancelling a request. |
 
 ## Export compliance
@@ -176,7 +176,7 @@ The account holder does these, or invites you so you can. In the order App
 Store Connect asks for them.
 
 10. **R18** — account and program readiness.
-11. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; confirm `com.axis.app` is free), then the three identifiers into `eas.json`.
+11. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; bundle ID `org.dataaxis.axis` — `com.axis.app` belongs to another developer), then the three identifiers into `eas.json`.
 12. **R14** — App Privacy labels, exactly the eight manifest types. The table to enter is in `store/APP_STORE_CONNECT_ANSWERS.md`, as are the answers for the next two.
 13. **R15** — age rating questionnaire with the social media questions.
 14. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
@@ -191,7 +191,7 @@ on two-factor prompts, and an individual role can be removed later.
 If they would rather do it themselves, this is everything needed from them:
 
 1. Confirm the Developer Program membership is active and the latest agreement is accepted (R18).
-2. Create the app: platform iOS, name `Axis`, bundle ID `com.axis.app`, primary language English. If that bundle ID is taken, say so before anything else — it changes `app.json`.
+2. Create the app: platform iOS, name `Axis`, bundle ID `org.dataaxis.axis`, primary language English. (`com.axis.app` was the original choice and is registered to another developer; this is reverse-DNS of dataaxis.org, which Axis already uses for its policies.)
 3. Send back three values for `eas.json`: the Apple ID email on the account, the numeric Apple ID of the new app (App Information → General), and the Team ID (Membership details).
 4. Create an API key: Users and Access → Integrations → App Store Connect API, role App Manager. Send the issuer ID, key ID and the `.p8` file over a private channel. The `.p8` downloads once, and must never be committed (`*.p8` is gitignored).
 5. Leave the listing text, privacy labels, age rating and export answers — those will be filled from `store/metadata/`, `store/REVIEW_NOTES.md` and this ledger once access exists.

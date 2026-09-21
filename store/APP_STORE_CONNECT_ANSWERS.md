@@ -15,7 +15,7 @@ hand column, not from the wording.
 | --- | --- |
 | Name | `Axis: Campus Marketplace`. "Axis" alone is very likely taken; names are unique across the store. |
 | Subtitle | `Buy and sell with classmates` |
-| Bundle ID | `com.axis.app` |
+| Bundle ID | `org.dataaxis.axis` |
 | Primary language | English (Canada) |
 | Primary category | Shopping |
 | Secondary category | Lifestyle, or leave empty |

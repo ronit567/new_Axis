@@ -9,7 +9,7 @@
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
-      "bundleIdentifier": "com.axis.app",
+      "bundleIdentifier": "org.dataaxis.axis",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -125,7 +125,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#5C2D91"
       },
-      "package": "com.axis.app",
+      "package": "org.dataaxis.axis",
       "versionCode": 1
     },
     "web": {
