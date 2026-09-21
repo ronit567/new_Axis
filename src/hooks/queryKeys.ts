@@ -21,9 +21,6 @@ export const queryKeys = {
   messages: (partnerId: string, listingId: string | null) =>
     ['messages', partnerId, listingId ?? 'none'] as const,
   blockedUsers: (userId: string) => ['blockedUsers', userId] as const,
-  following: (userId: string) => ['following', userId] as const,
-  isFollowing: (userId: string, sellerId: string) =>
-    ['isFollowing', userId, sellerId] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   unreadNotificationCount: (userId: string) => ['unreadNotificationCount', userId] as const,
   // 0021: UX-only "is this listing already engaged" check + "is there a
