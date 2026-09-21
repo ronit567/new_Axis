@@ -252,6 +252,12 @@ export type Database = {
         }
         Relationships: [
           {
+            // ON DELETE SET NULL as of 0051 (CASCADE from 0001). Row types
+            // cannot express that, so it is noted here: deleting a listing no
+            // longer deletes the conversation about it — listing_id goes null
+            // and the thread falls into the partner's listing-less bucket. A
+            // null listing_id therefore means "no listing, or not any more",
+            // not only "this was never about a listing".
             foreignKeyName: "messages_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
@@ -464,6 +470,9 @@ export type Database = {
       }
     }
     Views: {
+      // One row per (listing, partner) thread — regrouped by 0051, superseding
+      // 0026's one-row-per-person. Same columns either way, so this type is
+      // unchanged; only how many rows come back is.
       conversation_list: {
         Row: {
           body: string
@@ -550,7 +559,8 @@ export type ProfileRow = DefaultSchema['Tables']['profiles']['Row']
 export type ListingRow = DefaultSchema['Tables']['listings']['Row']
 export type SavedListingRow = DefaultSchema['Tables']['saved_listings']['Row']
 export type MessageRow = DefaultSchema['Tables']['messages']['Row']
-// One inbox thread: the last message's columns plus partner_id/unread_count.
+// One inbox thread — a (listing, partner) pair since 0051: that thread's last
+// message columns plus partner_id/unread_count.
 // A strict superset of MessageRow, so mappers accept it as a last message.
 export type ConversationListRow = DefaultSchema['Views']['conversation_list']['Row']
 export type NotificationRow = DefaultSchema['Tables']['notifications']['Row']

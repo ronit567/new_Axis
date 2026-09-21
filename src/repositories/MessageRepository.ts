@@ -2,11 +2,11 @@ import { supabase } from '../lib/supabase'
 import { resubscribeDetector } from './realtimeStatus'
 import {
   CONTACT_COLUMNS,
-  LISTING_SUMMARY_COLUMNS,
+  LISTING_THUMB_COLUMNS,
   toConversation,
   toMessage,
   type ContactRow,
-  type ListingSummaryRow,
+  type ListingThumbRow,
 } from './mappers'
 import type { Conversation, Message } from '../types'
 import type { ConversationListRow, MessageRow } from '../types/database'
@@ -59,11 +59,14 @@ let channelSeq = 0
 
 export const MessageRepository = {
   // getConversations reads the conversation_list view (0009, regrouped per
-  // partner in 0026): one row per person — that person's newest message
-  // columns (whose listing_id supplies the row's listing context) plus the
-  // unread count across all their messages, bucketed server-side under the
-  // caller's RLS. Partner and listing hydration stays a client-side manual
-  // join, same style as ListingRepository.getAll.
+  // listing again in 0051): one row per (listing, partner) thread — that
+  // thread's newest message columns plus its own unread count, bucketed
+  // server-side under the caller's RLS. Partner and listing hydration stays a
+  // client-side manual join, same style as ListingRepository.getAll.
+  //
+  // A thread's listing is its subject, so the listing hydration is no longer
+  // decoration: it supplies the title and thumbnail MessagesScreen labels the
+  // row with.
   //
   // `signal` aborts all three requests. The inbox is rebuilt in response to
   // events, so a rebuild is often superseded while still in flight; without the
@@ -94,14 +97,14 @@ export const MessageRepository = {
       return signal ? query.abortSignal(signal) : query
     }
     const fetchListings = () => {
-      const query = supabase.from('listings').select(LISTING_SUMMARY_COLUMNS).in('id', listingIds)
+      const query = supabase.from('listings').select(LISTING_THUMB_COLUMNS).in('id', listingIds)
       return signal ? query.abortSignal(signal) : query
     }
     const [partnersResult, listingsResult] = await Promise.all([
       fetchPartners(),
       listingIds.length > 0
         ? fetchListings()
-        : Promise.resolve({ data: [] as ListingSummaryRow[], error: null }),
+        : Promise.resolve({ data: [] as ListingThumbRow[], error: null }),
     ])
     if (partnersResult.error) throw partnersResult.error
     if (listingsResult.error) throw listingsResult.error
@@ -110,7 +113,7 @@ export const MessageRepository = {
       ((partnersResult.data ?? []) as ContactRow[]).map((p) => [p.id, p]),
     )
     const listingById = new Map(
-      ((listingsResult.data ?? []) as ListingSummaryRow[]).map((l) => [l.id, l]),
+      ((listingsResult.data ?? []) as ListingThumbRow[]).map((l) => [l.id, l]),
     )
 
     // A missing partner profile means the counterpart is RLS-hidden (blocked in
@@ -138,9 +141,14 @@ export const MessageRepository = {
 
   // The two directions are filtered explicitly (not left to RLS) so the thread
   // is exactly me<->partner even if policies loosen later. The thread is the
-  // person (0026): every message with this partner, regardless of which
-  // listing each one was about — listing_id stays on the individual messages
-  // as per-message context.
+  // (listing, person) pair (0051): only the messages about THIS listing, so
+  // asking the same seller about two things reads as two conversations.
+  //
+  // listingId === null is its own thread, not "any listing": it is the bucket
+  // conversation_list groups null listing_ids into — a chat opened without
+  // listing context, or one whose listing was deleted and nulled by 0051's FK.
+  // It therefore filters with `.is('listing_id', null)`, never with no filter
+  // at all, which would pull every listing's messages into that one thread.
   //
   // Capped to the newest MESSAGE_PAGE_LIMIT rows (fetched newest-first, then
   // reversed back to ascending for the chat view) so an unusually long thread
@@ -148,16 +156,25 @@ export const MessageRepository = {
   // cursor pagination is deliberately deferred until a real thread hits the
   // cap — the flat Message[] cache shape must stay untouched because realtime
   // dedup, optimistic sends, and read receipts all setQueryData against it.
-  async getMessages(partnerId: string, userId: string): Promise<Message[]> {
+  async getMessages(
+    partnerId: string,
+    userId: string,
+    listingId: string | null,
+  ): Promise<Message[]> {
     assertUuid(userId, 'userId')
     assertUuid(partnerId, 'partnerId')
-    const { data, error } = await supabase
+    // listingId needs no such check: it reaches PostgREST through `.eq()`,
+    // which is parameterized, not through the `.or()` grammar above.
+    const query = supabase
       .from('messages')
       .select('*')
       .or(
         `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),` +
           `and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`,
       )
+    const scoped =
+      listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
+    const { data, error } = await scoped
       // id tiebreak: rapid sends can share a created_at, and Postgres
       // guarantees nothing within equal sort keys — without it both the
       // cap boundary and the rendered order can shift between refetches.
@@ -208,16 +225,25 @@ export const MessageRepository = {
     return toMessage(row as MessageRow)
   },
 
-  // Receiver-side read receipt: stamps every unread incoming message from this
-  // partner (the whole per-person thread, 0025). RLS + the column grant from
-  // migration 0008 keep this receiver-only and read_at-only.
-  async markConversationRead(partnerId: string, userId: string): Promise<void> {
-    const { error } = await supabase
+  // Receiver-side read receipt: stamps every unread incoming message in THIS
+  // thread — this partner, this listing (0051). Scoped to the listing for the
+  // same reason the inbox is: opening the chat about the desk lamp must not
+  // clear the unread badge on the chat about the textbook. RLS + the
+  // column grant from migration 0008 keep this receiver-only and read_at-only.
+  async markConversationRead(
+    partnerId: string,
+    userId: string,
+    listingId: string | null,
+  ): Promise<void> {
+    const query = supabase
       .from('messages')
       .update({ read_at: new Date().toISOString() })
       .eq('receiver_id', userId)
       .eq('sender_id', partnerId)
       .is('read_at', null)
+    const { error } = await (listingId === null
+      ? query.is('listing_id', null)
+      : query.eq('listing_id', listingId))
     if (error) throw error
   },
 

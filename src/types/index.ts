@@ -132,10 +132,14 @@ export type Message = {
   readAt: string | null; // null = the receiver hasn't opened it yet
 };
 
-// One row in the Messages inbox. Identity is the partner (0026) — all
-// messages with the same person share one thread. listingId/title/price are
-// the *newest* message's listing context, feeding the row subtitle and the
-// banner the chat opens with.
+// One row in the Messages inbox. Identity is the (listing, partner) pair
+// (0051, superseding 0026's per-partner grouping): messaging one person about
+// two listings is two threads. listingId is the thread's subject, not just the
+// newest message's context, so it is what the row is labelled with — the
+// partner's name is secondary here and only becomes the headline in the chat
+// itself. A null listingId is the listing-less bucket: a chat opened without
+// listing context, or one whose listing has since been deleted (0051's FK
+// nulls it rather than deleting the messages).
 export type Conversation = {
   partnerId: string;
   partner: Contact;
@@ -144,6 +148,15 @@ export type Conversation = {
   // the conversation itself stays visible.
   listingTitle: string | null;
   listingPrice: number | null;
+  // Grid-sized photo for the row's thumbnail (0023's thumb, falling back to
+  // the full-res first image). Null when the listing has no photos, is gone,
+  // or the thread has no listing at all.
+  listingThumbUrl: string | null;
+  // Deterministic placeholder behind/instead of the thumbnail, from the same
+  // id-seeded palette the listing cards use — derived from the listing id, so
+  // it is present even when the listing row itself is not. Null only for a
+  // thread with no listing.
+  listingImageColor: string | null;
   lastMessage: string;
   lastMessageAt: string; // relative label via timeAgo ("2m ago")
   unreadCount: number;
@@ -207,8 +220,11 @@ export type RootStackParamList = {
   EditListing: { listingId: string };
   Messages: undefined;
   // IDs drive the data; `partner` is display info so the header renders before
-  // any fetch. listingTitle/listingPrice feed the banner, and a present title
-  // also enables the "View" round-trip (ListingDetail loads by id).
+  // any fetch. listingId is half the thread's identity (0051), not just banner
+  // context: it selects which conversation with this person to load, so the
+  // same partner with a different listingId is a different thread.
+  // listingTitle/listingPrice/listingThumbUrl feed the banner, and a present
+  // title also enables the "View" round-trip (ListingDetail loads by id).
   // `draftMessage` pre-fills the composer — e.g. the listing detail "Make offer"
   // shortcut drops in an offer template so buyers negotiate over chat.
   // `draftNonce` changes on every navigation so re-targeting an already-mounted
@@ -219,6 +235,7 @@ export type RootStackParamList = {
     partner: Contact;
     listingTitle?: string;
     listingPrice?: number;
+    listingThumbUrl?: string;
     draftMessage?: string;
     draftNonce?: number;
   };

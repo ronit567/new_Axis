@@ -168,10 +168,11 @@ describe('MessageRepository.getConversations', () => {
     expect(result[0].partnerId).toBe('p1');
   });
 
-  it('maps one conversation per partner, carrying the newest message and its listing as the row context (0026)', async () => {
-    // The view guarantees one row per partner: messaging the same person about
-    // two listings is ONE thread, whose row is the newest message (here about
-    // lst2) — its listing supplies the inbox row's title/price context.
+  it('keeps two listings with the same partner as two separate threads (0051)', async () => {
+    // The view emits one row per (listing, partner). Messaging one person
+    // about two of their listings must survive as TWO conversations, each with
+    // its own last message, its own unread count and its own listing — this is
+    // the regression 0026 introduced and 0051 undoes.
     const rows = [
       makeConversationListRow({
         id: 'm2',
@@ -180,24 +181,77 @@ describe('MessageRepository.getConversations', () => {
         receiver_id: 'me',
         partner_id: 'p1',
         body: 'About the lamp',
+        unread_count: 1,
+      }),
+      makeConversationListRow({
+        id: 'm1',
+        listing_id: 'lst1',
+        sender_id: 'p1',
+        receiver_id: 'me',
+        partner_id: 'p1',
+        body: 'About the textbook',
+        unread_count: 3,
       }),
     ];
     mockTables({
       conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
       profiles: makeQueryBuilder<ProfileRow[]>({ data: [makeProfileRow({ id: 'p1' })], error: null }),
       listings: makeQueryBuilder<ListingRow[]>({
-        data: [makeListingRow({ id: 'lst2', title: 'Desk lamp' })],
+        data: [
+          makeListingRow({ id: 'lst2', title: 'Desk lamp' }),
+          makeListingRow({ id: 'lst1', title: 'Organic Chem 2 textbook' }),
+        ],
         error: null,
       }),
     });
 
     const result = await MessageRepository.getConversations('me');
 
-    expect(result).toHaveLength(1);
-    expect(result[0].partnerId).toBe('p1');
-    expect(result[0].listingId).toBe('lst2');
-    expect(result[0].listingTitle).toBe('Desk lamp');
-    expect(result[0].lastMessage).toBe('About the lamp');
+    expect(result).toHaveLength(2);
+    expect(result.every((c) => c.partnerId === 'p1')).toBe(true);
+    expect(result.map((c) => c.listingId)).toEqual(['lst2', 'lst1']);
+    expect(result.map((c) => c.listingTitle)).toEqual(['Desk lamp', 'Organic Chem 2 textbook']);
+    expect(result.map((c) => c.lastMessage)).toEqual(['About the lamp', 'About the textbook']);
+    expect(result.map((c) => c.unreadCount)).toEqual([1, 3]);
+  });
+
+  it('hydrates the listing thumbnail the inbox row is labelled with, falling back to the full-res image', async () => {
+    const rows = [
+      makeConversationListRow({ id: 'm1', listing_id: 'lst1', partner_id: 'p1' }),
+      makeConversationListRow({ id: 'm2', listing_id: 'lst2', partner_id: 'p2' }),
+      makeConversationListRow({ id: 'm3', listing_id: 'lst3', partner_id: 'p3' }),
+    ];
+    mockTables({
+      conversation_list: makeQueryBuilder<ConversationListRow[]>({ data: rows, error: null }),
+      profiles: makeQueryBuilder<ProfileRow[]>({
+        data: [makeProfileRow({ id: 'p1' }), makeProfileRow({ id: 'p2' }), makeProfileRow({ id: 'p3' })],
+        error: null,
+      }),
+      listings: makeQueryBuilder<ListingRow[]>({
+        data: [
+          makeListingRow({
+            id: 'lst1',
+            thumb_urls: ['https://cdn/thumb1.jpg'],
+            image_urls: ['https://cdn/full1.jpg'],
+          }),
+          // Pre-0023 row (or one whose thumbs an approved photo edit cleared).
+          makeListingRow({ id: 'lst2', thumb_urls: [], image_urls: ['https://cdn/full2.jpg'] }),
+          // No photos at all — the row falls back to the placeholder colour.
+          makeListingRow({ id: 'lst3', thumb_urls: [], image_urls: [] }),
+        ],
+        error: null,
+      }),
+    });
+
+    const result = await MessageRepository.getConversations('me');
+    const byListing = new Map(result.map((c) => [c.listingId, c]));
+
+    expect(byListing.get('lst1')?.listingThumbUrl).toBe('https://cdn/thumb1.jpg');
+    expect(byListing.get('lst2')?.listingThumbUrl).toBe('https://cdn/full2.jpg');
+    expect(byListing.get('lst3')?.listingThumbUrl).toBeNull();
+    // Every thread with a listing gets a stable placeholder colour, even the
+    // photoless one, so the rows are visually distinguishable.
+    expect(byListing.get('lst3')?.listingImageColor).toEqual(expect.stringMatching(/^#[0-9A-F]{6}$/i));
   });
 
   it('preserves the view row order in the returned conversations', async () => {
@@ -275,6 +329,10 @@ describe('MessageRepository.getConversations', () => {
     expect(missing?.type).toBe('Buying');
     expect(missing?.listingTitle).toBeNull();
     expect(missing?.listingPrice).toBeNull();
+    expect(missing?.listingThumbUrl).toBeNull();
+    // The colour is seeded from the id on the message, so an unreadable
+    // listing still gets one — MessagesScreen has something to render.
+    expect(missing?.listingImageColor).toEqual(expect.stringMatching(/^#[0-9A-F]{6}$/i));
   });
 
   it('returns [] without a second round of profile/listing fetches when the view has no rows', async () => {
@@ -305,6 +363,10 @@ describe('MessageRepository.getConversations', () => {
     expect(result).toHaveLength(1);
     expect(result[0].listingTitle).toBeNull();
     expect(result[0].listingPrice).toBeNull();
+    expect(result[0].listingThumbUrl).toBeNull();
+    // No listing at all, so no listing colour: the row falls back to the
+    // partner's avatar.
+    expect(result[0].listingImageColor).toBeNull();
   });
 });
 
@@ -313,15 +375,17 @@ describe('MessageRepository.getMessages', () => {
   // because it embeds them into PostgREST's `.or()` filter grammar.
   const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
   const USER_ID = '22222222-2222-4222-8222-222222222222';
+  const LISTING_ID = '33333333-3333-4333-8333-333333333333';
 
-  it('queries both directions across all listings, capped to the newest rows, and returns them oldest-first', async () => {
+  it('queries both directions for ONE listing, capped to the newest rows, and returns them oldest-first', async () => {
     // The query fetches newest-first (so limit() keeps the most recent rows)
     // and getMessages reverses back to the ascending order the chat renders.
-    // The two messages are about different listings and still form one thread
-    // (0026) — the thread is the person, not the (listing, person) pair.
+    // Both messages are about the same listing, because the thread is the
+    // (listing, person) pair (0051) — the same partner's other listings are
+    // other threads and must not be pulled in here.
     const older = makeMessageRow({
       id: 'm1',
-      listing_id: 'lst1',
+      listing_id: LISTING_ID,
       sender_id: PARTNER_ID,
       receiver_id: USER_ID,
       body: 'Hi',
@@ -330,7 +394,7 @@ describe('MessageRepository.getMessages', () => {
     });
     const newer = makeMessageRow({
       id: 'm2',
-      listing_id: 'lst2',
+      listing_id: LISTING_ID,
       sender_id: USER_ID,
       receiver_id: PARTNER_ID,
       body: 'Hello!',
@@ -340,24 +404,25 @@ describe('MessageRepository.getMessages', () => {
     const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [newer, older], error: null });
     mockTables({ messages: messagesBuilder });
 
-    const result = await MessageRepository.getMessages(PARTNER_ID, USER_ID);
+    const result = await MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID);
 
     expect(messagesBuilder.or).toHaveBeenCalledWith(
       `and(sender_id.eq.${USER_ID},receiver_id.eq.${PARTNER_ID}),` +
         `and(sender_id.eq.${PARTNER_ID},receiver_id.eq.${USER_ID})`,
     );
+    // The listing filter is what splits one person's chats into threads.
+    // Without it this reverts to 0026's merged per-person thread.
+    expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', LISTING_ID);
+    expect(messagesBuilder.is).not.toHaveBeenCalled();
     expect(messagesBuilder.order).toHaveBeenNthCalledWith(1, 'created_at', { ascending: false });
     // id tiebreak keeps the cap boundary and chat order stable when rapid
     // sends share a created_at.
     expect(messagesBuilder.order).toHaveBeenNthCalledWith(2, 'id', { ascending: false });
     expect(messagesBuilder.limit).toHaveBeenCalledWith(MESSAGE_PAGE_LIMIT);
-    // No listing filter of any kind — the whole per-person history loads.
-    expect(messagesBuilder.eq).not.toHaveBeenCalled();
-    expect(messagesBuilder.is).not.toHaveBeenCalled();
     expect(result.map((m) => m.id)).toEqual(['m1', 'm2']);
     expect(result[0]).toEqual({
       id: 'm1',
-      listingId: 'lst1',
+      listingId: LISTING_ID,
       senderId: PARTNER_ID,
       receiverId: USER_ID,
       body: 'Hi',
@@ -366,12 +431,28 @@ describe('MessageRepository.getMessages', () => {
     });
   });
 
+  it('asks for listing_id IS NULL — not "no filter" — for the listing-less thread', async () => {
+    // The null bucket is a thread like any other. Dropping the filter here
+    // would make it a catch-all that swallowed every other listing's messages.
+    const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    mockTables({ messages: messagesBuilder });
+
+    await MessageRepository.getMessages(PARTNER_ID, USER_ID, null);
+
+    expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
+    expect(messagesBuilder.eq).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-UUID partnerId before issuing any query, so injected PostgREST filter syntax cannot reach `.or()`', async () => {
     const messagesBuilder = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
     mockTables({ messages: messagesBuilder });
 
     await expect(
-      MessageRepository.getMessages(`${PARTNER_ID}),and(sender_id.eq.${USER_ID}`, USER_ID),
+      MessageRepository.getMessages(
+        `${PARTNER_ID}),and(sender_id.eq.${USER_ID}`,
+        USER_ID,
+        LISTING_ID,
+      ),
     ).rejects.toThrow(/partnerId must be a UUID/);
     expect(mockFrom).not.toHaveBeenCalled();
   });
@@ -452,11 +533,11 @@ describe('MessageRepository.send', () => {
 });
 
 describe('MessageRepository.markConversationRead', () => {
-  it('stamps read_at with an ISO string, scoped to receiver/sender/unread across every listing (0026)', async () => {
+  it('stamps read_at with an ISO string, scoped to receiver/sender/unread AND this listing (0051)', async () => {
     const messagesBuilder = makeQueryBuilder<null>({ data: null, error: null });
     mockTables({ messages: messagesBuilder });
 
-    await MessageRepository.markConversationRead('p1', 'me');
+    await MessageRepository.markConversationRead('p1', 'me', 'lst1');
 
     expect(messagesBuilder.update).toHaveBeenCalledWith({
       read_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
@@ -464,9 +545,19 @@ describe('MessageRepository.markConversationRead', () => {
     expect(messagesBuilder.eq).toHaveBeenCalledWith('receiver_id', 'me');
     expect(messagesBuilder.eq).toHaveBeenCalledWith('sender_id', 'p1');
     expect(messagesBuilder.is).toHaveBeenCalledWith('read_at', null);
-    // No listing filter: opening the person's thread reads all of it.
+    // The listing filter is the point: opening the chat about one listing must
+    // not clear the unread badge on that person's other conversations.
+    expect(messagesBuilder.eq).toHaveBeenCalledWith('listing_id', 'lst1');
+  });
+
+  it('scopes to listing_id IS NULL for the listing-less thread', async () => {
+    const messagesBuilder = makeQueryBuilder<null>({ data: null, error: null });
+    mockTables({ messages: messagesBuilder });
+
+    await MessageRepository.markConversationRead('p1', 'me', null);
+
+    expect(messagesBuilder.is).toHaveBeenCalledWith('listing_id', null);
     expect(messagesBuilder.eq).not.toHaveBeenCalledWith('listing_id', expect.anything());
-    expect(messagesBuilder.is).not.toHaveBeenCalledWith('listing_id', expect.anything());
   });
 });
 

@@ -92,13 +92,17 @@ export function useUnreadConversationCount(): number {
   return data ?? 0
 }
 
-export function useMessages(partnerId: string) {
+// One chat thread: this partner, this listing (0051). `listingId` is half the
+// identity, not a filter applied to a per-person thread — passing a different
+// one is a different conversation with its own cache entry, its own unread
+// count and its own read receipts.
+export function useMessages(partnerId: string, listingId: string | null) {
   const { user } = useAuth()
   return useQuery<Message[]>({
-    queryKey: queryKeys.messages(partnerId),
+    queryKey: queryKeys.messages(partnerId, listingId),
     queryFn: () => {
       if (!user) return []
-      return MessageRepository.getMessages(partnerId, user.id)
+      return MessageRepository.getMessages(partnerId, user.id, listingId)
     },
     enabled: !!user && !!partnerId,
   })
@@ -118,7 +122,7 @@ export function useSendMessage() {
     },
     onMutate: async (input) => {
       if (!user) return undefined
-      const key = queryKeys.messages(input.receiverId)
+      const key = queryKeys.messages(input.receiverId, input.listingId)
       await queryClient.cancelQueries({ queryKey: key })
       const previous = queryClient.getQueryData<Message[]>(key)
       const optimistic: Message = {
@@ -138,7 +142,9 @@ export function useSendMessage() {
     // so this is where the server gets asked.
     onError: (_error, input, context) => {
       if (context) queryClient.setQueryData(context.key, context.previous)
-      queryClient.invalidateQueries({ queryKey: queryKeys.messages(input.receiverId) })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.messages(input.receiverId, input.listingId),
+      })
       if (user) scheduleInboxRefresh(queryClient, user.id)
     },
     // The insert returns the row it wrote, so the optimistic entry is swapped
@@ -146,8 +152,9 @@ export function useSendMessage() {
     // the whole thread (up to 200 rows) and rebuild the inbox after every send,
     // and the realtime echo of the same insert then rebuilt the inbox again.
     onSuccess: (sent, input) => {
-      queryClient.setQueryData<Message[]>(queryKeys.messages(input.receiverId), (old) =>
-        old ? upsertMessage(old, sent) : old,
+      queryClient.setQueryData<Message[]>(
+        queryKeys.messages(input.receiverId, input.listingId),
+        (old) => (old ? upsertMessage(old, sent) : old),
       )
       if (user) applyToInbox(queryClient, user.id, sent, false)
     },
@@ -159,9 +166,9 @@ export function useMarkConversationRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: { partnerId: string }) => {
+    mutationFn: (input: { partnerId: string; listingId: string | null }) => {
       if (!user) throw new Error('Not signed in')
-      return MessageRepository.markConversationRead(input.partnerId, user.id)
+      return MessageRepository.markConversationRead(input.partnerId, user.id, input.listingId)
     },
     // Cleared before the request, not after: the UPDATE flips every unread row,
     // each one echoes back over realtime, and those echoes can beat the HTTP
@@ -172,7 +179,7 @@ export function useMarkConversationRead() {
       if (!user) return
       const key = queryKeys.conversations(user.id)
       queryClient.setQueryData<Conversation[]>(key, (old) =>
-        clearUnreadInInbox(old, input.partnerId),
+        clearUnreadInInbox(old, input.partnerId, input.listingId),
       )
       if (queryClient.isFetching({ queryKey: key, exact: true }) > 0) {
         scheduleInboxRefresh(queryClient, user.id)
@@ -183,7 +190,7 @@ export function useMarkConversationRead() {
       // No refetch: stamp the received messages in the cached thread directly.
       const readAt = new Date().toISOString()
       queryClient.setQueryData<Message[]>(
-        queryKeys.messages(input.partnerId),
+        queryKeys.messages(input.partnerId, input.listingId),
         (old) =>
           old?.map((m) =>
             m.receiverId === user.id && m.readAt === null ? { ...m, readAt } : m,
@@ -210,9 +217,15 @@ export function useMessagesRealtime() {
 
   useEffect(() => {
     if (!userId) return undefined
-    // Own sends key the thread by receiver; incoming ones by sender.
+    // Own sends key the thread by receiver; incoming ones by sender. The
+    // message's own listingId is the other half of the key (0051) — a message
+    // about a different listing belongs to a different thread cache, not this
+    // one.
     const threadKey = (message: Message) =>
-      queryKeys.messages(message.senderId === userId ? message.receiverId : message.senderId)
+      queryKeys.messages(
+        message.senderId === userId ? message.receiverId : message.senderId,
+        message.listingId,
+      )
     const unsubscribe = MessageRepository.subscribeToMessages(userId, {
       onInsert: (message) => {
         const key = threadKey(message)
@@ -241,7 +254,9 @@ export function useMessagesRealtime() {
         // Only a read from somewhere else is news.
         if (message.receiverId !== userId) return
         const inbox = queryClient.getQueryData<Conversation[]>(queryKeys.conversations(userId))
-        const thread = inbox?.find((c) => c.partnerId === message.senderId)
+        const thread = inbox?.find(
+          (c) => c.partnerId === message.senderId && c.listingId === message.listingId,
+        )
         if (thread && thread.unreadCount === 0) return
         scheduleInboxRefresh(queryClient, userId)
       },

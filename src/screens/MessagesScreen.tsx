@@ -14,6 +14,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Avatar from '../components/Avatar';
+import RemoteImage from '../components/RemoteImage';
 import CategoryChip from '../components/CategoryChip';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -35,6 +36,12 @@ type Props = {
 };
 
 const FILTERS = ['All', 'Buying', 'Selling'];
+
+// What a row is called when its thread has a listing we can no longer read —
+// deleted, or hidden by RLS. Distinct from a thread that never had one (which
+// falls back to the partner's name), because "this was about something, and
+// that something is gone" is different information.
+const MISSING_LISTING_LABEL = 'Listing unavailable';
 
 export default function MessagesScreen({ navigation, onBrowseListings }: Props) {
   const [activeFilter, setActiveFilter] = useState('All');
@@ -76,8 +83,18 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
     [],
   );
 
+  // A thread is a (listing, person) pair (0051), and the listing is what the
+  // buyer was actually asking about — so the listing titles the row and the
+  // person is the supporting line. The name only becomes the headline inside
+  // the chat, or here when there is no listing to name the thread with.
   const renderItem = useCallback(
-    ({ item, index }: { item: Conversation; index: number }) => (
+    ({ item, index }: { item: Conversation; index: number }) => {
+    const title =
+      item.listingTitle ?? (item.listingId ? MISSING_LISTING_LABEL : item.partner.name);
+    // The person is already the title in the listing-less case; repeating it
+    // underneath would just be the same string twice.
+    const showPartnerLine = item.listingTitle != null || item.listingId != null;
+    return (
     <TouchableOpacity
       style={[styles.row, index > 0 ? styles.rowBorder : null]}
       activeOpacity={0.75}
@@ -88,27 +105,56 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           partner: item.partner,
           listingTitle: item.listingTitle ?? undefined,
           listingPrice: item.listingPrice ?? undefined,
+          listingThumbUrl: item.listingThumbUrl ?? undefined,
         })
       }
       accessibilityRole="button"
+      // Read as one sentence by a screen reader, in the order the row is
+      // labelled: what it is about, then who with.
+      accessibilityLabel={
+        showPartnerLine ? `${title}, with ${item.partner.name}` : `Chat with ${title}`
+      }
     >
-      <Avatar
-        url={item.partner.avatarUrl}
-        initials={item.partner.initials}
-        color={item.partner.avatarColor}
-        size={48}
-        style={styles.avatar}
-        textStyle={styles.avatarText}
-      />
+      {item.listingThumbUrl ? (
+        <RemoteImage
+          uri={item.listingThumbUrl}
+          style={[styles.thumb, { backgroundColor: item.listingImageColor ?? COLORS.surfaceAlt }]}
+          contentFit="cover"
+          accessibilityIgnoresInvertColors
+        />
+      ) : item.listingId ? (
+        // A listing with no photos (or one we can't read): the id-seeded
+        // placeholder colour, same as its card would show.
+        <View
+          style={[styles.thumb, { backgroundColor: item.listingImageColor ?? COLORS.surfaceAlt }]}
+        />
+      ) : (
+        <Avatar
+          url={item.partner.avatarUrl}
+          initials={item.partner.initials}
+          color={item.partner.avatarColor}
+          size={48}
+          style={styles.avatar}
+          textStyle={styles.avatarText}
+        />
+      )}
       <View style={styles.rowContent}>
         <View style={styles.rowTop}>
-          <Text style={[styles.name, item.unreadCount > 0 ? styles.nameUnread : null]}>
-            {item.partner.name}
+          <Text
+            style={[styles.name, item.unreadCount > 0 ? styles.nameUnread : null]}
+            numberOfLines={1}
+          >
+            {title}
           </Text>
           <Text style={[styles.time, item.unreadCount > 0 ? styles.timeUnread : null]}>
             {item.lastMessageAt}
           </Text>
         </View>
+        {showPartnerLine && (
+          <Text style={styles.partnerName} numberOfLines={1}>
+            {item.partner.name}
+          </Text>
+        )}
         <View style={styles.rowBottom}>
           <Text
             style={[styles.preview, item.unreadCount > 0 ? styles.previewUnread : null]}
@@ -126,7 +172,8 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
         </View>
       </View>
     </TouchableOpacity>
-    ),
+    );
+    },
     [navigation],
   );
 
@@ -175,7 +222,8 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
                 style={styles.skeletonAvatar}
               />
               <View style={styles.skeletonRowContent}>
-                <SkeletonLoader width="45%" height={14} />
+                <SkeletonLoader width="55%" height={14} />
+                <SkeletonLoader width="30%" height={11} />
                 <SkeletonLoader width="75%" height={12} />
               </View>
             </View>
@@ -267,6 +315,16 @@ const styles = StyleSheet.create({
     marginRight: 14,
     flexShrink: 0,
   },
+  // Square-with-soft-corners, not a circle: it is a thing for sale, not a
+  // person, and it should read the same way a listing card's photo does.
+  thumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    marginRight: 14,
+    flexShrink: 0,
+  },
   avatarText: {
     color: COLORS.white,
     fontSize: 15,
@@ -279,19 +337,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
+    marginBottom: 2,
   },
   name: {
     fontSize: 15,
     fontWeight: '500',
     color: COLORS.text,
+    flex: 1,
   },
   nameUnread: {
     fontWeight: '700',
   },
+  partnerName: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginBottom: 3,
+  },
   time: {
     fontSize: SIZES.xs,
     color: COLORS.textMuted,
+    flexShrink: 0,
   },
   timeUnread: {
     color: COLORS.primary,

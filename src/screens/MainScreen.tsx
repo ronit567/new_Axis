@@ -35,15 +35,17 @@ function bannerForNotification(
   }
 }
 
-// True when the current route is the Chat with `partnerId` — used to suppress a
-// redundant message banner for a conversation the user is already viewing.
-function isViewingChatWith(partnerId: string | null): boolean {
+// True when the current route is the Chat for this exact thread — used to
+// suppress a redundant message banner for a conversation the user is already
+// viewing. Both halves of the thread identity have to match since 0051: a
+// message from the same person about a *different* listing lands in a
+// different chat, which is not on screen, so it still deserves its banner.
+function isViewingChatWith(partnerId: string | null, listingId: string | null): boolean {
   if (!partnerId || !navigationRef.isReady()) return false;
   const route = navigationRef.getCurrentRoute();
-  return (
-    route?.name === 'Chat' &&
-    (route.params as RootStackParamList['Chat'] | undefined)?.partnerId === partnerId
-  );
+  if (route?.name !== 'Chat') return false;
+  const params = route.params as RootStackParamList['Chat'] | undefined;
+  return params?.partnerId === partnerId && (params?.listingId ?? null) === listingId;
 }
 
 export default function MainScreen({ navigation }: Props) {
@@ -62,7 +64,7 @@ export default function MainScreen({ navigation }: Props) {
     // Skip the redundant "New message" banner when the user is already looking
     // at that sender's chat — the incoming bubble (via useMessagesRealtime)
     // already shows the message there.
-    if (row.type === 'message' && isViewingChatWith(row.actor_id)) return;
+    if (row.type === 'message' && isViewingChatWith(row.actor_id, row.listing_id)) return;
     banner.show({
       ...bannerForNotification(row),
       onPress: () => navigation.navigate('Notifications'),
