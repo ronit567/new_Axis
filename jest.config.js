@@ -25,5 +25,12 @@ module.exports = {
   // lands around 350ms, but a cold CI runner with no Babel cache has blown
   // past 5s and failed a test that is not actually slow. Raised rather than
   // scattering per-test timeouts, since any component suite can hit this.
-  testTimeout: 20000,
+  //
+  // 20s was still not enough on a contended runner: a whole-suite run that
+  // takes ~2s locally has been measured at 95s on CI, and what failed was
+  // @testing-library's afterEach cleanup in a suite the change never touched.
+  // That is starvation, not a slow test, so the number is raised again rather
+  // than chased. It only bounds how long a genuinely hung test takes to fail,
+  // and nothing here is expected to run for even a second.
+  testTimeout: 60000,
 };
