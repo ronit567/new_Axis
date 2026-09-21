@@ -17,6 +17,7 @@ import EmptyState from '../components/EmptyState';
 import Avatar from '../components/Avatar';
 import RemoteImage from '../components/RemoteImage';
 import CategoryChip from '../components/CategoryChip';
+import SwipeableRow from '../components/SwipeableRow';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import { haptics } from '../lib/haptics';
@@ -86,10 +87,47 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
 
   const deleteConversation = useDeleteConversation();
 
-  // Long-press to delete, confirmed. Deleting is per-user (0052): the other
-  // person keeps the thread, so the copy warns about neither of them losing
-  // it — only that this inbox is being cleared, and that a reply brings it
-  // back. Overstating it ("permanently delete") would be untrue.
+  // Only one row may sit open at a time, so the revealed Delete button is
+  // never ambiguous about which thread it belongs to. Held in a ref, not
+  // state: opening a row must not re-render the list, and the list is the one
+  // thing on screen that has to stay smooth while a finger is on it.
+  const openRowRef = useRef<(() => void) | null>(null);
+  const handleRowOpen = useCallback((close: () => void) => {
+    if (openRowRef.current && openRowRef.current !== close) openRowRef.current();
+    openRowRef.current = close;
+  }, []);
+  // A row left open while the user scrolls away is a stale destructive control
+  // sitting under their thumb. Scrolling closes it, as it does in Mail.
+  const closeOpenRow = useCallback(() => openRowRef.current?.(), []);
+
+  // The write itself, shared by both routes to it. Deleting is per-user
+  // (0052): the other person keeps the thread, so a failure here costs nothing
+  // but the row coming back — `restore` is what puts it back, since the swipe
+  // has already animated it away by the time the request resolves.
+  const runDelete = useCallback(
+    (item: Conversation, restore?: () => void) => {
+      deleteConversation.mutate(
+        { partnerId: item.partnerId, listingId: item.listingId },
+        {
+          onError: (error) => {
+            restore?.();
+            Alert.alert(
+              "Couldn't delete",
+              error instanceof Error ? error.message : 'Please try again.',
+            );
+          },
+        },
+      );
+    },
+    [deleteConversation],
+  );
+
+  // The screen-reader route to the same action. A swipe is invisible to
+  // VoiceOver, so there is no reveal step to serve as the confirmation the way
+  // the exposed Delete button does for sighted users — which is why this path,
+  // and only this path, keeps the Alert. The copy warns about neither person
+  // losing the thread, only that this inbox is being cleared and that a reply
+  // brings it back; "permanently delete" would be untrue.
   const confirmDelete = useCallback(
     (item: Conversation) => {
       haptics.impact();
@@ -102,23 +140,12 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           {
             text: 'Delete',
             style: 'destructive',
-            onPress: () => {
-              deleteConversation.mutate(
-                { partnerId: item.partnerId, listingId: item.listingId },
-                {
-                  onError: (error) =>
-                    Alert.alert(
-                      "Couldn't delete",
-                      error instanceof Error ? error.message : 'Please try again.',
-                    ),
-                },
-              );
-            },
+            onPress: () => runDelete(item),
           },
         ],
       );
     },
-    [deleteConversation],
+    [runDelete],
   );
 
   // A thread is a (listing, person) pair (0051), and the listing is what the
@@ -133,6 +160,14 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
     // underneath would just be the same string twice.
     const showPartnerLine = item.listingTitle != null || item.listingId != null;
     return (
+    <SwipeableRow
+      actionLabel="Delete"
+      onOpen={handleRowOpen}
+      // The row has to be opaque or the red action behind it shows through,
+      // and this screen sits on the page tint rather than on white.
+      background={COLORS.surfaceAlt}
+      onAction={(restore) => runDelete(item, restore)}
+    >
     <TouchableOpacity
       style={[styles.row, index > 0 ? styles.rowBorder : null]}
       activeOpacity={0.75}
@@ -146,16 +181,15 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           listingThumbUrl: item.listingThumbUrl ?? undefined,
         })
       }
-      onLongPress={() => confirmDelete(item)}
       accessibilityRole="button"
       // Read as one sentence by a screen reader, in the order the row is
       // labelled: what it is about, then who with.
       accessibilityLabel={
         showPartnerLine ? `${title}, with ${item.partner.name}` : `Chat with ${title}`
       }
-      // A long press is invisible to VoiceOver, so delete is also published as
-      // a named action in the rotor. Without this the only way to reach it
-      // would be a gesture a screen-reader user never performs.
+      // A swipe is invisible to VoiceOver, so delete is also published as a
+      // named action in the rotor. Without this the only way to reach it would
+      // be a gesture a screen-reader user never performs.
       accessibilityActions={[{ name: 'delete', label: 'Delete conversation' }]}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'delete') confirmDelete(item);
@@ -218,9 +252,10 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
         </View>
       </View>
     </TouchableOpacity>
+    </SwipeableRow>
     );
     },
-    [navigation, confirmDelete],
+    [navigation, confirmDelete, handleRowOpen, runDelete],
   );
 
   return (
@@ -287,6 +322,7 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           keyExtractor={keyExtractor}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
+          onScrollBeginDrag={closeOpenRow}
           scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
