@@ -34,7 +34,39 @@ describe('Screen', () => {
     ).not.toThrow();
     expect(screen.getByText('Bleed')).toBeOnTheScreen();
   });
+
+  // KeyboardAvoidingView reads its own position from onLayout, relative to its
+  // PARENT, and compares it with the keyboard's position, relative to the
+  // WINDOW. That only lines up when the parent starts at the window's top.
+  // The iPad reading column (#101) was first added as a View nested *inside*
+  // the safe-area container; that parent started below the top inset, so every
+  // keyboard screen in the app fell short by the inset and the keyboard clipped
+  // the field being typed into. Jest computes no layout, so no test could see
+  // the clipping itself — this pins the structure that prevents it.
+  it.each([
+    ['a constrained screen', false],
+    ['a full-width screen', true],
+  ])('puts the content of %s directly inside the safe-area container', (_label, fullWidth) => {
+    render(
+      <Screen fullWidth={fullWidth}>
+        <Text testID="content">Body</Text>
+      </Screen>,
+    );
+
+    expect(nearestHostAncestorType(screen.getByTestId('content'))).toBe('RNCSafeAreaView');
+  });
 });
+
+// The first native (host) element above `node`: the one layout actually
+// positions it within, skipping React components that render nothing
+// themselves.
+function nearestHostAncestorType(node: { parent: unknown }): string | undefined {
+  let current = node.parent as { type: unknown; parent: unknown } | null;
+  while (current && typeof current.type !== 'string') {
+    current = current.parent as { type: unknown; parent: unknown } | null;
+  }
+  return current?.type as string | undefined;
+}
 
 describe('ScreenHeader', () => {
   it('renders a compact title and fires the back action', () => {

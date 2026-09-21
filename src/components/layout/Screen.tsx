@@ -57,20 +57,41 @@ export default function Screen({
   // gradient up under the status bar), where a SafeAreaView top inset would
   // cut the gradient off short.
   const Container = edges.length === 0 ? View : SafeAreaView;
+  const insetProps = edges.length === 0 ? {} : { edges };
+  const rootStyle = [styles.root, backgroundColor ? { backgroundColor } : null, style];
 
+  if (fullWidth) {
+    return (
+      <Container style={rootStyle} {...insetProps}>
+        <StatusBar style={statusBar} />
+        {children}
+      </Container>
+    );
+  }
+
+  // On a wide iPad window the content is held to a reading column and centred,
+  // while the background still fills the whole window. Constrained by default,
+  // so a screen added later cannot forget it the way screens once forgot their
+  // status bar; a grid opts out with `fullWidth`. On a phone the column is the
+  // full width and changes nothing.
+  //
+  // The safe-area container IS the column, rather than a column nested inside
+  // it, and that is load-bearing for every screen with a keyboard. React
+  // Native's KeyboardAvoidingView reads its own position from onLayout, which
+  // is relative to its PARENT, and compares it with the keyboard's position,
+  // which is relative to the WINDOW. That only lines up when the parent starts
+  // at the top of the window. A column nested inside the safe-area container
+  // starts below the top inset, so every keyboard view in the app fell short
+  // by exactly that inset (~47-62pt) and the keyboard clipped the field being
+  // typed into. With the container as the column, children sit on a parent
+  // at window top again — the geometry those screens were written against.
   return (
-    <Container
-      style={[styles.root, backgroundColor ? { backgroundColor } : null, style]}
-      {...(edges.length === 0 ? {} : { edges })}
-    >
+    <View style={rootStyle}>
       <StatusBar style={statusBar} />
-      {/* On a wide iPad window the content is held to a reading column and
-          centred, while the background above still fills the whole window.
-          Constrained by default, so a screen added later cannot forget this
-          the way screens once forgot their status bar; a grid opts out. On a
-          phone the column is simply the full width and changes nothing. */}
-      {fullWidth ? children : <View style={styles.column}>{children}</View>}
-    </Container>
+      <Container style={styles.column} {...insetProps}>
+        {children}
+      </Container>
+    </View>
   );
 }
 

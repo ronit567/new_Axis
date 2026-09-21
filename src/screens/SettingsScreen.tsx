@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -243,7 +245,15 @@ export default function SettingsScreen({ navigation }: Props) {
         animationType="fade"
         onRequestClose={closeDeleteModal}
       >
-        <View style={styles.modalOverlay}>
+        {/* Keyboard-aware, because the dialog asks you to type. As a plain View
+            the "Type DELETE" field and both buttons sat centred on screen, and
+            on a smaller iPhone the keyboard covered them. Inside a Modal the
+            content starts at the top of the window, so the avoidance needs no
+            offset; the card re-centres in the space above the keyboard. */}
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Delete account</Text>
@@ -299,7 +309,7 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </PressableScale>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Screen>
   );
