@@ -1,7 +1,7 @@
 // The keystone mapping layer (AX-110): DB rows -> domain types.
 //
-// This is the ONE place the type <-> DB mismatch documented in PROJECT_ROADMAP.md
-// is reconciled — seller joins, `created_at` -> "3d ago", the saved-listings join,
+// This is the ONE place the mismatch between the app's domain types and the
+// database rows is reconciled — seller joins, `created_at` -> "3d ago", the saved-listings join,
 // and image/color placeholders. Repositories call these; screens never map.
 // Keep all mapping logic here so no screen reinvents it.
 

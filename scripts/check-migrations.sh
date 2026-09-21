@@ -3,7 +3,7 @@
 # linked remote Supabase project, and refuse to be quiet about the ones that
 # carry App Store compliance behaviour.
 #
-# Why this exists: PRODUCTION_AUDIT.md found prod running 14 of 21 migrations
+# Why this exists: a production audit found prod running 14 of 21 migrations
 # while the repo shipped code that assumed all 21. The same drift now has teeth
 # — 0032-0036 are what Guideline 1.2 compliance actually rests on, and an
 # unapplied 0035 means App Review cannot sign in at all.

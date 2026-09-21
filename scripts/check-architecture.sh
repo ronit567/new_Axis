@@ -1,6 +1,14 @@
 #!/bin/sh
-# check-architecture.sh — mechanical enforcement of the Axis architecture rules
-# (see AI_context.md "Architecture Target" and PROJECT_ROADMAP.md AX-902).
+# check-architecture.sh — mechanical enforcement of the Axis architecture rules.
+#
+# The layering every screen follows:
+#
+#   Screen -> Hook -> Repository -> Supabase client (src/lib/supabase.ts)
+#
+# All Supabase calls live in repositories, business logic lives in hooks, and
+# screens only display. This file is now the one place that rule is written
+# down as well as the thing that enforces it; the planning docs that first set
+# it out were retired, and remain in git history.
 #
 # Dependency-free: POSIX sh + grep only. No node, no npm packages.
 #
