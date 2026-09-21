@@ -141,7 +141,13 @@
         }
       ],
       "expo-secure-store",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native",
+        {
+          "organization": "axis-67",
+          "project": "axis"
+        }
+      ],
       "expo-image",
       [
         "expo-splash-screen",
