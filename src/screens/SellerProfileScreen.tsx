@@ -25,6 +25,7 @@ import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
+import { useGridColumns } from '../lib/layout';
 import { useAuth } from '../context/AuthContext';
 import { Listing, RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
@@ -78,14 +79,18 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   // card rather than every card of a seller with a couple of hundred listings.
   // An odd count gets one trailing spacer cell, so the last card stays half
   // width in the left column instead of stretching across the row.
+  // Columns follow the live window width (src/lib/layout.ts); the skeletons
+  // run through the same padding, so they fill out a row the same way.
+  const columns = useGridColumns();
   const data = useMemo<(Row | GridSpacer)[]>(
     () =>
       withGridSpacer(
         listingsLoading
           ? LISTING_SKELETONS.map((id): Row => ({ type: 'skeleton', id }))
           : sellerListings.map((listing): Row => ({ type: 'listing', listing })),
+        columns,
       ),
-    [listingsLoading, sellerListings],
+    [listingsLoading, sellerListings, columns],
   );
 
   const keyExtractor = useCallback(
@@ -166,7 +171,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   );
 
   return (
-    <Screen background="surface">
+    // fullWidth: a grid should gain columns on a wide window, not margins.
+    <Screen background="surface" fullWidth>
       {/* Title-less for the same reason as your own Profile: the seller's
           avatar and name lead the content directly below. */}
       <ScreenHeader
@@ -207,7 +213,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         data={data}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        numColumns={2}
+        // Keyed on the column count: FlatList throws if numColumns changes on
+        // a mounted list, and iPadOS resizes the window live.
+        key={`grid-${columns}`}
+        numColumns={columns}
         columnWrapperStyle={styles.gridRow}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

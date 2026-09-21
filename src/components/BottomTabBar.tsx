@@ -276,10 +276,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    // Centres the pill once it stops growing (below).
+    justifyContent: 'center',
     paddingHorizontal: 16,
   },
   pillShadowWrap: {
     flex: 1,
+    // Five tabs spread across a 1366pt iPad window put neighbouring icons
+    // several hundred points apart, so the bar stops growing and centres.
+    // 480 sits above every phone (a 440pt Pro Max gives a 408pt pill), so phones
+    // are unchanged. The active-tab bubble is sized from the pill's measured
+    // width, not the window, so it follows the cap on its own.
+    maxWidth: 480,
     ...SHADOWS.floating,
   },
   pill: {

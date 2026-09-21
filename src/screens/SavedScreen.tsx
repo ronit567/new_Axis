@@ -17,6 +17,7 @@ import EmptyState from '../components/EmptyState';
 import { useSkeletonPulse } from '../hooks/useSkeletonPulse';
 import { useSavedListings, useToggleSaved } from '../hooks/useSavedListings';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
+import { useGridColumns } from '../lib/layout';
 import { RootStackParamList, Listing } from '../types';
 
 type Props = {
@@ -37,9 +38,10 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
   const savedItems = useMemo(() => data ?? [], [data]);
-  // An odd count gets one trailing spacer cell, so the last card stays half
-  // width in the left column instead of stretching across the row.
-  const gridData = useMemo(() => withGridSpacer(savedItems), [savedItems]);
+  // Columns follow the live window width (src/lib/layout.ts). A short last row
+  // is filled with spacer cells so its cards keep their width.
+  const columns = useGridColumns();
+  const gridData = useMemo(() => withGridSpacer(savedItems, columns), [savedItems, columns]);
   const pulseAnim = useSkeletonPulse(isLoading);
 
   // Hairline + shadow under the fixed header/tabs, faded in on scroll so the
@@ -77,7 +79,8 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
   );
 
   return (
-    <Screen>
+    // fullWidth: a grid should gain columns on a wide window, not margins.
+    <Screen fullWidth>
       {/* Fixed header block with a scroll hairline pinned to its bottom
           edge. */}
       <View style={styles.headerBlock}>
@@ -93,8 +96,11 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
         <View style={styles.listContent}>
           {[0, 1, 2].map(rowIndex => (
             <View key={rowIndex} style={styles.row}>
-              <ListingCardSkeleton animatedValue={pulseAnim} />
-              <ListingCardSkeleton animatedValue={pulseAnim} />
+              {/* One skeleton per column, so the real grid lands in the same
+                  geometry. */}
+              {Array.from({ length: columns }, (_, i) => (
+                <ListingCardSkeleton key={i} animatedValue={pulseAnim} />
+              ))}
             </View>
           ))}
         </View>
@@ -108,7 +114,10 @@ export default function SavedScreen({ navigation, onBrowseListings }: Props) {
           data={gridData}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          numColumns={2}
+          // Keyed on the column count: FlatList throws if numColumns changes
+          // on a mounted list, and iPadOS resizes the window live.
+          key={`grid-${columns}`}
+          numColumns={columns}
           columnWrapperStyle={styles.row}
           initialNumToRender={8}
           maxToRenderPerBatch={8}

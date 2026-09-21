@@ -3,6 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../constants/theme';
+import { CONTENT_MAX_WIDTH } from '../../lib/layout';
 
 // The page tint behind scrolling content, vs. an opaque sheet that content
 // sits directly on. Two names, because the app only ever needs two — the old
@@ -18,6 +19,12 @@ type Props = {
   statusBar?: 'dark' | 'light';
   edges?: readonly Edge[];
   style?: StyleProp<ViewStyle>;
+  /**
+   * Opt out of the centred reading column and use the window's full width.
+   * For screens whose content is a grid that should gain columns rather than
+   * margins on a wide window. See src/lib/layout.ts.
+   */
+  fullWidth?: boolean;
 };
 
 const BACKGROUNDS: Record<Background, string | undefined> = {
@@ -42,6 +49,7 @@ export default function Screen({
   statusBar = 'dark',
   edges = ['top'],
   style,
+  fullWidth = false,
 }: Props) {
   const backgroundColor = BACKGROUNDS[background];
 
@@ -56,7 +64,12 @@ export default function Screen({
       {...(edges.length === 0 ? {} : { edges })}
     >
       <StatusBar style={statusBar} />
-      {children}
+      {/* On a wide iPad window the content is held to a reading column and
+          centred, while the background above still fills the whole window.
+          Constrained by default, so a screen added later cannot forget this
+          the way screens once forgot their status bar; a grid opts out. On a
+          phone the column is simply the full width and changes nothing. */}
+      {fullWidth ? children : <View style={styles.column}>{children}</View>}
     </Container>
   );
 }
@@ -64,5 +77,11 @@ export default function Screen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
 });

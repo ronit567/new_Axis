@@ -10,7 +10,6 @@ import {
   RefreshControl,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  useWindowDimensions,
   Share,
   Alert,
 } from 'react-native';
@@ -29,6 +28,7 @@ import PressableScale from '../components/PressableScale';
 import AnimatedIconToggle from '../components/AnimatedIconToggle';
 import Avatar from '../components/Avatar';
 import { haptics } from '../lib/haptics';
+import { useContentWidth } from '../lib/layout';
 import { formatYearOfStudy } from '../lib/formatYear';
 import {
   formatPrice,
@@ -49,8 +49,21 @@ import { deriveInitials, sellerToContact } from '../repositories/mappers';
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
 
 // Hero height drives both the parallax math and the scroll offset at which the
-// solid top bar cross-fades in. Matches the imagePlaceholder height.
+// solid top bar cross-fades in. 260pt on every phone, exactly as before.
 const HERO_HEIGHT = 260;
+// The phone width that 260pt was designed against.
+const HERO_DESIGN_WIDTH = 390;
+
+// Past phone widths (the same 600pt line the grids use) the hero keeps a
+// phone's proportions instead of staying 260pt tall. Held at 260 across a
+// 720pt iPad column it would crop the product's main photo to a 2.8:1
+// letterbox strip. Phones are deliberately left pixel-identical rather than
+// scaled too — a 440pt Pro Max would otherwise change height for no reason.
+function heroHeightFor(contentWidth: number): number {
+  return contentWidth < 600
+    ? HERO_HEIGHT
+    : Math.round(contentWidth * (HERO_HEIGHT / HERO_DESIGN_WIDTH));
+}
 
 export default function ListingDetailScreen({ navigation, route }: Props) {
   const { listingId } = route.params;
@@ -72,7 +85,13 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { width: windowWidth } = useWindowDimensions();
+  // The content column's width, not the window's. This screen sits in the
+  // centred reading column on iPad (src/lib/layout.ts), and the gallery is a
+  // paging scroller: pagingEnabled snaps to the ScrollView's own width, so a
+  // page sized to a 1366pt window inside a 720pt column would page against the
+  // wrong number and never land on an image.
+  const contentWidth = useContentWidth();
+  const heroHeight = heroHeightFor(contentWidth);
   const galleryRef = useRef<ScrollView>(null);
 
   // Native-driven scroll position feeds the parallax hero and the scroll-in
@@ -119,14 +138,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   }, [listing]);
 
   const handleGalleryScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / windowWidth);
+    const index = Math.round(e.nativeEvent.contentOffset.x / contentWidth);
     setActiveDot(index);
   };
 
   const scrollToImage = (index: number) => {
     haptics.tap();
     setActiveDot(index);
-    galleryRef.current?.scrollTo({ x: index * windowWidth, animated: true });
+    galleryRef.current?.scrollTo({ x: index * contentWidth, animated: true });
   };
 
   if (isLoading) {
@@ -211,25 +230,25 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   // rubber-band zooms. translateY = scrollY * 0.5 across the whole range keeps
   // the scaled image's top edge anchored, so no background gap opens on pull.
   const heroTranslateY = scrollY.interpolate({
-    inputRange: [-HERO_HEIGHT, 0, HERO_HEIGHT],
-    outputRange: [-HERO_HEIGHT / 2, 0, HERO_HEIGHT / 2],
+    inputRange: [-heroHeight, 0, heroHeight],
+    outputRange: [-heroHeight / 2, 0, heroHeight / 2],
     extrapolateLeft: 'extend',
     extrapolateRight: 'clamp',
   });
   const heroScale = scrollY.interpolate({
-    inputRange: [-HERO_HEIGHT, 0],
+    inputRange: [-heroHeight, 0],
     outputRange: [2, 1],
     extrapolateLeft: 'extend',
     extrapolateRight: 'clamp',
   });
   // Solid top bar fades in as the hero scrolls away; the title trails it slightly.
   const barBgOpacity = scrollY.interpolate({
-    inputRange: [HERO_HEIGHT - 100, HERO_HEIGHT - 40],
+    inputRange: [heroHeight - 100, heroHeight - 40],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const barTitleOpacity = scrollY.interpolate({
-    inputRange: [HERO_HEIGHT - 60, HERO_HEIGHT - 10],
+    inputRange: [heroHeight - 60, heroHeight - 10],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
@@ -288,7 +307,11 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
                     uri={uri}
                     style={[
                       styles.imagePlaceholder,
-                      { width: windowWidth, backgroundColor: listing.imageColor || COLORS.primarySoft },
+                      {
+                        width: contentWidth,
+                        height: heroHeight,
+                        backgroundColor: listing.imageColor || COLORS.primarySoft,
+                      },
                     ]}
                     contentFit="cover"
                     transition={150}
@@ -297,7 +320,12 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               ))}
             </ScrollView>
           ) : (
-            <View style={[styles.imagePlaceholder, { backgroundColor: listing.imageColor || COLORS.primarySoft }]}>
+            <View
+              style={[
+                styles.imagePlaceholder,
+                { height: heroHeight, backgroundColor: listing.imageColor || COLORS.primarySoft },
+              ]}
+            >
               <Ionicons name="image-outline" size={48} color="rgba(26,26,46,0.3)" />
             </View>
           )}
