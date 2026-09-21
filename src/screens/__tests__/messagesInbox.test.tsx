@@ -15,8 +15,13 @@ import type { Conversation, RootStackParamList } from '../../types';
 jest.mock('../../lib/supabase', () => ({ supabase: {} }));
 
 const mockUseConversations = jest.fn();
+const mockDeleteConversation = jest.fn();
+
 jest.mock('../../hooks/useMessages', () => ({
   useConversations: () => mockUseConversations(),
+  // The row's long-press / rotor delete action calls this. These tests are
+  // about what a row says, not about deleting, so it only has to exist.
+  useDeleteConversation: () => ({ mutate: mockDeleteConversation }),
 }));
 
 import MessagesScreen from '../MessagesScreen';

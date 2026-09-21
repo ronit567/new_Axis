@@ -70,6 +70,35 @@ export type Database = {
           },
         ]
       }
+      conversation_hides: {
+        Row: {
+          user_id: string
+          partner_id: string
+          listing_id: string | null
+          hidden_at: string
+        }
+        Insert: {
+          user_id: string
+          partner_id: string
+          listing_id?: string | null
+          hidden_at?: string
+        }
+        Update: {
+          user_id?: string
+          partner_id?: string
+          listing_id?: string | null
+          hidden_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_hides_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string

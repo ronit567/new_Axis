@@ -174,7 +174,17 @@ export const MessageRepository = {
       )
     const scoped =
       listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
-    const { data, error } = await scoped
+
+    // A thread the user deleted (0052) comes back when the other person
+    // replies, but it comes back as a new conversation — the messages they
+    // cleared stay cleared. Without this the reply would drag the whole
+    // history back onto the screen, which is not what "delete" means anywhere
+    // else. Fetched alongside the messages rather than before them so the
+    // extra round trip costs no latency.
+    const hiddenAt = await MessageRepository.getConversationHiddenAt(partnerId, listingId)
+    const visible = hiddenAt === null ? scoped : scoped.gt('created_at', hiddenAt)
+
+    const { data, error } = await visible
       // id tiebreak: rapid sends can share a created_at, and Postgres
       // guarantees nothing within equal sort keys — without it both the
       // cap boundary and the rendered order can shift between refetches.
@@ -183,6 +193,62 @@ export const MessageRepository = {
       .limit(MESSAGE_PAGE_LIMIT)
     if (error) throw error
     return ((data ?? []) as MessageRow[]).map(toMessage).reverse()
+  },
+
+  /**
+   * When the calling user last deleted this thread, or null if they have not.
+   *
+   * RLS (0052) scopes conversation_hides to the caller, so no user id is
+   * needed here and one cannot be spoofed by a modified client.
+   */
+  async getConversationHiddenAt(
+    partnerId: string,
+    listingId: string | null,
+  ): Promise<string | null> {
+    assertUuid(partnerId, 'partnerId')
+    const query = supabase
+      .from('conversation_hides')
+      .select('hidden_at')
+      .eq('partner_id', partnerId)
+    const scoped =
+      listingId === null ? query.is('listing_id', null) : query.eq('listing_id', listingId)
+    // maybeSingle, not single: "never hidden" is the common case and is not an
+    // error.
+    const { data, error } = await scoped.maybeSingle()
+    if (error) throw error
+    return data?.hidden_at ?? null
+  },
+
+  /**
+   * Delete a conversation for this user only.
+   *
+   * Nothing is removed from public.messages: the other participant keeps the
+   * thread in full, and a moderator reading a report still sees it. See the
+   * header of 0052 for why that is not negotiable.
+   *
+   * Deleting a thread that was already deleted moves the mark forward, which
+   * is what clears messages received since the last delete.
+   */
+  async hideConversation(
+    userId: string,
+    partnerId: string,
+    listingId: string | null,
+  ): Promise<void> {
+    assertUuid(userId, 'userId')
+    assertUuid(partnerId, 'partnerId')
+    // onConflict names the unique constraint's columns so a second delete
+    // updates hidden_at instead of failing. The constraint is NULLS NOT
+    // DISTINCT, so the listing-less bucket has exactly one row to update.
+    const { error } = await supabase.from('conversation_hides').upsert(
+      {
+        user_id: userId,
+        partner_id: partnerId,
+        listing_id: listingId,
+        hidden_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,partner_id,listing_id' },
+    )
+    if (error) throw error
   },
 
   async send(senderId: string, data: SendMessageInput): Promise<Message> {

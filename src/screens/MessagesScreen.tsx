@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
+  Alert,
 } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
 import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
@@ -19,7 +20,7 @@ import CategoryChip from '../components/CategoryChip';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
 import { haptics } from '../lib/haptics';
-import { useConversations } from '../hooks/useMessages';
+import { useConversations, useDeleteConversation } from '../hooks/useMessages';
 import { Conversation, RootStackParamList } from '../types';
 
 type Props = {
@@ -83,6 +84,43 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
     [],
   );
 
+  const deleteConversation = useDeleteConversation();
+
+  // Long-press to delete, confirmed. Deleting is per-user (0052): the other
+  // person keeps the thread, so the copy warns about neither of them losing
+  // it — only that this inbox is being cleared, and that a reply brings it
+  // back. Overstating it ("permanently delete") would be untrue.
+  const confirmDelete = useCallback(
+    (item: Conversation) => {
+      haptics.impact();
+      const subject = item.listingTitle ?? item.partner.name;
+      Alert.alert(
+        'Delete conversation',
+        `This removes "${subject}" from your inbox. ${item.partner.name} keeps their copy, and the chat comes back if they reply.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              deleteConversation.mutate(
+                { partnerId: item.partnerId, listingId: item.listingId },
+                {
+                  onError: (error) =>
+                    Alert.alert(
+                      "Couldn't delete",
+                      error instanceof Error ? error.message : 'Please try again.',
+                    ),
+                },
+              );
+            },
+          },
+        ],
+      );
+    },
+    [deleteConversation],
+  );
+
   // A thread is a (listing, person) pair (0051), and the listing is what the
   // buyer was actually asking about — so the listing titles the row and the
   // person is the supporting line. The name only becomes the headline inside
@@ -108,12 +146,20 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           listingThumbUrl: item.listingThumbUrl ?? undefined,
         })
       }
+      onLongPress={() => confirmDelete(item)}
       accessibilityRole="button"
       // Read as one sentence by a screen reader, in the order the row is
       // labelled: what it is about, then who with.
       accessibilityLabel={
         showPartnerLine ? `${title}, with ${item.partner.name}` : `Chat with ${title}`
       }
+      // A long press is invisible to VoiceOver, so delete is also published as
+      // a named action in the rotor. Without this the only way to reach it
+      // would be a gesture a screen-reader user never performs.
+      accessibilityActions={[{ name: 'delete', label: 'Delete conversation' }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'delete') confirmDelete(item);
+      }}
     >
       {item.listingThumbUrl ? (
         <RemoteImage
@@ -174,7 +220,7 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
     </TouchableOpacity>
     );
     },
-    [navigation],
+    [navigation, confirmDelete],
   );
 
   return (
