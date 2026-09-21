@@ -5,7 +5,15 @@ name: CI
 # push and pull request.
 
 on:
+  # Only main on push. Without the branch filter, every push to a PR branch
+  # started TWO identical full runs — one for the push, one for the pull
+  # request — which raced each other for the same runner pool. That doubled CI
+  # cost for no coverage, and the contention is what tipped the component
+  # suites past their cleanup timeout and produced red checks that a plain
+  # re-run cleared. Branch pushes are still covered: the pull_request trigger
+  # below tests the merge with main, which is the more useful result anyway.
   push:
+    branches: [main]
   pull_request:
   # The drift job below needs network, a linked project and a token, so it
   # cannot run on every push. Once a day, plus on demand.
