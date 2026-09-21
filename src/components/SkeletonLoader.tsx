@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shimmer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     right: undefined,
   },
 });

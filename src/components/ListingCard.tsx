@@ -58,13 +58,13 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
         {item.thumbUrls[0] ? (
           <Animated.View
             style={[
-              StyleSheet.absoluteFillObject,
+              StyleSheet.absoluteFill,
               reducedMotion ? null : { transform: [{ scale: imageScale }] },
             ]}
           >
             <RemoteImage
               uri={item.thumbUrls[0]}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
               transition={220}
             />

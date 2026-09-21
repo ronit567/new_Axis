@@ -2,6 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // TypeScript 6 (required by SDK 57) no longer pulls every package under
+    // node_modules/@types into the global scope automatically, so the Jest
+    // globals and Node's `process` have to be named. Listing `types` opts out
+    // of the automatic behaviour entirely — anything else needed globally in
+    // future has to be added here too.
+    "types": ["jest", "node"],
     "paths": {
       "@/*": ["./src/*"]
     }

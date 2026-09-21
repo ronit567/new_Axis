@@ -63,7 +63,7 @@ export default function CategoryChip({ label, active, onPress }: Props) {
       <Animated.View
         pointerEvents="none"
         style={[
-          StyleSheet.absoluteFillObject,
+          StyleSheet.absoluteFill,
           styles.fill,
           {
             opacity: clamped,
@@ -91,7 +91,7 @@ export default function CategoryChip({ label, active, onPress }: Props) {
           {label}
         </Animated.Text>
         <Animated.Text
-          style={[styles.label, styles.labelActive, StyleSheet.absoluteFillObject, { opacity: clamped }]}
+          style={[styles.label, styles.labelActive, StyleSheet.absoluteFill, { opacity: clamped }]}
         >
           {label}
         </Animated.Text>

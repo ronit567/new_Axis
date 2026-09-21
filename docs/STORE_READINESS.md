@@ -24,7 +24,7 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | --- | --- | --- | --- | --- |
 | R01 | B4 / LIVE | you | open | Report handling: one server-side piece is not set up yet. Details are kept out of this public repository, in the maintainer's private launch notes. |
 | R02 | B2 | you | open | `eas.json` still carries the three `REPLACE_WITH_` Apple identifiers. Needs the App Store Connect app record first. |
-| R03 | B3 | you | open | Demo accounts. `0035_review_demo_account.sql:37` whitelists `axis.app@outlook.com`, which is also the published support address. Create two accounts on a non-support mailbox, seed listings, photos and a conversation. |
+| R03 | B3 | you | open | Demo accounts, restarted 2026-09-20. The previous `axis.app@outlook.com` auth user was deleted by hand; `signup_email_exceptions` was never touched, so `0035`'s whitelist row for it is still live. `0050` upserts both demo addresses (`axis.app@outlook.com`, `axis.app2@outlook.com`) so one migration lists the pair. Apply `0050` **before** creating either user — the `0018` before-user-created hook fires on dashboard-created users too. Then: Add user twice with *Auto Confirm User* ticked, insert a `public.profiles` row for each (nothing auto-creates one, so the reviewer would otherwise land in `SetupProfile`), then sign in on a real build and seed listings, photos and a conversation between them. Note both demo logins share the published support mailbox, which R27 would rather they did not; accepted deliberately. `store/REVIEW_NOTES.md` already promises App Review two working accounts — not true until this row closes. |
 | R04 | H1 / LIVE | you | open | Dashboard-only auth settings need reviewing before launch. Details are kept out of this public repository, in the maintainer's private launch notes. |
 | R05 | H3 | agent | done | Export compliance worked through against Apple's own matrix; see "Export compliance" below. `app.json:19` stays `false`, which is accurate only under the condition recorded there. The declaration itself is R13. |
 | R06 | GUARD / L1 | agent | done | Removed the `axis` scheme from `app.json`: nothing handled it (no `linking` config, no `Linking` listener, share sheets send plain text). The guard finding stays because Expo registers the bundle id as a scheme; see the waiver. |
@@ -45,6 +45,12 @@ compliance guard, `LIVE` was read from the production Supabase project,
 | R21 | M1 M2 M3 M6 H2 | agent | done | Closed by commits since the docket: Free/Trade rendering, 8-char passwords, reviews removed, drift guard fixed. |
 | R22 | 2.1 | agent | done | Dead control removed: the chat input bar had an "Add emoji" button with no handler. Found during the accessibility pass; no other no-op handlers exist in `src/`. |
 | R23 | M1 | agent | done | The docket's "$0" fix missed the chat banner, which printed `$0` for Free and Trade listings. It now prints a price only when there is one. Chat is handed a bare number; passing the Free/Trade flags through would need a change to the `conversation_list` view in production. |
+| R24 | 1.2 | you | open | Image moderation. Text is filtered server-side (`0032`); photos are not screened at all, and `listing-images` is a public bucket, so a photo is world-readable the moment it posts. `store/REVIEW_NOTES.md:64` discloses this and `docs/MODERATION.md` carries the reactive process, but no row records the decision. Decide before submitting: ship as disclosed, or add screening (Rekognition / Vision SafeSearch / Hive in an edge function on the upload path). Most likely 1.2 rejection vector. |
+| R25 | 2.3.6 | you | open | `TermsOfServiceScreen` sets eligibility by email domain only and states no minimum age; the privacy policy's under-13 line is a COPPA statement, not a term. Add a minimum-age clause matching whatever R15 answers. |
+| R26 | 5.2.1 | you | open | Be ready to evidence the use of the university's name and email domain. The non-affiliation clause is in the terms and pinned by `src/screens/__tests__/nonAffiliation.test.tsx`, but App Review sometimes asks apps built around a named institution for authorization, and the university's own brand or IT policy may bear on third-party use of its domain. No action unless asked; keep the answer ready. |
+| R27 | 1.2 | you | open | Confirm mail to the published contact address (`axis.app@outlook.com`, in the three legal screens and two Settings rows) actually reaches whoever watches the report queue. `report-alert` sends to `reports@dataaxis.org`, a different mailbox. Guideline 1.2 requires contact information users can reach, and a reviewer may email it. |
+| R28 | 5.1.1 | you | open | Sentry source maps. The Expo plugin warns `Missing config for organization, project`; without those, or `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` in the EAS environment, maps never upload and crash reports arrive minified. Set them as secrets in the `production` and `preview` environments; the auth token belongs there regardless. |
+| R29 | 2.1 | agent | done | `@sentry/react-native` was declared and registered as a config plugin but absent from `node_modules`, so `tsc --noEmit` failed with three `TS2307` plus a consequent `TS7006`, and the plugin would first have executed on an EAS production build. Clean `npm ci` at current `main` (expo 54.0.37): typecheck exits 0, 331 tests in 32 suites pass, architecture guard passes, `expo config --type prebuild` resolves the plugin without throwing. Remaining config is R28; that a crash reaches Sentry is unverified and belongs to R17. |
 
 ## Guard waivers
 
@@ -116,6 +122,9 @@ have been re-checked against it.
 | `@sentry/react-native` | yes | Crash data only. `sendDefaultPii: false`, `setUser()` never called, `tracesSampleRate: 0`, query strings stripped. |
 | `expo-image` | yes | Fetches listing and avatar images from Supabase Storage. Sends nothing of its own. |
 | `@expo-google-fonts/dm-sans` | no | Font files are bundled at build time; no runtime request to Google. |
+| `@expo/vector-icons` | no | Icon fonts, bundled at build time. Was a transitive dependency of `expo` before SDK 57 and is now declared directly; nothing about its behaviour changed. |
+| `expo-asset` | no | Resolves bundled assets. Required by `expo-font` under `@expo/vector-icons`. Production assets ship in the binary; no runtime fetch. |
+| `expo-font` | no | Loads the bundled DM Sans faces and the icon fonts behind `@expo/vector-icons`. A required peer of the latter since SDK 57; without it the app crashes outside Expo Go. Fonts ship in the binary, so nothing is fetched. |
 | `@react-native-async-storage/async-storage` | no | Local storage. |
 | `@react-native-masked-view/masked-view` | no | UI. |
 | `@react-navigation/native` | no | UI. |
@@ -151,18 +160,23 @@ These are yours and can happen any time, in this order.
 2. **R04** — review the dashboard-only auth settings (see the private launch notes).
 3. **R03** — two demo accounts on a non-support mailbox, seeded with real content.
 4. **R16** — capture the screenshots (simulator is fine). Uploading them is in the next list.
+5. **R24** — decide on image moderation: ship as disclosed, or add screening.
+6. **R25** — add a minimum-age clause to the Terms of Service.
+7. **R27** — confirm the published contact address reaches the report queue.
+8. **R28** — Sentry org, project and auth token into the EAS environments.
+9. **R26** — no action unless App Review asks; keep the institutional-name answer ready.
 
 ### Needs the App Store Connect account
 
 The account holder does these, or invites you so you can. In the order App
 Store Connect asks for them.
 
-5. **R18** — account and program readiness.
-6. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; confirm `com.axis.app` is free), then the three identifiers into `eas.json`.
-7. **R14** — App Privacy labels, exactly the eight manifest types. The table to enter is in `store/APP_STORE_CONNECT_ANSWERS.md`, as are the answers for the next two.
-8. **R15** — age rating questionnaire with the social media questions.
-9. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
-10. **R17** — preview build on a real iPhone and an iPad, every flow, once with VoiceOver on. Signing a device build needs the Apple team.
+10. **R18** — account and program readiness.
+11. **R02** — create the app record (name `Axis: Campus Marketplace`, since a bare "Axis" is almost certainly taken; confirm `com.axis.app` is free), then the three identifiers into `eas.json`.
+12. **R14** — App Privacy labels, exactly the eight manifest types. The table to enter is in `store/APP_STORE_CONNECT_ANSWERS.md`, as are the answers for the next two.
+13. **R15** — age rating questionnaire with the social media questions.
+14. **R13** — export compliance answer, and availability set to Canada only so that answer is true.
+15. **R17** — preview build on a real iPhone and an iPad, every flow, once with VoiceOver on. Signing a device build needs the Apple team.
 
 ## Hand-off for the account holder
 

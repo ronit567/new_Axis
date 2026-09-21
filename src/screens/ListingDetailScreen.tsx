@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   topBarBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: COLORS.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.divider,

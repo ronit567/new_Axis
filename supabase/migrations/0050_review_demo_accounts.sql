@@ -1,0 +1,67 @@
+-- Axis — 0050: whitelist the two App Review demo addresses.
+--
+-- NO PASSWORDS IN THIS FILE, OR ANY FILE. The addresses are here because the
+-- before-user-created hook (0018) needs them in the table; the passwords live
+-- only in App Store Connect -> App Review Information -> Sign-In Information.
+-- Same rule 0035 set, and it still holds.
+--
+-- Being whitelisted does two things for an address:
+--   * the @uwo.ca / @alumni.uwo.ca domain gate is bypassed, and
+--   * the 14-day re-signup cooldown (0031) is bypassed — which matters
+--     because reviewers routinely exercise Settings -> Delete account, and
+--     without the exemption that would lock the reviewer out for two weeks
+--     mid-review.
+--
+-- ON axis.app@outlook.com BEING BOTH. That address is also the app's published
+-- support contact: it appears in PrivacyPolicyScreen, TermsOfServiceScreen and
+-- CommunityGuidelinesScreen, and is SUPPORT_EMAIL for both Settings rows. One
+-- address doing both jobs means the demo login is printed inside the shipping
+-- app for every user to see, mixing reviewer access with the support inbox.
+-- That trade-off was accepted deliberately: the mailbox is owned by the
+-- maintainer and no separate domain was wanted. Splitting them remains the
+-- better shape if it is ever revisited — see ledger rows R03 and R27.
+--
+-- 0035 already whitelists axis.app@outlook.com, so its row here is a no-op
+-- upsert kept for the sake of one place listing both demo addresses. The
+-- auth.users row for it was deleted by hand on 2026-09-20 and is recreated
+-- per the runbook below; deleting a user never touches this table.
+--
+-- ORDER OF OPERATIONS: apply this migration BEFORE creating either auth user.
+-- Supabase's before-user-created hook fires for dashboard/admin-created users
+-- too, so the rows have to exist first or the creation is rejected with
+-- "Only @uwo.ca email addresses can join Axis."
+--
+-- Creating the users: Dashboard -> Authentication -> Users -> Add user, with
+-- "Auto Confirm User" ticked. That skips the emailed OTP entirely, so neither
+-- address needs to receive mail for sign-in to work (auth is
+-- signInWithPassword). Signing up through the app UI is not an option for
+-- these addresses — CreateAccountScreen gates its submit button on
+-- isWesternEmail() client-side, so a non-uwo.ca address cannot be submitted
+-- there even though the server would now allow it. Sign-in has no such gate,
+-- so the reviewer signs in normally.
+--
+-- AFTERWARDS, nothing creates a profile row: there is no trigger on
+-- auth.users, and RootNavigator routes a signed-in user with no profile to
+-- the mandatory SetupProfile step. Insert one for each account or the
+-- reviewer lands in onboarding instead of the app:
+--
+--   insert into public.profiles (id, name, program, year, location)
+--   select id, 'Alex Chen', 'Computer Science', 3, 'London, ON'
+--     from auth.users where email = 'axis.app@outlook.com';
+--
+--   insert into public.profiles (id, name, program, year, location)
+--   select id, 'Sam Patel', 'Ivey Business', 2, 'London, ON'
+--     from auth.users where email = 'axis.app2@outlook.com';
+--
+-- profiles.verified will come out false for both: the profiles_set_verified
+-- trigger (0004) recomputes it from the email domain and ignores whatever is
+-- passed. That is cosmetic — the "Western verified" UI was removed in 013c3d8.
+--
+-- Then sign in as each on a real build and seed listings, photos and a
+-- conversation between them. Photos have to go through the app's upload path,
+-- so that part cannot be done in SQL.
+
+insert into public.signup_email_exceptions (email, note) values
+  ('axis.app@outlook.com',  'Apple App Review demo account 1'),
+  ('axis.app2@outlook.com', 'Apple App Review demo account 2')
+on conflict (email) do update set note = excluded.note;

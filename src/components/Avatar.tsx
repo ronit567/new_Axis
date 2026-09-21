@@ -49,7 +49,7 @@ export default function Avatar({ url, initials, color, size, style, textStyle }:
         <Image
           source={cacheKey ? { uri: resolved, cacheKey } : { uri: resolved }}
           cachePolicy="memory-disk"
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={150}
         />

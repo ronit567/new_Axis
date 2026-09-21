@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.inputBorder,
   },
   soldOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
