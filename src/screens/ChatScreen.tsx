@@ -44,6 +44,11 @@ const GROUP_GAP_MS = 2 * 60 * 1000;
 // px, exposing each message's own clock time in the right gutter.
 const TIME_REVEAL = 68;
 
+// Space between the message field and whatever is below it: the keyboard when
+// it is open, the home indicator's clearance spacer when it is closed. Closed,
+// the total is max(inset, this) — unchanged from before the spacer existed.
+const INPUT_BAR_BOTTOM_GAP = 10;
+
 type ChatItem = {
   message: Message;
   // >= GROUP_GAP_MS since the previous message — starts a new burst.
@@ -381,8 +386,10 @@ export default function ChatScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Input bar */}
-        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        {/* Input bar. Its bottom padding is only the gap it wants above the
+            keyboard; the home-indicator clearance is the spacer below the
+            KeyboardAvoidingView, where the keyboard covers it. */}
+        <View style={[styles.inputBar, { paddingBottom: INPUT_BAR_BOTTOM_GAP }]}>
           <TextInput
             style={styles.textInput}
             value={inputText}
@@ -408,6 +415,18 @@ export default function ChatScreen({ navigation, route }: Props) {
           </PressableScale>
         </View>
       </KeyboardAvoidingView>
+      {/* Home-indicator clearance, outside the KeyboardAvoidingView on purpose.
+          Inside it, this padding rode up with the input bar when the keyboard
+          opened and became a dead ~24pt gap between the field and the keys —
+          the keyboard already covers the home indicator. Out here the keyboard
+          simply covers it. The input bar's colour, so a closed keyboard shows
+          one continuous bar. */}
+      <View
+        style={{
+          height: Math.max(insets.bottom, INPUT_BAR_BOTTOM_GAP) - INPUT_BAR_BOTTOM_GAP,
+          backgroundColor: COLORS.white,
+        }}
+      />
       <ReportModal
         visible={reportVisible}
         target="chat"
