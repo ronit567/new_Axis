@@ -90,6 +90,7 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           listingPrice: item.listingPrice ?? undefined,
         })
       }
+      accessibilityRole="button"
     >
       <Avatar
         url={item.partner.avatarUrl}

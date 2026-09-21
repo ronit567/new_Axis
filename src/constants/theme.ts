@@ -17,7 +17,11 @@ export const COLORS = {
   inputBackground: '#FFFFFF',
   text: '#1A1A2E',
   textSecondary: '#6B6B7B',
-  textMuted: '#9E9EAE',
+  // Carries real content at 10–13pt — timestamps, seller names, message
+  // previews — so it has to clear WCAG AA (4.5:1) on both white (5.0) and the
+  // page tint (4.6). The old #9E9EAE managed 2.6. It now sits close to
+  // textSecondary on purpose; the step down is carried by size, not by fading.
+  textMuted: '#6E6E7E',
   success: '#34C759',
   error: '#FF3B30',
   warning: '#F5A623',

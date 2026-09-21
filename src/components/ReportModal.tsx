@@ -172,7 +172,11 @@ export default function ReportModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.backdrop} onPress={handleClose}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={handleClose}
+        accessible={false}
+      >
         <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
       </Pressable>
       <View style={styles.sheet}>
@@ -191,7 +195,12 @@ export default function ReportModal({
               we'll email you a confirmation.
             </Text>
             {blockButton}
-            <TouchableOpacity style={styles.doneBtn} onPress={handleClose} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.doneBtn}
+              onPress={handleClose}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
               <Text style={styles.doneBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -200,7 +209,12 @@ export default function ReportModal({
           <>
             <View style={styles.header}>
               <Text style={styles.title}>Report {targetLabel}</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Ionicons name="close" size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -219,6 +233,8 @@ export default function ReportModal({
                       setSelected(reason.key);
                     }}
                     activeOpacity={0.75}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active }}
                   >
                     <View style={[styles.reasonIcon, active && styles.reasonIconActive]}>
                       <Ionicons
@@ -243,6 +259,8 @@ export default function ReportModal({
               onPress={handleSubmit}
               disabled={!selected || submitting}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !selected || submitting, busy: submitting }}
             >
               <Text style={[styles.submitBtnText, (!selected || submitting) && styles.submitBtnTextDisabled]}>
                 {submitting ? 'Submitting…' : 'Submit report'}

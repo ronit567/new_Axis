@@ -188,6 +188,9 @@ export default function SetupProfileScreen(_props: Props) {
               setShowProgramPicker(!showProgramPicker);
             }}
             scaleTo={0.98}
+            accessibilityRole="button"
+            accessibilityLabel={`Program, ${program}`}
+            accessibilityState={{ expanded: showProgramPicker }}
           >
             <Text style={styles.dropdownText}>{program}</Text>
             <RotatingChevron open={showProgramPicker} size={16} color={COLORS.textMuted} />
@@ -205,6 +208,8 @@ export default function SetupProfileScreen(_props: Props) {
                     setShowProgramPicker(false);
                   }}
                   scaleTo={0.98}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: p === program }}
                 >
                   <Text style={[styles.dropdownItemText, p === program ? styles.dropdownItemTextSelected : null]}>
                     {p}
@@ -225,6 +230,8 @@ export default function SetupProfileScreen(_props: Props) {
                   setYear(y);
                 }}
                 scaleTo={0.94}
+                accessibilityRole="button"
+                accessibilityState={{ selected: year === y }}
               >
                 <Text style={[styles.yearBtnText, year === y ? styles.yearBtnTextActive : null]}>
                   {y}

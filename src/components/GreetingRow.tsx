@@ -54,6 +54,11 @@ export default function GreetingRow({
         onPress={onBellPress}
         hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         scaleTo={0.9}
+        accessibilityRole="button"
+        // The unread dot is visual only, so say it in words.
+        accessibilityLabel={
+          unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+        }
       >
         <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
         {unreadCount > 0 && <View style={styles.bellDot} />}

@@ -24,7 +24,16 @@ export default function PrimaryButton({ title, onPress, loading = false, style, 
   };
 
   return (
-    <PressableScale style={[styles.wrapper, style]} onPress={handlePress} disabled={isInactive}>
+    <PressableScale
+      style={[styles.wrapper, style]}
+      onPress={handlePress}
+      disabled={isInactive}
+      accessibilityRole="button"
+      // While loading the title is swapped for a spinner, so without this
+      // VoiceOver would announce a button with no name.
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isInactive, busy: loading }}
+    >
       <LinearGradient
         colors={GRADIENTS.primary}
         start={{ x: 0, y: 0 }}

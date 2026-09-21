@@ -16,7 +16,14 @@ export default function StepHeader({ currentStep, totalSteps = 3, onBack }: Prop
   return (
     <View style={styles.container}>
       {onBack ? (
-        <PressableScale onPress={onBack} style={styles.backBtn} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }} scaleTo={0.9}>
+        <PressableScale
+          onPress={onBack}
+          style={styles.backBtn}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </PressableScale>
       ) : (

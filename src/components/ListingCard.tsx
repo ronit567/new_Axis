@@ -52,6 +52,7 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
       onPress={handlePress}
       scaleTo={CARD_SCALE_TO}
       scaleValue={press}
+      accessibilityRole="button"
     >
       <View style={[styles.imageArea, { backgroundColor: item.imageColor || '#EEE8F8' }]}>
         {item.thumbUrls[0] ? (

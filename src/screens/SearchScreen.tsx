@@ -301,7 +301,11 @@ export default function SearchScreen({ navigation, route }: Props) {
               returnKeyType="search"
             />
             {query.length > 0 ? (
-              <TouchableOpacity onPress={() => setQuery("")}>
+              <TouchableOpacity
+                onPress={() => setQuery("")}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+              >
                 <Ionicons
                   name="close-circle"
                   size={17}
@@ -466,6 +470,7 @@ export default function SearchScreen({ navigation, route }: Props) {
               style={styles.overlayBg}
               activeOpacity={1}
               onPress={closeFilters}
+              accessible={false}
             />
           </Animated.View>
           <Animated.View
@@ -489,6 +494,8 @@ export default function SearchScreen({ navigation, route }: Props) {
                   setPriceMax(PRICE_MAX_CAP);
                 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Reset filters"
               >
                 <Text style={styles.resetText}>Reset</Text>
               </TouchableOpacity>

@@ -7,6 +7,9 @@ import CategoryChip from '../CategoryChip';
 import EmptyState from '../EmptyState';
 import AnimatedIconToggle from '../AnimatedIconToggle';
 import PressableScale from '../PressableScale';
+import PrimaryButton from '../PrimaryButton';
+import StepHeader from '../StepHeader';
+import InputField from '../InputField';
 import { Listing } from '../../types';
 import * as formatPriceModule from '../../lib/formatPrice';
 
@@ -207,6 +210,34 @@ describe('PressableScale', () => {
 
     fireEvent.press(screen.getByText('Tap me'));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('screen reader names', () => {
+  // Each of these is a control whose visible content is an icon or a spinner,
+  // so without an explicit label VoiceOver announces "button" and nothing else.
+
+  it('PrimaryButton keeps its name and reports busy while the spinner replaces the title', () => {
+    render(<PrimaryButton title="Continue" onPress={() => {}} loading />);
+
+    const button = screen.getByRole('button', { name: 'Continue' });
+    expect(button.props.accessibilityState).toEqual({ disabled: true, busy: true });
+    expect(screen.queryByText('Continue')).toBeNull();
+  });
+
+  it('StepHeader names its icon-only back button', () => {
+    const onBack = jest.fn();
+    render(<StepHeader currentStep={1} onBack={onBack} />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('the password toggle says what pressing it will do', () => {
+    render(<InputField label="Password" value="" onChangeText={() => {}} secureTextEntry />);
+
+    fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeTruthy();
   });
 });
 

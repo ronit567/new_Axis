@@ -133,6 +133,8 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
             onPress={() => navigation.goBack()}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
           >
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </PressableScale>
@@ -154,6 +156,8 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
             style={styles.resendRow}
             onPress={countdown === 0 ? handleResend : undefined}
             activeOpacity={countdown === 0 ? 0.7 : 1}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: countdown > 0 }}
           >
             <Text style={styles.resendText}>
               Resend code in{' '}

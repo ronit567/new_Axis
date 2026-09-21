@@ -64,6 +64,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             onPress={() => navigation.goBack()}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
           >
             <Ionicons name="chevron-back" size={22} color={COLORS.text} />
           </PressableScale>

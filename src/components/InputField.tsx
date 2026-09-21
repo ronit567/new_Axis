@@ -80,7 +80,14 @@ export default function InputField({
           onBlur={() => setFocused(false)}
         />
         {isPassword && (
-          <PressableScale onPress={() => setShowPassword(!showPassword)} style={styles.rightBtn} hitSlop={8} scaleTo={0.85}>
+          <PressableScale
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.rightBtn}
+            hitSlop={8}
+            scaleTo={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+          >
             <AnimatedIconToggle
               active={showPassword}
               activeName="eye-off-outline"

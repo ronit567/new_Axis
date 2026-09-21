@@ -65,6 +65,7 @@ function RowItem({
         onPress();
       }}
       scaleTo={0.98}
+      accessibilityRole="button"
     >
       {content}
     </PressableScale>
@@ -205,6 +206,7 @@ export default function SettingsScreen({ navigation }: Props) {
             handleSignOut();
           }}
           scaleTo={0.98}
+          accessibilityRole="button"
         >
           <View style={styles.logoutIconBox}>
             <Ionicons name="log-out-outline" size={16} color={COLORS.error} />
@@ -222,6 +224,7 @@ export default function SettingsScreen({ navigation }: Props) {
               setDeleteModalVisible(true);
             }}
             scaleTo={0.98}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={styles.dangerIconBox}>
@@ -277,6 +280,8 @@ export default function SettingsScreen({ navigation }: Props) {
                 handleDeleteAccount();
               }}
               scaleTo={0.97}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canDelete, busy: deleteAccount.isPending }}
             >
               <Text style={styles.deleteButtonText}>
                 {deleteAccount.isPending ? 'Deleting…' : 'Permanently delete account'}
@@ -290,6 +295,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 closeDeleteModal();
               }}
               scaleTo={0.97}
+              accessibilityRole="button"
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </PressableScale>

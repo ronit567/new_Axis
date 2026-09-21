@@ -115,6 +115,8 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
             style={styles.resendRow}
             onPress={countdown === 0 ? handleResend : undefined}
             activeOpacity={countdown === 0 ? 0.7 : 1}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: countdown > 0 }}
           >
             <Text style={styles.resendText}>
               Resend code in{' '}
@@ -134,7 +136,10 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
           <View style={styles.wrongEmailRow}>
             <Text style={styles.wrongEmailText}>Wrong email? </Text>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              accessibilityRole="button"
+            >
               <Text style={styles.changeLink}>Change it</Text>
             </TouchableOpacity>
           </View>

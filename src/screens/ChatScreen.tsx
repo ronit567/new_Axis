@@ -32,6 +32,7 @@ import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
 import { useProfile } from '../hooks/useProfile';
 import { formatClockTime } from '../lib/timeAgo';
+import { formatAmount } from '../lib/formatPrice';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -282,6 +283,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                 style={styles.viewBtn}
                 onPress={handleViewListing}
                 scaleTo={0.94}
+                accessibilityRole="button"
                 accessibilityLabel="View listing"
               >
                 <Text style={styles.viewBtnText}>View</Text>
@@ -307,10 +309,20 @@ export default function ChatScreen({ navigation, route }: Props) {
           <View style={styles.listingThumb} />
           <View style={styles.listingInfo}>
             <Text style={styles.listingTitle}>{listingTitle}</Text>
-            {listingPrice != null && <Text style={styles.listingPrice}>${listingPrice}</Text>}
+            {/* Chat is handed a bare number, not the Free/Trade flags, and those
+                listings are stored at 0 — so only a real price is printed. */}
+            {listingPrice != null && listingPrice > 0 && (
+              <Text style={styles.listingPrice}>{formatAmount(listingPrice)}</Text>
+            )}
           </View>
           {canViewListing && (
-            <PressableScale style={styles.viewBannerBtn} onPress={handleViewListing} scaleTo={0.94}>
+            <PressableScale
+              style={styles.viewBannerBtn}
+              onPress={handleViewListing}
+              scaleTo={0.94}
+              accessibilityRole="button"
+              accessibilityLabel="View listing"
+            >
               <Text style={styles.viewBannerBtnText}>View</Text>
             </PressableScale>
           )}
@@ -348,9 +360,6 @@ export default function ChatScreen({ navigation, route }: Props) {
 
         {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-          <PressableScale style={styles.emojiBtn} scaleTo={0.9} accessibilityLabel="Add emoji">
-            <Ionicons name="happy-outline" size={24} color={COLORS.textMuted} />
-          </PressableScale>
           <TextInput
             style={styles.textInput}
             value={inputText}
@@ -556,9 +565,6 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.divider,
     gap: 8,
     backgroundColor: COLORS.white,
-  },
-  emojiBtn: {
-    paddingBottom: 6,
   },
   textInput: {
     flex: 1,

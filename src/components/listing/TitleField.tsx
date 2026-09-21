@@ -27,7 +27,12 @@ export default function TitleField({ value, onChange, locked, onLockedPress }: P
           returnKeyType="next"
           editable={!locked}
         />
-        {locked && <Pressable style={StyleSheet.absoluteFill} onPress={onLockedPress} />}
+        {locked && <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onLockedPress}
+          accessibilityRole="button"
+          accessibilityLabel="Title requires review to change"
+        />}
       </View>
       {locked && <LockedHint label="Title requires review to change" />}
     </View>

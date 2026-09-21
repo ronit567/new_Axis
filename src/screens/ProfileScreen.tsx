@@ -202,7 +202,11 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={styles.listingsBlock}>
           <View style={styles.listingsTopRow}>
             <Text style={styles.listingsTitle}>My listings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ManageListings')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ManageListings')}
+              accessibilityRole="button"
+              accessibilityLabel="Manage listings"
+            >
               <Text style={styles.manageText}>Manage</Text>
             </TouchableOpacity>
           </View>
@@ -214,6 +218,8 @@ export default function ProfileScreen({ navigation }: Props) {
                   style={{ width: thumb.width }}
                   onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title}
                 >
                   <ListingThumb item={item} size={thumb} />
                   <Text
