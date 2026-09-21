@@ -1,4 +1,3 @@
-import React from 'react';
 import { Text } from 'react-native';
 import { render, fireEvent, screen, act } from '@testing-library/react-native';
 import { AccessibilityInfo } from 'react-native';

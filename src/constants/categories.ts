@@ -14,5 +14,5 @@ export const LISTING_CATEGORIES = [
 export type ListingCategory = (typeof LISTING_CATEGORIES)[number];
 
 // The Home feed adds an "All" sentinel in front of the real categories.
-export const BROWSE_ALL = 'All' as const;
+const BROWSE_ALL = 'All' as const;
 export const BROWSE_CATEGORIES = [BROWSE_ALL, ...LISTING_CATEGORIES] as const;

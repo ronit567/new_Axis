@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, ComponentProps } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
 import { BlurView } from 'expo-blur';
 import { COLORS, SIZES, SHADOWS, FONTS } from '../constants/theme';
 import { RootStackParamList } from '../types';
@@ -23,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDeleteAccount } from '../hooks/useProfile';
 import { haptics } from '../lib/haptics';
 import { DIALOG_MAX_WIDTH } from '../lib/layout';
+import { SUPPORT_EMAIL } from '../constants/contact';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -76,8 +76,6 @@ function RowItem({
 function RowDivider() {
   return <View style={styles.rowDivider} />;
 }
-
-const SUPPORT_EMAIL = 'axis.app@outlook.com';
 
 export default function SettingsScreen({ navigation }: Props) {
   const { signOut } = useAuth();

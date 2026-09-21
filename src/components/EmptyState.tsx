@@ -1,7 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, ComponentProps } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { CURVE, DURATION, SPRING } from '../constants/motion';
 import { useReducedMotion } from '../hooks/useReducedMotion';

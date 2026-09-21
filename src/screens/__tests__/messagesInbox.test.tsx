@@ -4,7 +4,6 @@
 // which is exactly the distinction these tests pin, because it is the kind of
 // thing a well-meaning refactor quietly reverts.
 
-import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import type { NavigationProp } from '@react-navigation/native';

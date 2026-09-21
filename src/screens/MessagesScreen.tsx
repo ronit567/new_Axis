@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { NavigationProp } from '@react-navigation/native';
-import { COLORS, SIZES, FONTS, SHADOWS } from '../constants/theme';
+import { COLORS, SIZES } from '../constants/theme';
 import { FLOATING_TAB_BAR_CLEARANCE } from '../components/BottomTabBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ErrorState from '../components/ErrorState';
@@ -23,6 +23,8 @@ import ScreenHeader from '../components/layout/ScreenHeader';
 import { haptics } from '../lib/haptics';
 import { useConversations, useDeleteConversation } from '../hooks/useMessages';
 import { Conversation, RootStackParamList } from '../types';
+import ScrollHairline from '../components/layout/ScrollHairline';
+import { useScrollHairline } from '../hooks/useScrollHairline';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -49,18 +51,7 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
   const [activeFilter, setActiveFilter] = useState('All');
   const { data, isPending, isError, refetch } = useConversations();
 
-  // Hairline + shadow under the fixed header/filters, faded in on scroll so the
-  // header looks flush at rest and gains definition as content passes under it.
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerBorderOpacity = scrollY.interpolate({
-    inputRange: [0, 14],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true },
-  );
+  const { onScroll, hairlineOpacity } = useScrollHairline();
 
   // Spinner only for user-initiated pulls — background refetches from realtime
   // invalidation must not replay the pull-to-refresh animation.
@@ -285,10 +276,7 @@ export default function MessagesScreen({ navigation, onBrowseListings }: Props) 
           ))}
         </View>
 
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
-        />
+        <ScrollHairline opacity={hairlineOpacity} />
       </View>
 
       {/* Conversation list */}
@@ -364,15 +352,6 @@ const styles = StyleSheet.create({
   headerBlock: {
     position: 'relative',
     zIndex: 1,
-  },
-  scrollHairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.divider,
-    ...SHADOWS.card,
   },
   filterRow: {
     flexDirection: 'row',

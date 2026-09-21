@@ -1,4 +1,4 @@
-import React, { useState, type ComponentProps } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';

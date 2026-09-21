@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Share,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import Screen from '../components/layout/Screen';
 import ScreenHeader from '../components/layout/ScreenHeader';
@@ -26,7 +25,6 @@ import { useBlockUser } from '../hooks/useBlocks';
 import { getSellerBadges } from '../lib/sellerBadges';
 import { withGridSpacer, isGridSpacer, GridSpacer } from '../lib/gridSpacer';
 import { useGridColumns } from '../lib/layout';
-import { useAuth } from '../context/AuthContext';
 import { Listing, RootStackParamList } from '../types';
 import ReportModal from '../components/ReportModal';
 import Avatar from '../components/Avatar';
@@ -45,7 +43,6 @@ type Row =
 
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { seller } = route.params;
-  const { user } = useAuth();
   const [reportVisible, setReportVisible] = useState(false);
   const {
     data: sellerListings = [],
@@ -60,7 +57,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   // Reachable with your own profile (e.g. via a chat with yourself in dev, or
   // deep links later) — hide partner-only actions rather than render a
   // "Follow yourself" button.
-  const isOwnProfile = user?.id === seller.id;
 
   const badges = getSellerBadges({ replyTime: seller.stats.replyTime });
 

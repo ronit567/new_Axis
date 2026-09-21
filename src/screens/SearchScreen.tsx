@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ import GreetingRow, { GREETING_ROW_HEIGHT } from "../components/GreetingRow";
 import { haptics } from "../lib/haptics";
 import { withGridSpacer, isGridSpacer, GridSpacer } from "../lib/gridSpacer";
 import { useGridColumns, SHEET_MAX_WIDTH } from "../lib/layout";
+import ScrollHairline from "../components/layout/ScrollHairline";
+import { useScrollHairline } from "../hooks/useScrollHairline";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
@@ -89,19 +91,9 @@ export default function SearchScreen({ navigation, route }: Props) {
   const filterBtnMargin = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 6] });
   const contentShift = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
 
-  // Scroll hairline under the purple header — mirrors HomeScreen so the two
-  // screens behave identically when the (animation: 'none') swap happens. Its
-  // own native-driven value, independent of the layout-driven enterAnim above.
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerBorderOpacity = scrollY.interpolate({
-    inputRange: [0, 14],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true },
-  );
+  // Mirrors Home, so the two screens match through the (animation: 'none')
+  // swap. Independent of the layout-driven enterAnim above.
+  const { onScroll, hairlineOpacity } = useScrollHairline();
 
   // Mirror of the entrance, then pop the screen — Home re-expands its
   // greeting on focus, so the whole close reads as one continuous motion.
@@ -403,10 +395,7 @@ export default function SearchScreen({ navigation, route }: Props) {
           </MaskedView>
         ) : null}
 
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
-        />
+        <ScrollHairline opacity={hairlineOpacity} />
       </LinearGradient>
 
       {/* Everything below the header fades up as one block — the "results
@@ -670,15 +659,6 @@ const styles = StyleSheet.create({
     // greeting's own padding isn't doubled up.
     paddingBottom: 18,
     ...SHADOWS.floating,
-  },
-  scrollHairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.divider,
-    ...SHADOWS.card,
   },
   searchRow: {
     flexDirection: "row",

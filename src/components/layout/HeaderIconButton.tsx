@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ComponentProps } from 'react';
@@ -43,7 +42,7 @@ export default function HeaderIconButton({
   );
 }
 
-export const HEADER_ICON_SIZE = 38;
+const HEADER_ICON_SIZE = 38;
 
 const styles = StyleSheet.create({
   button: {

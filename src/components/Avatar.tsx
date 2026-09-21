@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { COLORS } from '../constants/theme';

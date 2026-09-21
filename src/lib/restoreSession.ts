@@ -12,7 +12,7 @@
 
 type SessionResult<S> = { data: { session: S | null }; error: unknown }
 
-export const RESTORE_RETRY_DELAYS_MS = [1000, 2500]
+const RESTORE_RETRY_DELAYS_MS = [1000, 2500]
 // Attempts can each run to the request timeout on a black-holed network, so the
 // retries are also bounded by wall-clock time, not just by count.
 export const RESTORE_BUDGET_MS = 12_000

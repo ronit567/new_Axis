@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, StyleSheet, FlatList, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SIZES, FONTS } from '../constants/theme';

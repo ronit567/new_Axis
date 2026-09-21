@@ -1,4 +1,3 @@
-import React from 'react';
 import { Alert, AlertButton } from 'react-native';
 import { act, render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import ReportModal from '../ReportModal';

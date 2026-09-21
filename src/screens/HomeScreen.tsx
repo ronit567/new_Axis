@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useCurrentProfile } from '../hooks/useProfile';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
+import ScrollHairline from '../components/layout/ScrollHairline';
+import { useScrollHairline } from '../hooks/useScrollHairline';
 
 type Props = {
   navigation: NavigationProp<RootStackParamList>;
@@ -44,19 +46,7 @@ export default function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState('All');
 
-  // Hairline + shadow under the fixed header/chips that fades in as the list
-  // scrolls beneath it, so the header gains definition on scroll and stays
-  // flush (looking exactly like today) at rest.
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerBorderOpacity = scrollY.interpolate({
-    inputRange: [0, 14],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true },
-  );
+  const { onScroll, hairlineOpacity } = useScrollHairline();
 
   // Hand-rolled search transition (the Search route uses animation: 'none').
   // Home navigates immediately and Search mounts with the exact same header
@@ -208,10 +198,7 @@ export default function HomeScreen({ navigation }: Props) {
         ))}
       </ScrollView>
 
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.scrollHairline, { opacity: headerBorderOpacity }]}
-      />
+      <ScrollHairline opacity={hairlineOpacity} />
       </View>
 
       {/* Content: loading skeleton / error / listing grid */}
@@ -287,15 +274,6 @@ const styles = StyleSheet.create({
     // padding/margin so the header geometry is unchanged.
     position: 'relative',
     zIndex: 1,
-  },
-  scrollHairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.divider,
-    ...SHADOWS.card,
   },
   purpleHeader: {
     borderBottomLeftRadius: 28,
