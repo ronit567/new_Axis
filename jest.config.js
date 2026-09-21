@@ -7,8 +7,17 @@ module.exports = {
   // Never scan node_modules or the git worktrees the agents run in — the latter
   // live inside the repo (.claude/worktrees) and cause duplicate-test + Haste
   // module-naming collisions if included.
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
-  modulePathIgnorePatterns: ['/.claude/'],
+  //
+  // Anchored to <rootDir>, not bare '/.claude/'. An agent worktree IS a path
+  // containing '/.claude/', so the unanchored form matched the worktree's own
+  // test files and `npx jest` inside one reported "No tests found" — agents hit
+  // this and had to override the flags by hand to run the suite at all. Under
+  // <rootDir> the pattern still hides worktrees from a run in the main
+  // checkout (rootDir is the repo, so <rootDir>/.claude/ is where they live),
+  // while a run inside a worktree resolves rootDir to the worktree itself and
+  // its tests no longer match.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/'],
+  modulePathIgnorePatterns: ['<rootDir>/.claude/'],
   // Keep node_modules untransformed EXCEPT the RN / Expo packages that ship
   // untranspiled ESM/Flow and therefore need Babel.
   transformIgnorePatterns: [
