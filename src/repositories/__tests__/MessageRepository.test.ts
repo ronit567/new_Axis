@@ -17,7 +17,10 @@ function makeQueryBuilder<T>(result: QueryResult<T>, singleResult?: QueryResult<
     in: jest.fn(() => builder),
     update: jest.fn(() => builder),
     insert: jest.fn(() => builder),
+    upsert: jest.fn(() => Promise.resolve(result)),
+    gt: jest.fn(() => builder),
     single: jest.fn(() => Promise.resolve(singleResult ?? result)),
+    maybeSingle: jest.fn(() => Promise.resolve(singleResult ?? result)),
     then: (resolve: (value: QueryResult<T>) => unknown) => resolve(result),
   };
   return builder;
@@ -105,11 +108,21 @@ function makeListingRow(overrides: Partial<ListingRow> = {}): ListingRow {
 }
 
 function mockTables(map: Record<string, any>) {
+  // getMessages also asks conversation_hides whether this thread was deleted
+  // (0052). Almost no test cares, so "never hidden" is the default and a test
+  // that does care passes its own builder.
+  const withDefaults: Record<string, any> = {
+    conversation_hides: makeQueryBuilder<{ hidden_at: string } | null>({
+      data: null,
+      error: null,
+    }),
+    ...map,
+  };
   mockFrom.mockImplementation((table: string) => {
-    if (table in map) return map[table];
+    if (table in withDefaults) return withDefaults[table];
     throw new Error(`Unexpected table: ${table}`);
   });
-  return map;
+  return withDefaults;
 }
 
 beforeEach(() => {
@@ -455,6 +468,85 @@ describe('MessageRepository.getMessages', () => {
       ),
     ).rejects.toThrow(/partnerId must be a UUID/);
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+});
+
+describe('MessageRepository.hideConversation', () => {
+  const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
+  const USER_ID = '22222222-2222-4222-8222-222222222222';
+  const LISTING_ID = '33333333-3333-4333-8333-333333333333';
+
+  it('upserts a hide mark for the thread, keyed so a second delete moves it forward', async () => {
+    const hides = makeQueryBuilder<null>({ data: null, error: null });
+    mockTables({ conversation_hides: hides });
+
+    await MessageRepository.hideConversation(USER_ID, PARTNER_ID, LISTING_ID);
+
+    const [row, options] = hides.upsert.mock.calls[0];
+    expect(row).toMatchObject({
+      user_id: USER_ID,
+      partner_id: PARTNER_ID,
+      listing_id: LISTING_ID,
+    });
+    expect(typeof row.hidden_at).toBe('string');
+    // Without onConflict naming the unique constraint's columns, deleting an
+    // already-deleted thread would fail instead of clearing what arrived since.
+    expect(options).toEqual({ onConflict: 'user_id,partner_id,listing_id' });
+  });
+
+  it('carries a null listing through, so the listing-less bucket can be deleted', async () => {
+    const hides = makeQueryBuilder<null>({ data: null, error: null });
+    mockTables({ conversation_hides: hides });
+
+    await MessageRepository.hideConversation(USER_ID, PARTNER_ID, null);
+
+    expect(hides.upsert.mock.calls[0][0]).toMatchObject({ listing_id: null });
+  });
+
+  it('never touches the messages table — the other participant keeps the thread', async () => {
+    const hides = makeQueryBuilder<null>({ data: null, error: null });
+    mockTables({ conversation_hides: hides });
+
+    await MessageRepository.hideConversation(USER_ID, PARTNER_ID, LISTING_ID);
+
+    expect(mockFrom).not.toHaveBeenCalledWith('messages');
+  });
+
+  it('rejects a non-uuid partner id before reaching the network', async () => {
+    mockTables({});
+    await expect(
+      MessageRepository.hideConversation(USER_ID, 'not-a-uuid', null),
+    ).rejects.toThrow();
+  });
+});
+
+describe('MessageRepository.getMessages hide filtering', () => {
+  const PARTNER_ID = '11111111-1111-4111-8111-111111111111';
+  const USER_ID = '22222222-2222-4222-8222-222222222222';
+  const LISTING_ID = '33333333-3333-4333-8333-333333333333';
+
+  it('only asks for messages newer than the hide mark when the thread was deleted', async () => {
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    const hides = makeQueryBuilder<{ hidden_at: string }>({
+      data: { hidden_at: '2026-07-01T12:00:00.000Z' },
+      error: null,
+    });
+    mockTables({ messages, conversation_hides: hides });
+
+    await MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID);
+
+    // A reply brings the thread back, but it comes back empty of what the
+    // user cleared — not with the whole history restored.
+    expect(messages.gt).toHaveBeenCalledWith('created_at', '2026-07-01T12:00:00.000Z');
+  });
+
+  it('applies no time filter when the thread was never deleted', async () => {
+    const messages = makeQueryBuilder<MessageRow[]>({ data: [], error: null });
+    mockTables({ messages });
+
+    await MessageRepository.getMessages(PARTNER_ID, USER_ID, LISTING_ID);
+
+    expect(messages.gt).not.toHaveBeenCalled();
   });
 });
 

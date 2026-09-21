@@ -112,6 +112,50 @@ export function useMessages(partnerId: string, listingId: string | null) {
 // (client-generated) id, rolls back on error, and is reconciled with the
 // server row — by the realtime echo and the settled invalidation — via that
 // same id.
+/**
+ * Delete a conversation from this user's inbox.
+ *
+ * Per-user and reversible by the other person replying — see 0052. Nothing is
+ * removed from the messages table, so this never destroys the other
+ * participant's copy or a moderator's view of a reported thread.
+ */
+export function useDeleteConversation() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ partnerId, listingId }: { partnerId: string; listingId: string | null }) => {
+      if (!user) throw new Error('Not signed in')
+      return MessageRepository.hideConversation(user.id, partnerId, listingId)
+    },
+    onSuccess: (_result, { partnerId, listingId }) => {
+      if (!user) return
+      // Drop the row locally rather than refetching: the inbox is the screen
+      // the user is looking at, and a round trip would leave the row sitting
+      // there after they confirmed the delete.
+      queryClient.setQueryData<Conversation[]>(
+        queryKeys.conversations(user.id),
+        (previous) =>
+          (previous ?? []).filter(
+            (conversation) =>
+              !(
+                conversation.partnerId === partnerId &&
+                (conversation.listingId ?? null) === listingId
+              ),
+          ),
+      )
+      // The thread's own cache is now a view of messages the user has
+      // cleared. Removing it means reopening the chat (after a reply brings it
+      // back) refetches against the new hide mark instead of rendering the
+      // history from cache.
+      queryClient.removeQueries({
+        queryKey: queryKeys.messages(partnerId, listingId),
+        exact: true,
+      })
+    },
+  })
+}
+
 export function useSendMessage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
