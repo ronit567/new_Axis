@@ -25,6 +25,13 @@ jobs:
   build:
     name: Typecheck, guards & tests
     runs-on: ubuntu-latest
+    # A healthy run takes about a minute. Without a cap, a stuck test holds the
+    # runner until GitHub's own six-hour limit: that has happened three times,
+    # each time in the same suite (see src/lib/__tests__/avatarUrls.test.ts),
+    # costing six hours of runner time apiece and leaving a PR's check
+    # pending all afternoon. Fifteen minutes is generous headroom over a slow
+    # runner and still fails a hang the same hour.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
