@@ -47,7 +47,26 @@ jobs:
     runs-on: ubuntu-latest
     # Never on pull_request: secrets are not exposed to fork PRs, so the job
     # would fail for reasons that say nothing about the change.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    #
+    # ALSO ON A PUSH TO main, which is how the 0052 outage would have been
+    # caught. Client code and migrations deploy on separate tracks here — the
+    # app through EAS, migrations by hand — so drift is created at the moment a
+    # schema PR merges and persists until someone remembers to run
+    # `npx supabase db push`. Nightly alone left that window up to 24 hours
+    # wide, and #95 shipped inside it: the merge added client code that read
+    # public.conversation_hides, nobody applied 0052, and the chat screen
+    # failed for real users.
+    #
+    # This is the same job, the same script and the same secrets, just sooner —
+    # it adds no new class of false positive. It WILL turn main red in the gap
+    # between merging a migration and pushing it, and that is the intent: the
+    # gap is the hazard, the failure names the file, and the fix is one
+    # command. A push to main only ever comes from this repository, so the
+    # secret is available; if it is unset the link step still warns and skips.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
 
     steps:
       - name: Checkout
