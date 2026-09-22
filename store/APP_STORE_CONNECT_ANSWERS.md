@@ -63,7 +63,7 @@ Answer the content questions "None" throughout, **except**:
 | User-generated content | Yes | Listings, profiles and photos are all written by users |
 | Messaging or chat | Yes | Buyer and seller direct messages |
 | Does the app include social media capabilities? | **Yes** | Apple's definition is the ability to "interact with user-generated content through a social feed or similar discovery method that visibly spreads content to many users". The Home feed shows every user's listings to every other user, and users can save listings and message sellers from it. Answering yes sets a 13+ minimum, which costs nothing here. |
-| Are those capabilities disabled for under-13s? | Not applicable | Accounts require a university email; the Privacy Policy excludes under-13s |
+| Social media disabled for users under 13? | **No** | The form takes only yes/no, so "not applicable" is not available. No mechanism disables these features by age -- sign-up gates on an email domain, not on age -- and claiming a control that does not exist is what 2.3.6 punishes. Under-13s cannot hold a university address, so answering no costs nothing. |
 | Unrestricted web access | No | Links out only to dataaxis.org and mailto |
 | Gambling, contests, alcohol, tobacco, drugs, violence, sexual content, horror, medical | None | No such content is built in. User content that contained it would breach the Community Guidelines and is handled by filtering, reporting and removal. |
 | In-app controls: parental controls, age assurance | No | None exist |
