@@ -1,1 +1,1 @@
-student,textbooks,used,furniture,dorm,resale,secondhand,university,college,swap,trade,tickets
+textbooks,used,furniture,dorm,resale,secondhand,university,college,swap,trade,tickets,campus

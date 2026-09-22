@@ -3,7 +3,9 @@
 Everything below the line is written to be pasted into **App Store Connect → App
 Review Information → Notes**. The demo sign-in goes in the **Sign-In
 Information** fields on that same page, never in this file or anywhere in the
-repo.
+repo. App Store Connect has only one Sign-In Information pair, so
+the **second** account goes at the end of the pasted Notes, under a
+`SECOND DEMO ACCOUNT` heading -- typed there, not stored here.
 
 These notes describe the app as it must be on the day it is submitted. Do not
 paste them until ledger items R01 and R03 in `docs/STORE_READINESS.md` are
@@ -26,7 +28,7 @@ reviewer cannot create an account, so please sign in with the demo account in
 the Sign-In Information fields. It has no two-factor authentication and is
 pre-loaded with listings, photos and a conversation.
 
-A second demo account is provided in the same fields, so that messaging,
+A second demo account is listed at the end of these notes, so that messaging,
 reporting and blocking can be tested between two real users.
 
 Deleting the demo account is safe. Accounts normally cannot re-register for 14
