@@ -1,7 +1,5 @@
 Axis is a buy-and-sell marketplace for university students. Every account is tied to a verified university email address, so you know the person you are messaging belongs to your university community.
 
-Axis currently serves students at Western University in London, Ontario. You need a Western email address (@uwo.ca or @alumni.uwo.ca) to create an account.
-
 What you can do
 
 - Browse listings by category: textbooks, furniture, electronics, tickets, clothing, sports and more
