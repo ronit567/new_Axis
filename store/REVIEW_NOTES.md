@@ -86,5 +86,26 @@ track users.
 
 REGIONAL DIFFERENCES
 
-The app behaves the same everywhere it is available. It is only useful to people
-with a Western University email address.
+There are none. The app is offered in Canada only and behaves identically
+wherever it is available: the same features, the same content, the same
+moderation rules. Nothing is gated by region or IP address, and the app never
+requests location permission. The only eligibility rule is the university email
+domain, which is not a geographic restriction.
+
+REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
+
+Axis does not operate in a highly regulated industry. It processes no payments
+and offers no financial, medical, gambling or cannabis-related services.
+
+It includes no third-party or licensed material. Every listing, photo, profile
+and message is created by the verified account that posted it, under terms
+accepted at sign-up that prohibit objectionable content and material the user
+has no right to post. Reported content is reviewed and removed, and the
+responsible account banned.
+
+DEMONSTRATION RECORDING
+
+A screen recording covering registration, sign-in, browsing, posting, messaging,
+reporting, blocking, unblocking and account deletion was supplied with the
+Guideline 2.1 reply on the first submission. The shot list is in
+store/REVIEW_REPLY.md.
