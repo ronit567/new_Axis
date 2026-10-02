@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { toListing, toMyListing } from './mappers'
+import { toGuestListing, toListing, toMyListing } from './mappers'
 import { Listing, ListingCondition, MyListing } from '../types'
 import type { ListingRow, ProfileRow } from '../types/database'
 
@@ -364,6 +364,42 @@ export const ListingRepository = {
       return acc
     }, [])
     return { items, rawCount: rows.length }
+  },
+  // Signed-out browsing (0053). A guest has no SELECT on listings, so these go
+  // through guest_listings() / guest_listing(), which return active listings
+  // with no seller, pickup or views. One call serves both the home feed (a
+  // single category, no text) and search; it takes the same filters as
+  // search() above and pages the same way, so the hooks can swap one for the
+  // other. No row is ever dropped here, so rawCount is just the row count.
+  async searchGuest(
+    query: string,
+    filters: ListingSearchFilters = {},
+    options: SearchOptions = {},
+  ): Promise<ListingsPage> {
+    const { limit = SEARCH_PAGE_SIZE, offset = 0 } = options
+    const trimmed = query.trim()
+
+    const { data, error } = await supabase.rpc('guest_listings', {
+      p_query: trimmed || undefined,
+      p_categories: filters.categories?.length ? filters.categories : undefined,
+      p_condition: filters.condition,
+      p_max_price: filters.priceMax ?? undefined,
+      p_limit: limit,
+      p_offset: offset,
+    })
+    if (error) throw error
+
+    const rows = data ?? []
+    return { items: rows.map(toGuestListing), rawCount: rows.length }
+  },
+  // Null for a sold or deleted listing, which the detail screen already
+  // renders as "no longer available".
+  async getGuestById(id: string): Promise<Listing | null> {
+    const { data, error } = await supabase.rpc('guest_listing', { p_id: id })
+    if (error) throw error
+
+    const row = data?.[0]
+    return row ? toGuestListing(row) : null
   },
   // Not yet called anywhere — wiring the view-count bump into
   // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views

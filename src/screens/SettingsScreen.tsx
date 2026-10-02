@@ -7,7 +7,6 @@ import {
   Modal,
   TextInput,
   Alert,
-  Linking,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -24,7 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDeleteAccount } from '../hooks/useProfile';
 import { haptics } from '../lib/haptics';
 import { DIALOG_MAX_WIDTH } from '../lib/layout';
-import { SUPPORT_EMAIL } from '../constants/contact';
+import { openSupportEmail } from '../lib/support';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -84,15 +83,6 @@ export default function SettingsScreen({ navigation }: Props) {
   const deleteAccount = useDeleteAccount();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-
-  // mailto: can fail on a device with no configured mail client — fall back to
-  // showing the address so the user can reach us from anywhere.
-  const openSupportEmail = (subject: string) => {
-    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
-    Linking.openURL(url).catch(() => {
-      Alert.alert('Email us', `Reach our team at ${SUPPORT_EMAIL}`);
-    });
-  };
 
   const canDelete = confirmText === 'DELETE' && !deleteAccount.isPending;
 

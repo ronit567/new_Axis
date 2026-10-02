@@ -24,6 +24,8 @@ import { useSearchListings } from "../hooks/useListings";
 import { useToggleSaved } from "../hooks/useSavedListings";
 import { useUnreadNotificationCount } from "../hooks/useNotifications";
 import { useCurrentProfile } from "../hooks/useProfile";
+import { useRequireAccount } from "../hooks/useRequireAccount";
+import { useAuth } from "../context/AuthContext";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -159,6 +161,12 @@ export default function SearchScreen({ navigation, route }: Props) {
   });
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
+  const { isSignedIn } = useAuth();
+  const requireAccount = useRequireAccount();
+  const saveListing = useCallback(
+    (item: Listing) => requireAccount(() => toggleSaved(item)),
+    [requireAccount, toggleSaved],
+  );
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
   // Same profile the Home greeting uses — GreetingRow must render identically
   // on both so the (animation: 'none') Home↔Search swap stays pixel-perfect.
@@ -219,11 +227,11 @@ export default function SearchScreen({ navigation, route }: Props) {
         <ListingCard
           item={item}
           onPress={openListing}
-          onSave={toggleSaved}
+          onSave={saveListing}
           style={styles.card}
         />
       ),
-    [openListing, toggleSaved],
+    [openListing, saveListing],
   );
 
   const ListFooter = isFetchingNextPage ? (
@@ -266,6 +274,7 @@ export default function SearchScreen({ navigation, route }: Props) {
             firstName={firstName}
             unreadCount={unreadNotifications}
             onBellPress={() => navigation.navigate("Notifications")}
+            onSignInPress={isSignedIn ? undefined : () => navigation.navigate("SignIn")}
           />
         </Animated.View>
         <View style={styles.searchRow}>

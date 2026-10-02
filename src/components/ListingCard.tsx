@@ -110,12 +110,15 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
       <View style={styles.info}>
         <Text style={styles.price}>{formatPrice(item)}</Text>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-        <View style={styles.sellerRow}>
-          <View style={[styles.dot, { backgroundColor: item.seller.dotColor || COLORS.primary }]} />
-          <Text style={styles.sellerText} numberOfLines={1}>
-            {item.seller.name} · {item.seller.location}
-          </Text>
-        </View>
+        {/* A signed-out guest gets no seller with the listing (0053). */}
+        {item.seller ? (
+          <View style={styles.sellerRow}>
+            <View style={[styles.dot, { backgroundColor: item.seller.dotColor || COLORS.primary }]} />
+            <Text style={styles.sellerText} numberOfLines={1}>
+              {item.seller.name} · {item.seller.location}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </PressableScale>
   );

@@ -20,6 +20,17 @@ Ontario, Canada). Students list items they no longer need, such as textbooks,
 furniture and electronics, message each other in the app, and exchange items in
 person. Axis is independent and is not affiliated with Western University.
 
+BROWSING WITHOUT AN ACCOUNT (GUIDELINE 5.1.1(v))
+
+On the first screen, tap "Browse listings". The feed, the categories, search
+with its filters, and each listing's photos, price, condition and description
+are all available without registering.
+
+Posting, messaging, saving and in-app reporting are account features, and each
+asks the user to sign in when tapped. A listing's seller and pickup location are
+shown to signed-in students only, because they identify a student and where to
+meet them.
+
 SIGNING IN: PLEASE USE THE DEMO ACCOUNT
 
 Sign-up is restricted to verified Western University email addresses (@uwo.ca
@@ -57,6 +68,8 @@ USER-GENERATED CONTENT (GUIDELINE 1.2)
 - Reporting: the "..." button at the top right of any listing, any conversation
   and any seller profile opens "Report or block". Listings, conversations and
   users can each be reported. The reporter receives an email confirmation.
+  Someone browsing without an account can report a listing from the same button,
+  by email to the contact address below.
 - Blocking: the same "..." menu. Blocking takes effect immediately and in both
   directions: the two users no longer see each other in the feed, search,
   profiles or messages. Blocks can be reviewed and undone in Settings, Blocked

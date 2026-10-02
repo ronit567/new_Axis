@@ -14,6 +14,7 @@ import { navigationRef } from '../lib/navigation';
 import { useUnreadConversationCount, useMessagesRealtime } from '../hooks/useMessages';
 import { useNotificationsRealtime } from '../hooks/useNotifications';
 import { useForegroundCatchUp } from '../hooks/useCatchUp';
+import { useRequireAccount } from '../hooks/useRequireAccount';
 import { useNotificationBanner, type BannerContent } from '../context/NotificationBannerContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
@@ -74,6 +75,7 @@ export default function MainScreen({ navigation }: Props) {
   // every INSERT/UPDATE, so the tab badge tracks conversations with unread
   // across the session.
   const unreadTotal = useUnreadConversationCount();
+  const requireAccount = useRequireAccount();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -100,12 +102,21 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
+  // Home is the one tab a signed-out guest can use (0053). The others are a
+  // person's own saved items, messages, profile and listings, so a guest is
+  // offered an account instead; signed in, requireAccount just runs the action.
   const handleTabPress = (tab: TabName) => {
-    if (tab === 'Create') {
-      navigation.navigate('CreateListing');
+    if (tab === 'Home') {
+      setActiveTab(tab);
       return;
     }
-    setActiveTab(tab);
+    requireAccount(() => {
+      if (tab === 'Create') {
+        navigation.navigate('CreateListing');
+        return;
+      }
+      setActiveTab(tab);
+    });
   };
 
   // BottomTabBar renders its own absolutely-positioned overlay, so it floats

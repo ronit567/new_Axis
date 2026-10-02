@@ -31,6 +31,8 @@ import { useListings } from '../hooks/useListings';
 import { useToggleSaved } from '../hooks/useSavedListings';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useCurrentProfile } from '../hooks/useProfile';
+import { useRequireAccount } from '../hooks/useRequireAccount';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList, Listing } from '../types';
 import { BROWSE_CATEGORIES } from '../constants/categories';
 import ScrollHairline from '../components/layout/ScrollHairline';
@@ -71,6 +73,12 @@ export default function HomeScreen({ navigation }: Props) {
   } = useListings(category);
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
+  const { isSignedIn } = useAuth();
+  const requireAccount = useRequireAccount();
+  const saveListing = useCallback(
+    (item: Listing) => requireAccount(() => toggleSaved(item)),
+    [requireAccount, toggleSaved],
+  );
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
   const { data: profile } = useCurrentProfile();
   const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
@@ -105,11 +113,11 @@ export default function HomeScreen({ navigation }: Props) {
           <ListingCard
             item={item}
             onPress={openListing}
-            onSave={toggleSaved}
+            onSave={saveListing}
           />
         </FadeInItem>
       ),
-    [openListing, toggleSaved],
+    [openListing, saveListing],
   );
 
   const keyExtractor = useCallback((item: Listing | GridSpacer) => item.id, []);
@@ -161,6 +169,7 @@ export default function HomeScreen({ navigation }: Props) {
           firstName={firstName}
           unreadCount={unreadNotifications}
           onBellPress={() => navigation.navigate('Notifications')}
+          onSignInPress={isSignedIn ? undefined : () => navigation.navigate('SignIn')}
         />
 
         {/* Search Bar — filters live inside Search, not here. */}

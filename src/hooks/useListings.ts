@@ -28,18 +28,26 @@ const SEARCH_DEBOUNCE_MS = 300
 // Matches QueryProvider's default; named because the feed reasons about it.
 const FEED_STALE_MS = 2 * 60 * 1000
 
-// Home feed. Gated on auth because listings RLS requires an authenticated user.
+// Home feed. Signed in, it reads listings under RLS; signed out, it reads the
+// guest RPC (0053), which returns the same page shape with no seller on the
+// items. The two never share a cache key.
 // Offset-paginated so pull-to-refresh/onEndReached hit real queries instead of
 // fetching everything at once (further FlatList/perf tuning is AX-905).
 export function useListings(category?: string) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const queryKey = queryKeys.listings(category)
+  const queryKey = user ? queryKeys.listings(category) : queryKeys.guestListings(category)
 
   const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) => {
-      if (!user) return { items: [], rawCount: 0 }
+      if (!user) {
+        return ListingRepository.searchGuest(
+          '',
+          { categories: category ? [category] : undefined },
+          { limit: LISTINGS_PAGE_SIZE, offset: pageParam },
+        )
+      }
       return ListingRepository.getAll(user.id, {
         category,
         limit: LISTINGS_PAGE_SIZE,
@@ -51,7 +59,6 @@ export function useListings(category?: string) {
     // than rows fetched (see ListingRepository.getAll) without being the last page.
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
-    enabled: !!user,
     staleTime: FEED_STALE_MS,
     // Handled by the effect below. Left on, a stale remount refetches EVERY
     // loaded page, strictly one after another.
@@ -80,7 +87,6 @@ export function useListings(category?: string) {
   // (no data yet) is untouched — the query fetches that itself.
   const userId = user?.id
   useEffect(() => {
-    if (!userId) return
     const state = queryClient.getQueryState(queryKey)
     if (!state?.data) return
     const stale = state.isInvalidated || Date.now() - state.dataUpdatedAt > FEED_STALE_MS
@@ -95,12 +101,12 @@ export function useListings(category?: string) {
 export function useListing(id: string) {
   const { user } = useAuth()
   return useQuery({
-    queryKey: queryKeys.listing(id),
+    queryKey: user ? queryKeys.listing(id) : queryKeys.guestListing(id),
     queryFn: () => {
-      if (!user) return null
+      if (!user) return ListingRepository.getGuestById(id)
       return ListingRepository.getById(id, user.id)
     },
-    enabled: !!user && !!id,
+    enabled: !!id,
   })
 }
 
@@ -124,9 +130,16 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
   }, [query, filtersKey])
 
   return useInfiniteQuery({
-    queryKey: queryKeys.search(debounced.query, debounced.filters),
+    queryKey: user
+      ? queryKeys.search(debounced.query, debounced.filters)
+      : queryKeys.guestSearch(debounced.query, debounced.filters),
     queryFn: ({ pageParam }) => {
-      if (!user) return { items: [], rawCount: 0 }
+      if (!user) {
+        return ListingRepository.searchGuest(debounced.query, debounced.filters, {
+          limit: SEARCH_PAGE_SIZE,
+          offset: pageParam,
+        })
+      }
       return ListingRepository.search(debounced.query, debounced.filters, user.id, {
         limit: SEARCH_PAGE_SIZE,
         offset: pageParam,
@@ -135,7 +148,6 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < SEARCH_PAGE_SIZE ? undefined : allPages.length * SEARCH_PAGE_SIZE,
-    enabled: !!user,
     // Every debounced keystroke is a new query key, which starts with no data —
     // so the screen tore the whole results grid down to skeletons and rebuilt
     // it from nothing, several times per typed phrase. Keeping the previous
