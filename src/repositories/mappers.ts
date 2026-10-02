@@ -20,6 +20,7 @@ import type {
 } from '../types';
 import type {
   BlockedUserRow,
+  GuestListingRow,
   ListingEditRequestRow,
   ListingRow,
   MessageRow,
@@ -129,6 +130,31 @@ export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean)
     isFree: row.is_free,
     isTrade: row.is_trade,
     status: row.status === 'sold' ? 'sold' : 'active',
+  };
+}
+
+// A listing as a signed-out guest sees it (0053). The row has no seller,
+// pickup or views, so those stay empty rather than being invented here.
+export function toGuestListing(row: GuestListingRow): Listing {
+  return {
+    id: row.id,
+    title: row.title,
+    price: row.price,
+    condition: row.condition ?? DEFAULT_CONDITION,
+    category: row.category ?? DEFAULT_CATEGORY,
+    seller: null,
+    saved: false,
+    imageColor: pickImageColor(row.id),
+    imageUrls: row.image_urls,
+    thumbUrls: row.image_urls.map((url, i) => row.thumb_urls[i] ?? url),
+    badge: null,
+    description: row.description ?? '',
+    views: 0,
+    postedAgo: timeAgo(row.created_at),
+    pickup: '',
+    isFree: row.is_free,
+    isTrade: row.is_trade,
+    status: 'active',
   };
 }
 

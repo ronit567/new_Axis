@@ -117,6 +117,24 @@ function RootNavigator() {
           <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          {/* Signed-out browsing (App Review 5.1.1(v)): Welcome's "Browse
+              listings" opens the same three screens the signed-in group uses,
+              reading listings with no seller attached (0053). Every other
+              action on them asks for an account. The `guest` navigationKey
+              differs from the signed-in group's, so signing in remounts these
+              instead of carrying a guest's screen state into the session. */}
+          <Stack.Screen name="Main" component={MainScreen} navigationKey="guest" />
+          <Stack.Screen
+            name="Search"
+            component={SearchScreen}
+            navigationKey="guest"
+            options={{ animation: 'none' }}
+          />
+          <Stack.Screen
+            name="ListingDetail"
+            component={ListingDetailScreen}
+            navigationKey="guest"
+          />
           {/* Also registered in the signed-in group below. CreateAccount asks
               users to agree to these before an account exists, so they have to
               be reachable from here too — consenting to a document you cannot
@@ -135,7 +153,7 @@ function RootNavigator() {
         </Stack.Group>
       ) : (
         <Stack.Group>
-          <Stack.Screen name="Main" component={MainScreen} />
+          <Stack.Screen name="Main" component={MainScreen} navigationKey="user" />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
@@ -148,9 +166,14 @@ function RootNavigator() {
           <Stack.Screen
             name="Search"
             component={SearchScreen}
+            navigationKey="user"
             options={{ animation: 'none' }}
           />
-          <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
+          <Stack.Screen
+            name="ListingDetail"
+            component={ListingDetailScreen}
+            navigationKey="user"
+          />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
           {/* 250ms (vs the platform default) keeps the compose slide snappy —
               CreateListing's is timed to play right after the circle-expand

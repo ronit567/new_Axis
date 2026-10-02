@@ -571,6 +571,36 @@ export type Database = {
           blocked_at: string
         }[]
       }
+      // MANUAL ADDITION (pending regen): 0053's signed-out browse RPCs. Both
+      // return listing columns only: no seller_id, pickup or views.
+      guest_listings: {
+        Args: {
+          p_query?: string
+          p_categories?: string[]
+          p_condition?: string
+          p_max_price?: number
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string | null
+          price: number
+          is_free: boolean
+          is_trade: boolean
+          condition: string | null
+          category: string | null
+          image_urls: string[]
+          thumb_urls: string[]
+          status: string
+          created_at: string
+        }[]
+      }
+      guest_listing: {
+        Args: { p_id: string }
+        Returns: Database['public']['Functions']['guest_listings']['Returns']
+      }
     }
     Enums: {
       [_ in never]: never
@@ -599,5 +629,8 @@ export type FollowRow = DefaultSchema['Tables']['follows']['Row']
 export type ListingEditRequestRow = DefaultSchema['Tables']['listing_edit_requests']['Row']
 // One row from my_blocked_users() (0033) — block + joined profile display info.
 export type BlockedUserRow = DefaultSchema['Functions']['my_blocked_users']['Returns'][number]
+// One row from guest_listings() / guest_listing() (0053): a listing as a
+// signed-out guest may see it.
+export type GuestListingRow = DefaultSchema['Functions']['guest_listings']['Returns'][number]
 
 export type ListingStatus = 'active' | 'sold'

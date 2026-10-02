@@ -44,6 +44,8 @@ import { usePendingEditRequest } from '../hooks/useListingEdits';
 import { useProfile } from '../hooks/useProfile';
 import { useCreateReport } from '../hooks/useReports';
 import { useBlockUser } from '../hooks/useBlocks';
+import { useRequireAccount } from '../hooks/useRequireAccount';
+import { openSupportEmail } from '../lib/support';
 import { deriveInitials, sellerToContact } from '../repositories/mappers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ListingDetail'>;
@@ -71,7 +73,9 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   // Fetched alongside the listing so tapping through to the seller card has
   // real data ready; the nested `listing.seller` is a lightweight summary,
   // not the full SellerProfile the SellerProfile screen needs.
-  const { data: sellerProfile } = useProfile(listing?.seller.id ?? '');
+  // A signed-out guest's listing carries no seller (0053), so there is no
+  // profile to fetch and the query stays disabled.
+  const { data: sellerProfile } = useProfile(listing?.seller?.id ?? '');
   const toggleSavedMutation = useToggleSaved();
   const createReport = useCreateReport();
   const blockUser = useBlockUser();
@@ -85,6 +89,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const requireAccount = useRequireAccount();
   // The content column's width, not the window's. This screen sits in the
   // centred reading column on iPad (src/lib/layout.ts), and the gallery is a
   // paging scroller: pagingEnabled snaps to the ScrollView's own width, so a
@@ -110,7 +115,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
     }
   }, [refetch]);
 
-  const isOwnListing = !!listing && user?.id === listing.seller.id;
+  const isOwnListing = !!listing?.seller && user?.id === listing.seller.id;
   const freeOrTradeLabel = listing ? priceBadge(listing) : null;
   // Owner-guarded: a viewer browsing someone else's listing has no edit
   // requests of their own to see for it (listing_edit_requests_select_own
@@ -125,12 +130,14 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   const handleToggleSave = () => {
     if (!listing) return;
     haptics.tap();
-    const wasSaved = saved;
-    setSaved(!wasSaved);
-    toggleSavedMutation.mutate(
-      { ...listing, saved: wasSaved },
-      { onError: () => setSaved(wasSaved) },
-    );
+    requireAccount(() => {
+      const wasSaved = saved;
+      setSaved(!wasSaved);
+      toggleSavedMutation.mutate(
+        { ...listing, saved: wasSaved },
+        { onError: () => setSaved(wasSaved) },
+      );
+    });
   };
 
   useEffect(() => {
@@ -179,7 +186,10 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const sellerInitials = deriveInitials(listing.seller.name);
+  // Null for a signed-out guest: every seller-facing control below either
+  // hides or asks for an account instead.
+  const seller = listing.seller;
+  const sellerInitials = seller ? deriveInitials(seller.name) : '';
 
   const surface = (title: string) => (e: unknown) =>
     Alert.alert(title, e instanceof Error ? e.message : 'Please try again.');
@@ -212,18 +222,40 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
   // the composer with a template so negotiating happens over chat.
   const openChat = (draftMessage?: string) => {
     haptics.impact();
-    navigation.navigate('Chat', {
-      listingId: listing.id,
-      partnerId: listing.seller.id,
-      partner: sellerToContact(listing.seller),
-      listingTitle: listing.title,
-      listingPrice: listing.price,
-      listingThumbUrl: listing.thumbUrls[0],
-      draftMessage,
-      // Fresh each tap so re-targeting an already-mounted Chat re-seeds the
-      // composer even when the draft string is identical to last time.
-      draftNonce: Date.now(),
+    requireAccount(() => {
+      if (!seller) return;
+      navigation.navigate('Chat', {
+        listingId: listing.id,
+        partnerId: seller.id,
+        partner: sellerToContact(seller),
+        listingTitle: listing.title,
+        listingPrice: listing.price,
+        listingThumbUrl: listing.thumbUrls[0],
+        draftMessage,
+        // Fresh each tap so re-targeting an already-mounted Chat re-seeds the
+        // composer even when the draft string is identical to last time.
+        draftNonce: Date.now(),
+      });
     });
+  };
+
+  // Reports are filed against an account and confirmed by email, so a guest
+  // cannot file one in the app. They can still flag a listing: the email
+  // carries the listing id, which is all a moderator needs to find it.
+  const openReport = () => {
+    haptics.tap();
+    if (seller) {
+      setReportVisible(true);
+      return;
+    }
+    Alert.alert('Report this listing', 'Sign in to report it in the app, or email our team.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign in', onPress: () => navigation.navigate('SignIn') },
+      {
+        text: 'Email our team',
+        onPress: () => openSupportEmail(`Axis listing report: ${listing.id}`),
+      },
+    ]);
   };
 
   // Parallax: the hero lags at half scroll speed, and on downward overscroll it
@@ -388,7 +420,8 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
             {/* Meta */}
             <Text style={styles.meta}>
-              {listing.category} · Posted {listing.postedAgo} · {listing.views} views
+              {listing.category} · Posted {listing.postedAgo}
+              {seller ? ` · ${listing.views} views` : ''}
             </Text>
 
             <View style={styles.divider} />
@@ -400,36 +433,60 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
 
             {/* Seller Card — disabled (and dimmed) until the full profile has
                 loaded, so a tap never silently does nothing mid-fetch. */}
-            <PressableScale
-              style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
-              onPress={() => {
-                haptics.tap();
-                if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
-              }}
-              disabled={!sellerProfile}
-              scaleTo={0.98}
-              accessibilityRole="button"
-              accessibilityLabel={`View seller ${listing.seller.name}`}
-              accessibilityState={{ disabled: !sellerProfile }}
-            >
-              <Avatar
-                url={listing.seller.avatarUrl}
-                initials={sellerInitials}
-                color={sellerProfile?.avatarColor ?? COLORS.primary}
-                size={44}
-                textStyle={styles.sellerInitials}
-              />
-              <View style={styles.sellerInfo}>
-                <View style={styles.sellerNameRow}>
-                  <Text style={styles.sellerName}>{listing.seller.name}</Text>
-                  <View style={styles.sellerVerified}>
-                    <View style={[styles.onlineDot, { backgroundColor: listing.seller.dotColor }]} />
+            {seller ? (
+              <PressableScale
+                style={[styles.sellerCard, !sellerProfile && styles.sellerCardLoading]}
+                onPress={() => {
+                  haptics.tap();
+                  if (sellerProfile) navigation.navigate('SellerProfile', { seller: sellerProfile });
+                }}
+                disabled={!sellerProfile}
+                scaleTo={0.98}
+                accessibilityRole="button"
+                accessibilityLabel={`View seller ${seller.name}`}
+                accessibilityState={{ disabled: !sellerProfile }}
+              >
+                <Avatar
+                  url={seller.avatarUrl}
+                  initials={sellerInitials}
+                  color={sellerProfile?.avatarColor ?? COLORS.primary}
+                  size={44}
+                  textStyle={styles.sellerInitials}
+                />
+                <View style={styles.sellerInfo}>
+                  <View style={styles.sellerNameRow}>
+                    <Text style={styles.sellerName}>{seller.name}</Text>
+                    <View style={styles.sellerVerified}>
+                      <View style={[styles.onlineDot, { backgroundColor: seller.dotColor }]} />
+                    </View>
                   </View>
+                  <Text style={styles.sellerMeta}>{seller.program} · {formatYearOfStudy(seller.year)}</Text>
                 </View>
-                <Text style={styles.sellerMeta}>{listing.seller.program} · {formatYearOfStudy(listing.seller.year)}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-            </PressableScale>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+              </PressableScale>
+            ) : (
+              // Signed-out guest: who posted it and where to collect it are
+              // shown to verified students only.
+              <PressableScale
+                style={styles.sellerCard}
+                onPress={() => {
+                  haptics.tap();
+                  requireAccount(() => {});
+                }}
+                scaleTo={0.98}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in to see the seller and pickup details"
+              >
+                <View style={styles.locationIcon}>
+                  <Ionicons name="shield-checkmark" size={18} color={COLORS.primary} />
+                </View>
+                <View style={styles.sellerInfo}>
+                  <Text style={styles.sellerName}>Posted by a verified Western student</Text>
+                  <Text style={styles.sellerMeta}>Sign in to see the seller and pickup details</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+              </PressableScale>
+            )}
 
             <View style={styles.divider} />
 
@@ -516,10 +573,7 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
               </PressableScale>
               <PressableScale
                 style={styles.iconBtn}
-                onPress={() => {
-                  haptics.tap();
-                  setReportVisible(true);
-                }}
+                onPress={openReport}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 scaleTo={0.9}
                 accessibilityRole="button"
@@ -614,31 +668,35 @@ export default function ListingDetailScreen({ navigation, route }: Props) {
           </PressableScale>
         </View>
       )}
-      <ReportModal
-        visible={reportVisible}
-        target="listing"
-        targetName={listing.title}
-        onClose={() => setReportVisible(false)}
-        onSubmit={(reason) =>
-          createReport.mutateAsync({
-            targetType: 'listing',
-            targetListingId: listing.id,
-            targetUserId: listing.seller.id,
-            reason,
-          })
-        }
-        // A listing is the most likely place to meet a bad actor, so the block
-        // lives here too rather than only on the seller's profile. Withheld on
-        // your own listing: blocks_no_self (0001) rejects it at the database,
-        // and ReportModal only shows the affordance when a handler exists.
-        onBlock={
-          isOwnListing ? undefined : () => blockUser.mutateAsync(listing.seller.id)
-        }
-        // targetName is the listing; the block applies to whoever posted it.
-        blockName={listing.seller.name}
-        // The listing is RLS-hidden from the moment the block lands.
-        onBlocked={() => navigation.goBack()}
-      />
+      {/* Mounted only when there is a seller to report or block: a guest is
+          sent to sign in or to email instead (openReport above). */}
+      {seller && (
+        <ReportModal
+          visible={reportVisible}
+          target="listing"
+          targetName={listing.title}
+          onClose={() => setReportVisible(false)}
+          onSubmit={(reason) =>
+            createReport.mutateAsync({
+              targetType: 'listing',
+              targetListingId: listing.id,
+              targetUserId: seller.id,
+              reason,
+            })
+          }
+          // A listing is the most likely place to meet a bad actor, so the block
+          // lives here too rather than only on the seller's profile. Withheld on
+          // your own listing: blocks_no_self (0001) rejects it at the database,
+          // and ReportModal only shows the affordance when a handler exists.
+          onBlock={
+            isOwnListing ? undefined : () => blockUser.mutateAsync(seller.id)
+          }
+          // targetName is the listing; the block applies to whoever posted it.
+          blockName={seller.name}
+          // The listing is RLS-hidden from the moment the block lands.
+          onBlocked={() => navigation.goBack()}
+        />
+      )}
       <ImageViewerModal
         visible={viewerIndex !== null}
         imageUrls={listing.imageUrls}

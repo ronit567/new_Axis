@@ -43,7 +43,9 @@ export type Listing = {
   price: number;
   condition: string;
   category: string;
-  seller: Seller;
+  // null for a signed-out guest: guest_listings() (0053) returns no seller, so
+  // there is nothing to show and nothing to navigate to.
+  seller: Seller | null;
   saved: boolean;
   imageColor: string;
   // Public storage URLs in upload order (the ~1600px detail variants).

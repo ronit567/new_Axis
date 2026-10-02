@@ -99,7 +99,7 @@ fi
 echo ""
 
 # ── Compliance-critical subset ──────────────────────────────────────────────
-# These five are the ones an App Review rejection would trace back to. Called
+# These are the ones an App Review rejection would trace back to. Called
 # out by name so a long pending list can't bury them.
 echo "==> Compliance-critical migrations"
 for pair in \
@@ -111,7 +111,8 @@ for pair in \
   "0037:drop dev test RPC (Guideline 2.3.1 — no hidden features)" \
   "0038:revoke PUBLIC execute on trigger fns (Guideline 2.3.1)" \
   "0039:private avatar bucket (Guideline 5.1 — profile photos)" \
-  "0040:strip anon table privileges (Guideline 1.6 — data security)"
+  "0040:strip anon table privileges (Guideline 1.6 — data security)" \
+  "0053:signed-out browsing (Guideline 5.1.1(v) — browse before sign-up)"
 do
   NUM=${pair%%:*}
   WHY=${pair#*:}

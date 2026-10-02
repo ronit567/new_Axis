@@ -4,6 +4,13 @@ export const queryKeys = {
   listings: (category?: string) => ['listings', category ?? 'all'] as const,
   listing: (id: string) => ['listing', id] as const,
   search: (query: string, filters: unknown) => ['search', query, filters] as const,
+  // Signed-out browsing (0053). Kept apart from the three keys above on
+  // purpose: guest rows have no seller and no saved state, and the save
+  // mutation patches every ['listings'] / ['search'] / ['listing'] cache
+  // assuming the signed-in shape.
+  guestListings: (category?: string) => ['guestListings', category ?? 'all'] as const,
+  guestListing: (id: string) => ['guestListing', id] as const,
+  guestSearch: (query: string, filters: unknown) => ['guestSearch', query, filters] as const,
   myListings: (userId: string) => ['myListings', userId] as const,
   // Deliberately NOT under the ['listings'] prefix: those caches are
   // InfiniteData pages, this one is a flat Listing[] — sharing the prefix

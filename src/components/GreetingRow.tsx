@@ -15,6 +15,10 @@ type Props = {
   firstName?: string;
   unreadCount?: number;
   onBellPress: () => void;
+  // Signed-out browsing: pass this and the row greets a guest and offers
+  // "Sign in" where the bell would be. Same height either way, so the
+  // Home/Search swap stays aligned for guests too.
+  onSignInPress?: () => void;
 };
 
 // Shared between Home (static) and Search (collapses on entrance) so the two
@@ -26,42 +30,64 @@ export default function GreetingRow({
   firstName,
   unreadCount = 0,
   onBellPress,
+  onSignInPress,
 }: Props) {
+  const guest = !!onSignInPress;
   return (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <Avatar
-          url={avatarUrl}
-          initials={initials}
-          // Translucent chip look from the mock, not the profile's solid
-          // avatarColor — this sits on the purple gradient header.
-          color="rgba(255,255,255,0.2)"
-          size={38}
-          style={styles.avatarSmall}
-          textStyle={styles.avatarText}
-        />
+        {guest ? (
+          <View style={[styles.avatarSmall, styles.guestAvatar]}>
+            <Ionicons name="person-outline" size={18} color={COLORS.white} />
+          </View>
+        ) : (
+          <Avatar
+            url={avatarUrl}
+            initials={initials}
+            // Translucent chip look from the mock, not the profile's solid
+            // avatarColor — this sits on the purple gradient header.
+            color="rgba(255,255,255,0.2)"
+            size={38}
+            style={styles.avatarSmall}
+            textStyle={styles.avatarText}
+          />
+        )}
         <View>
-          <Text style={styles.greeting}>{firstName ? `Hi, ${firstName}` : 'Hi'}</Text>
+          <Text style={styles.greeting}>
+            {guest ? 'Browsing as a guest' : firstName ? `Hi, ${firstName}` : 'Hi'}
+          </Text>
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.8)" />
             <Text style={styles.location}>Western · London, ON</Text>
           </View>
         </View>
       </View>
-      <PressableScale
-        style={styles.bellBtn}
-        onPress={onBellPress}
-        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-        scaleTo={0.9}
-        accessibilityRole="button"
-        // The unread dot is visual only, so say it in words.
-        accessibilityLabel={
-          unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
-        }
-      >
-        <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
-        {unreadCount > 0 && <View style={styles.bellDot} />}
-      </PressableScale>
+      {guest ? (
+        <PressableScale
+          style={styles.signInBtn}
+          onPress={onSignInPress}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.94}
+          accessibilityRole="button"
+        >
+          <Text style={styles.signInText}>Sign in</Text>
+        </PressableScale>
+      ) : (
+        <PressableScale
+          style={styles.bellBtn}
+          onPress={onBellPress}
+          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          // The unread dot is visual only, so say it in words.
+          accessibilityLabel={
+            unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+          }
+        >
+          <Ionicons name="notifications-outline" size={22} color={COLORS.white} />
+          {unreadCount > 0 && <View style={styles.bellDot} />}
+        </PressableScale>
+      )}
     </View>
   );
 }
@@ -87,6 +113,28 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 14,
+  },
+  guestAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Same height and fill as bellBtn, widened into a pill for the label.
+  signInBtn: {
+    height: 38,
+    borderRadius: 19,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInText: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: COLORS.white,
   },
   greeting: {
     fontSize: 15,

@@ -259,6 +259,22 @@ export default function WelcomeScreen({ navigation }: Props) {
               </PressableScale>
             </Animated.View>
 
+            {/* Listings can be looked at without an account (App Review
+                5.1.1(v)); everything else still asks for one. */}
+            <Animated.View style={{ opacity: opacityOf(signInV) }}>
+              <PressableScale
+                style={styles.browseBtn}
+                onPress={() => {
+                  haptics.tap();
+                  navigation.navigate('Main');
+                }}
+                scaleTo={0.96}
+                accessibilityRole="button"
+              >
+                <Text style={styles.browseBtnText}>Browse listings</Text>
+              </PressableScale>
+            </Animated.View>
+
             {/* Axis names Western on this screen to say who can join. This line
                 keeps that from reading as the university's own app. */}
             <Animated.Text style={[styles.affiliationNote, { opacity: opacityOf(signInV) }]}>
@@ -413,6 +429,18 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  browseBtn: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  browseBtnText: {
+    color: COLORS.white,
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textDecorationLine: 'underline',
   },
   affiliationNote: {
     color: 'rgba(255,255,255,0.7)',

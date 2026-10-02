@@ -10,7 +10,7 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
   return (
     <LegalDocument
       title="Privacy policy"
-      lastUpdated="September 15, 2026"
+      lastUpdated="October 2, 2026"
       onBack={() => navigation.goBack()}
     >
       <Text style={styles.intro}>
@@ -45,9 +45,11 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
 
       <Text style={styles.sectionTitle}>How we share information</Text>
       <Text style={styles.paragraph}>
-        Your name and active listings are visible to other verified students so
-        they can buy from you. We do not sell your personal information, and we do
-        not use it for advertising or tracking.
+        Your active listings (photos, title, price, condition and description)
+        can be seen by anyone using the app, including people who have not signed
+        in. Your name, your profile and a listing's pickup location are shown only
+        to other verified students. We do not sell your personal information, and
+        we do not use it for advertising or tracking.
       </Text>
       <Text style={styles.paragraph}>
         Three service providers process data on our behalf, and all are contractually

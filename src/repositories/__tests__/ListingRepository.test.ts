@@ -731,7 +731,7 @@ describe('ListingRepository.search', () => {
     expect(result.items).toHaveLength(2);
     expect(result.rawCount).toBe(2);
     expect(result.items.map((r) => r.id)).toEqual(['l1', 'l2']);
-    expect(result.items[0].seller.id).toBe('s1');
+    expect(result.items[0].seller?.id).toBe('s1');
   });
 
   it('skips a row whose embedded seller is null (broken FK) instead of throwing, keeping rawCount at the fetched row count', async () => {
@@ -1051,5 +1051,116 @@ describe('ListingRepository.deleteListing', () => {
     });
 
     await expect(ListingRepository.deleteListing('l1', seller.id)).rejects.toThrow('delete failed');
+  });
+});
+
+// Signed-out browsing (0053). A guest holds no table privileges, so these must
+// go through the guest RPCs and never touch `from(...)`.
+describe('ListingRepository guest browsing', () => {
+  const guestRow = {
+    id: 'g1',
+    title: 'Desk lamp',
+    description: 'Works fine.',
+    price: 15,
+    is_free: false,
+    is_trade: false,
+    condition: 'Good',
+    category: 'Furniture',
+    image_urls: ['https://cdn.test/full.jpg'],
+    thumb_urls: ['https://cdn.test/thumb.jpg'],
+    status: 'active',
+    created_at: '2026-09-30T10:00:00.000Z',
+  };
+
+  beforeEach(() => {
+    mockFrom.mockImplementation((table: string) => {
+      throw new Error(`A guest must not query ${table} directly`);
+    });
+  });
+
+  it('searchGuest passes the trimmed text, filters and page through to guest_listings', async () => {
+    mockRpc.mockResolvedValue({ data: [guestRow], error: null });
+
+    await ListingRepository.searchGuest(
+      '  lamp ',
+      { categories: ['Furniture'], priceMax: 20, condition: 'Good' },
+      { limit: 20, offset: 40 },
+    );
+
+    expect(mockRpc).toHaveBeenCalledWith('guest_listings', {
+      p_query: 'lamp',
+      p_categories: ['Furniture'],
+      p_condition: 'Good',
+      p_max_price: 20,
+      p_limit: 20,
+      p_offset: 40,
+    });
+  });
+
+  it('searchGuest omits every unset filter and defaults to the first page', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    await ListingRepository.searchGuest('', { categories: [] });
+
+    expect(mockRpc).toHaveBeenCalledWith('guest_listings', {
+      p_query: undefined,
+      p_categories: undefined,
+      p_condition: undefined,
+      p_max_price: undefined,
+      p_limit: SEARCH_PAGE_SIZE,
+      p_offset: 0,
+    });
+  });
+
+  it('searchGuest maps rows to listings with no seller, pickup, views or saved state', async () => {
+    mockRpc.mockResolvedValue({ data: [guestRow, { ...guestRow, id: 'g2' }], error: null });
+
+    const result = await ListingRepository.searchGuest('', {});
+
+    expect(result.rawCount).toBe(2);
+    expect(result.items.map((l) => l.id)).toEqual(['g1', 'g2']);
+    expect(result.items[0]).toMatchObject({
+      title: 'Desk lamp',
+      price: 15,
+      seller: null,
+      saved: false,
+      pickup: '',
+      views: 0,
+      status: 'active',
+      thumbUrls: ['https://cdn.test/thumb.jpg'],
+    });
+  });
+
+  it('searchGuest returns an empty page when the RPC returns nothing', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(ListingRepository.searchGuest('', {})).resolves.toEqual({ items: [], rawCount: 0 });
+  });
+
+  it('searchGuest throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
+
+    await expect(ListingRepository.searchGuest('', {})).rejects.toThrow('rpc failed');
+  });
+
+  it('getGuestById returns the listing with no seller', async () => {
+    mockRpc.mockResolvedValue({ data: [guestRow], error: null });
+
+    const listing = await ListingRepository.getGuestById('g1');
+
+    expect(mockRpc).toHaveBeenCalledWith('guest_listing', { p_id: 'g1' });
+    expect(listing).toMatchObject({ id: 'g1', seller: null });
+  });
+
+  it('getGuestById returns null when the listing is sold or gone', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    await expect(ListingRepository.getGuestById('g1')).resolves.toBeNull();
+  });
+
+  it('getGuestById throws when the RPC errors', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: new Error('rpc failed') });
+
+    await expect(ListingRepository.getGuestById('g1')).rejects.toThrow('rpc failed');
   });
 });

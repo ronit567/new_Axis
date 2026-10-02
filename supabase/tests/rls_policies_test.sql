@@ -241,9 +241,10 @@ exception
   when insufficient_privilege then null; -- expected: no grant for anon
 end;
 $$;
--- 0034 revoked anon's SELECT grant on listings and profiles outright (the app
--- never shipped signed-out browsing, and the bundled anon key made the old
--- anon-readable policies a directory-enumeration hole). Expect the same hard
+-- 0034 revoked anon's SELECT grant on listings and profiles outright (the
+-- bundled anon key made the old anon-readable policies a
+-- directory-enumeration hole). Signed-out browsing since 0053 does not bring
+-- the grant back: it goes through guest_listings(), see scenario 13. Expect the same hard
 -- denial as the private tables above — a grant failure, not an RLS-empty
 -- result. (Before 0034 this scenario already hard-failed, but only as a side
 -- effect of anon lacking EXECUTE on is_blocked(); now it is stated intent.)
@@ -507,6 +508,46 @@ select set_config('request.jwt.claims',
 select pg_temp.assert(
   (select count(*) from public.my_listing_save_counts()) = 0,
   'a caller with no listings of their own must get an empty result, never another seller''s counts');
+reset role;
+
+-- ── Scenario 13: signed-out browsing (0053). anon reads listings only through
+--    guest_listings() / guest_listing(): active rows, listing columns, and
+--    nothing that identifies or locates the seller. Scenario 5 above already
+--    proves the tables themselves stay closed to anon.
+set local role anon;
+select set_config('request.jwt.claims', '', true);
+-- Asserted by id, not by count, so the file still passes against a database
+-- that holds other listings. The fixtures are the newest rows, so they are on
+-- the first page.
+select pg_temp.assert(
+  exists (select 1 from public.guest_listings()
+           where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+  'a guest should see an active listing');
+-- No block applies to a guest, and none is needed: the seller is not revealed.
+select pg_temp.assert(
+  exists (select 1 from public.guest_listings()
+           where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+  'a guest should see every active listing, whoever has blocked whom');
+select pg_temp.assert(
+  not exists (select 1 from public.guest_listings(p_query => 'Owner sold')),
+  'a guest must not see a sold listing in the feed or search');
+select pg_temp.assert(
+  (select count(*) from public.guest_listings(p_limit => 100000)) <= 20,
+  'the page size is clamped server-side, whatever the caller asks for');
+select pg_temp.assert(
+  (select count(*) from public.guest_listing('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')) = 1,
+  'a guest should be able to open an active listing');
+select pg_temp.assert(
+  (select count(*) from public.guest_listing('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')) = 0,
+  'a guest must not be able to open a sold listing');
+select pg_temp.assert(
+  not exists (select 1 from public.guest_listings() g
+               where to_jsonb(g) ?| array['seller_id', 'pickup', 'views']),
+  'guest_listings() must not return the seller, the pickup location or the view count');
+select pg_temp.assert(
+  not exists (select 1 from public.guest_listing('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') g
+               where to_jsonb(g) ?| array['seller_id', 'pickup', 'views']),
+  'guest_listing() must not return the seller, the pickup location or the view count');
 reset role;
 
 -- If we got here, every assertion passed.
