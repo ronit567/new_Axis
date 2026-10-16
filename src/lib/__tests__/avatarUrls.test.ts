@@ -3,20 +3,14 @@
 // The behaviour worth pinning is the batching and caching — a Messages inbox
 // mounts ~20 Avatars at once, and the same person recurs across screens.
 //
-// REAL TIMERS, deliberately. This suite used jest.useFakeTimers() with
-// jest.runAllTimers() to trigger the batch flush, and was the only suite in the
-// repo that combined fake timers with @testing-library's waitFor. It was also
-// the only suite that ever hung CI: three separate runs stalled with 35 of 36
-// suites finished and this one never reporting, until GitHub killed the job at
-// its six-hour limit. waitFor relies on timers to poll, and with them faked its
-// progress depends on how the fake clock and the microtask queue interleave —
-// which on a slow shared runner it evidently sometimes never did. It could not
-// be reproduced locally (40 runs on Node 20, isolated and in the full suite).
+// Real timers: the module's only timer is the setTimeout(0) that batches a
+// render's requests, which fires on the next macrotask and which waitFor
+// awaits naturally. Batching still holds, because every renderHook in a test
+// mounts synchronously, before that timer can run.
 //
-// Fake timers bought nothing here anyway: the module's only timer is the
-// setTimeout(0) that batches a render's requests. Real timers fire it on the
-// next macrotask, which waitFor awaits naturally, and batching still holds —
-// every renderHook in a test mounts synchronously, before that timer can run.
+// This suite timing out on CI was never about this suite. A looping animation
+// leaked from another suite in the same Jest worker; see the Animated block in
+// jest.setup.ts.
 
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 
