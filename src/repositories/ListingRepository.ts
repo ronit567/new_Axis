@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { toListing, toMyListing } from './mappers'
+import { GUEST_LISTING_COLUMNS, toListing, toMyListing, type GuestListingRow } from './mappers'
 import { Listing, ListingCondition, MyListing } from '../types'
 import type { ListingRow, ProfileRow } from '../types/database'
 
@@ -93,49 +93,70 @@ async function getSavedIds(userId: string, listingIds: string[]): Promise<Set<st
   return new Set((data ?? []).map((row) => row.listing_id))
 }
 
+// Feed and search read the same shape. Signed in, sellers ride along as a
+// PostgREST embedded join: one round trip instead of a second profiles query,
+// and RLS still applies to the embedded row, so a hidden (e.g. blocked) seller
+// comes back null. A guest (no viewer id) reads through 0053's anon grant,
+// which has no seller_id and no profiles at all — so no embed, and the columns
+// are named because `*` would include seller_id.
+const WITH_SELLER = '*, seller:profiles!listings_seller_id_fkey(*)'
+
+function listingsSelect(viewerId: string | null): string {
+  return viewerId ? WITH_SELLER : GUEST_LISTING_COLUMNS
+}
+
+// rawCount is the fetched row count, whatever happens to the rows after —
+// pagination keys off it (see ListingsPage).
+async function toListingsPage(data: unknown[] | null, viewerId: string | null): Promise<ListingsPage> {
+  if (!data || data.length === 0) return { items: [], rawCount: 0 }
+
+  // A guest has no seller to show and nothing saved.
+  if (!viewerId) {
+    const rows = data as GuestListingRow[]
+    return { items: rows.map((row) => toListing(row, null, false)), rawCount: rows.length }
+  }
+
+  const rows = data as (ListingRow & { seller: ProfileRow | null })[]
+  const savedIds = await getSavedIds(viewerId, rows.map((row) => row.id))
+
+  // seller_id is a NOT NULL FK, so a missing seller would mean a broken
+  // reference — skip rather than crash the whole page over one bad row.
+  const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
+    if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
+    return acc
+  }, [])
+  return { items, rawCount: rows.length }
+}
+
 // The shape here is the contract screens/hooks build against so nothing
 // imports supabase directly.
 export const ListingRepository = {
-  async getAll(userId: string, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
+  // userId is null for a signed-out guest (0053): active listings, no sellers.
+  async getAll(userId: string | null, options: GetAllListingsOptions = {}): Promise<ListingsPage> {
     const { category, limit = LISTINGS_PAGE_SIZE, offset = 0 } = options
+
+    let query = supabase
+      .from('listings')
+      .select(listingsSelect(userId))
+      .eq('status', 'active')
 
     // Exclude the caller's own listings — the home feed is for browsing what
     // *other* people are selling; a seller manages their own listings from
-    // Profile/ManageListings. Filtered server-side (not in the reduce below) so
-    // it happens before range()/rawCount and pagination stays correct.
-    //
-    // Sellers ride along as a PostgREST embedded join (same shape as search):
-    // one round trip instead of a second profiles query. RLS still applies to
-    // the embedded row — a hidden (e.g. blocked) seller comes back null and
-    // the row is dropped by the same missing-seller guard below.
-    let query = supabase
-      .from('listings')
-      .select('*, seller:profiles!listings_seller_id_fkey(*)')
-      .eq('status', 'active')
-      .neq('seller_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    // Profile/ManageListings. Filtered server-side (not in the mapping) so it
+    // happens before range()/rawCount and pagination stays correct. A guest
+    // owns nothing, and could not filter on seller_id anyway (0053).
+    if (userId) query = query.neq('seller_id', userId)
 
     if (category) {
       query = query.eq('category', category)
     }
 
     const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
     if (error) throw error
-    if (!data || data.length === 0) return { items: [], rawCount: 0 }
 
-    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
-    const savedIds = await getSavedIds(userId, rows.map((row) => row.id))
-
-    // seller_id is a NOT NULL FK, so a missing seller would mean a broken
-    // reference — skip rather than crash the whole feed over one bad row.
-    // rawCount still reflects rows.length so pagination isn't thrown off by it.
-    const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
-      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
-      return acc
-    }, [])
-
-    return { items, rawCount: rows.length }
+    return toListingsPage(data, userId)
   },
   // AX-501: detail view fetches fresh from the DB (not the possibly-stale
   // object a list screen navigated with) so a listing deleted after being
@@ -144,7 +165,19 @@ export const ListingRepository = {
   // Takes the viewer's id explicitly (useListing already has it from useAuth)
   // rather than resolving it from the session like main's interim version did
   // — one fewer auth round trip, and the seller/saved lookups run in parallel.
-  async getById(id: string, userId: string): Promise<Listing | null> {
+  // userId is null for a signed-out guest, whose read (0053) only ever finds
+  // active listings, and never their seller.
+  async getById(id: string, userId: string | null): Promise<Listing | null> {
+    if (!userId) {
+      const { data: guestRow, error: guestError } = await supabase
+        .from('listings')
+        .select(GUEST_LISTING_COLUMNS)
+        .eq('id', id)
+        .maybeSingle()
+      if (guestError) throw guestError
+      return guestRow ? toListing(guestRow as unknown as GuestListingRow, null, false) : null
+    }
+
     const { data: row, error } = await supabase
       .from('listings')
       .select('*')
@@ -328,16 +361,19 @@ export const ListingRepository = {
     const { limit = SEARCH_PAGE_SIZE, offset = 0 } = options
     const trimmed = query.trim()
 
+    // A signed-out search (no currentUserId) is a guest read (0053): same
+    // filters, no sellers, nothing saved.
+    const viewerId = currentUserId ?? null
     let request = supabase
       .from('listings')
-      .select('*, seller:profiles!listings_seller_id_fkey(*)')
+      .select(listingsSelect(viewerId))
       .eq('status', 'active')
 
     // Exclude the caller's own listings, same as the home feed (getAll): the
     // marketplace surfaces other people's items, so a seller shouldn't turn up
-    // their own listing while browsing/searching. A signed-out search (no
-    // currentUserId) has no owner to exclude.
-    if (currentUserId) request = request.neq('seller_id', currentUserId)
+    // their own listing while browsing/searching. A guest has no owner to
+    // exclude.
+    if (viewerId) request = request.neq('seller_id', viewerId)
 
     if (trimmed) request = request.or(buildTextFilter(trimmed))
     if (filters.categories?.length) request = request.in('category', filters.categories)
@@ -348,22 +384,8 @@ export const ListingRepository = {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
     if (error) throw error
-    if (!data || data.length === 0) return { items: [], rawCount: 0 }
 
-    const rows = data as unknown as (ListingRow & { seller: ProfileRow | null })[]
-    const savedIds = currentUserId
-      ? await getSavedIds(currentUserId, rows.map((row) => row.id))
-      : new Set<string>()
-
-    // seller_id is a NOT NULL FK, so a missing seller means a broken
-    // reference — skip rather than crash the whole search response over one
-    // bad row (mirrors the same guard in getAll). rawCount still reflects
-    // rows.length so pagination isn't thrown off by a dropped row.
-    const items = rows.reduce<Listing[]>((acc, { seller, ...row }) => {
-      if (seller) acc.push(toListing(row, seller, savedIds.has(row.id)))
-      return acc
-    }, [])
-    return { items, rawCount: rows.length }
+    return toListingsPage(data, viewerId)
   },
   // Not yet called anywhere — wiring the view-count bump into
   // ListingDetailScreen is AX-203's job. Goes through the increment_listing_views

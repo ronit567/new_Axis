@@ -43,7 +43,10 @@ export type Listing = {
   price: number;
   condition: string;
   category: string;
-  seller: Seller;
+  // Null only for a signed-out guest: 0053 lets anon read a listing but not who
+  // posted it. A signed-in read always has one — the repositories drop a row
+  // whose seller is missing rather than return it without.
+  seller: Seller | null;
   saved: boolean;
   imageColor: string;
   // Public storage URLs in upload order (the ~1600px detail variants).

@@ -8,6 +8,7 @@ import HomeScreen from './HomeScreen';
 import SavedScreen from './SavedScreen';
 import MessagesScreen from './MessagesScreen';
 import ProfileScreen from './ProfileScreen';
+import SignInRequired from '../components/SignInRequired';
 import { RootStackParamList } from '../types';
 import type { NotificationRow } from '../types/database';
 import { navigationRef } from '../lib/navigation';
@@ -15,6 +16,8 @@ import { useUnreadConversationCount, useMessagesRealtime } from '../hooks/useMes
 import { useNotificationsRealtime } from '../hooks/useNotifications';
 import { useForegroundCatchUp } from '../hooks/useCatchUp';
 import { useNotificationBanner, type BannerContent } from '../context/NotificationBannerContext';
+import { useAuth } from '../context/AuthContext';
+import { useAccountGate } from '../hooks/useAccountGate';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -51,6 +54,13 @@ function isViewingChatWith(partnerId: string | null, listingId: string | null): 
 export default function MainScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<TabName>('Home');
   const banner = useNotificationBanner();
+  // A guest (Guideline 5.1.1(v)) gets the real Home feed, and on the three
+  // account-based tabs an explanation with a way to sign in. The realtime and
+  // unread hooks below need a user id, so for a guest they do nothing.
+  const { isGuest } = useAuth();
+  const requireAccount = useAccountGate(navigation);
+  const signIn = () => navigation.navigate('SignIn');
+  const createAccount = () => navigation.navigate('CreateAccount');
   // Lives here (not in a chat screen) so incoming messages land in the cache
   // for the whole signed-in session, keeping the inbox fresh in the background.
   useMessagesRealtime();
@@ -75,7 +85,53 @@ export default function MainScreen({ navigation }: Props) {
   // across the session.
   const unreadTotal = useUnreadConversationCount();
 
+  const renderGuestTab = (tab: Exclude<TabName, 'Home' | 'Create'>) => {
+    switch (tab) {
+      case 'Saved':
+        return (
+          <SignInRequired
+            title="Saved"
+            icon="heart-outline"
+            heading="Keep the things you like"
+            body="Sign in to save listings and come back to them here."
+            onSignIn={signIn}
+            onCreateAccount={createAccount}
+          />
+        );
+      case 'Messages':
+        return (
+          <SignInRequired
+            title="Messages"
+            icon="chatbubble-ellipses-outline"
+            heading="Talk to sellers"
+            body="Sign in to ask questions, make offers and arrange a pickup with verified Western students."
+            onSignIn={signIn}
+            onCreateAccount={createAccount}
+          />
+        );
+      case 'Profile':
+        return (
+          <SignInRequired
+            title="Profile"
+            icon="person-outline"
+            heading="You're browsing as a guest"
+            body="Create an account with your @uwo.ca email to sell, save listings and message sellers."
+            onSignIn={signIn}
+            onCreateAccount={createAccount}
+            legal={{
+              onPrivacyPolicy: () => navigation.navigate('PrivacyPolicy'),
+              onTermsOfService: () => navigation.navigate('TermsOfService'),
+              onCommunityGuidelines: () => navigation.navigate('CommunityGuidelines'),
+            }}
+          />
+        );
+    }
+  };
+
   const renderContent = () => {
+    if (isGuest && activeTab !== 'Home' && activeTab !== 'Create') {
+      return renderGuestTab(activeTab);
+    }
     switch (activeTab) {
       case 'Home':
         return <HomeScreen navigation={navigation} />;
@@ -102,7 +158,7 @@ export default function MainScreen({ navigation }: Props) {
 
   const handleTabPress = (tab: TabName) => {
     if (tab === 'Create') {
-      navigation.navigate('CreateListing');
+      if (requireAccount('sell')) navigation.navigate('CreateListing');
       return;
     }
     setActiveTab(tab);

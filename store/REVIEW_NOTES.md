@@ -20,12 +20,26 @@ Ontario, Canada). Students list items they no longer need, such as textbooks,
 furniture and electronics, message each other in the app, and exchange items in
 person. Axis is independent and is not affiliated with Western University.
 
+BROWSING WITHOUT AN ACCOUNT (GUIDELINE 5.1.1(v))
+
+No account is needed to look at products. On the first screen, tap "Browse
+without an account". Guests can browse the feed by category, search with
+filters, and open any listing to see its photos, description, price, condition
+and pickup spot.
+
+Only features that depend on an account ask the guest to sign in: messaging a
+seller, saving a listing, posting a listing, viewing a seller's profile, and
+reporting or blocking. Each one explains why it needs an account and offers
+Sign in or Create account. Guests see a listing but not who posted it; a
+seller's identity is shown only to other signed-in students.
+
 SIGNING IN: PLEASE USE THE DEMO ACCOUNT
 
 Sign-up is restricted to verified Western University email addresses (@uwo.ca
 and @alumni.uwo.ca), confirmed with a 6-digit code sent to that address. A
-reviewer cannot create an account, so please sign in with the demo account in
-the Sign-In Information fields. It has no two-factor authentication and is
+reviewer cannot create an account, so to test messaging, posting and the other
+account features please sign in with the demo account in the Sign-In
+Information fields. It has no two-factor authentication and is
 pre-loaded with listings, photos and a conversation.
 
 A second demo account is listed at the end of these notes, so that messaging,
@@ -37,8 +51,8 @@ one, the other still works, and we will recreate the deleted one on request.
 
 WHERE TO FIND THINGS
 
-1. Browse and search: Home tab. Tap the search bar for filters (category,
-   condition, maximum price).
+1. Browse and search: Home tab, with or without an account. Tap the search
+   bar for filters (category, condition, maximum price).
 2. Post a listing: the centre "+" tab. Camera and photo library permission are
    requested here, only when you add a photo.
 3. Message a seller: open any listing, then "Message seller".

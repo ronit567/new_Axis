@@ -10,7 +10,7 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
   return (
     <LegalDocument
       title="Terms of service"
-      lastUpdated="September 22, 2026"
+      lastUpdated="October 16, 2026"
       onBack={() => navigation.goBack()}
     >
       <Text style={styles.intro}>
@@ -20,9 +20,11 @@ export default function TermsOfServiceScreen({ navigation }: Props) {
 
       <Text style={styles.sectionTitle}>Eligibility</Text>
       <Text style={styles.paragraph}>
-        Axis is only for members of the Western University community. You must
-        be at least 13 years old, sign up with a valid @uwo.ca or @alumni.uwo.ca
-        email address, and complete verification. If we learn that an account
+        Anyone can browse listings on Axis without an account, but buying,
+        selling and messaging are only for members of the Western University
+        community. To create an account you must be at least 13 years old, sign
+        up with a valid @uwo.ca or @alumni.uwo.ca email address, and complete
+        verification. If we learn that an account
         belongs to someone under 13, we remove it. You are responsible for
         keeping your login credentials secure and for all activity on your
         account.

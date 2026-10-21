@@ -101,14 +101,27 @@ export function toSeller(row: ProfileRow): Seller {
   };
 }
 
-export function toListing(row: ListingRow, seller: ProfileRow, isSaved: boolean): Listing {
+// What a signed-out guest may read from a listing (0053): every column except
+// seller_id, which anon has no grant on — so a guest read must name its columns,
+// since `select('*')` would ask for seller_id and fail. Keep in step with the
+// GRANT in 0053_guest_browse.sql.
+export type GuestListingRow = Omit<ListingRow, 'seller_id'>;
+export const GUEST_LISTING_COLUMNS =
+  'id, title, description, price, is_free, is_trade, condition, category, pickup, image_urls, thumb_urls, status, views, created_at';
+
+// `seller` is null only for a guest read, which has no access to profiles.
+export function toListing(
+  row: GuestListingRow,
+  seller: ProfileRow | null,
+  isSaved: boolean,
+): Listing {
   return {
     id: row.id,
     title: row.title,
     price: row.price,
     condition: row.condition ?? DEFAULT_CONDITION,
     category: row.category ?? DEFAULT_CATEGORY,
-    seller: toSeller(seller),
+    seller: seller ? toSeller(seller) : null,
     saved: isSaved,
     // imageColor is always a deterministic placeholder color, rendered as the
     // loading/empty fallback behind imageUrls (AX-402). Empty image_urls =>

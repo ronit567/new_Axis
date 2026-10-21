@@ -24,6 +24,8 @@ import { useSearchListings } from "../hooks/useListings";
 import { useToggleSaved } from "../hooks/useSavedListings";
 import { useUnreadNotificationCount } from "../hooks/useNotifications";
 import { useCurrentProfile } from "../hooks/useProfile";
+import { useAccountGate } from "../hooks/useAccountGate";
+import { useAuth } from "../context/AuthContext";
 
 import ListingCard from "../components/ListingCard";
 import ListingCardSkeleton from "../components/ListingCardSkeleton";
@@ -159,6 +161,15 @@ export default function SearchScreen({ navigation, route }: Props) {
   });
   // `mutate` is stable across renders; the object useMutation returns is not.
   const { mutate: toggleSaved } = useToggleSaved();
+  // Guests search the same listings; the heart asks them to sign in instead.
+  const { isGuest } = useAuth();
+  const requireAccount = useAccountGate(navigation);
+  const onSave = useCallback(
+    (item: Listing) => {
+      if (requireAccount("save")) toggleSaved(item);
+    },
+    [requireAccount, toggleSaved],
+  );
   const { data: unreadNotifications = 0 } = useUnreadNotificationCount();
   // Same profile the Home greeting uses — GreetingRow must render identically
   // on both so the (animation: 'none') Home↔Search swap stays pixel-perfect.
@@ -219,11 +230,11 @@ export default function SearchScreen({ navigation, route }: Props) {
         <ListingCard
           item={item}
           onPress={openListing}
-          onSave={toggleSaved}
+          onSave={onSave}
           style={styles.card}
         />
       ),
-    [openListing, toggleSaved],
+    [openListing, onSave],
   );
 
   const ListFooter = isFetchingNextPage ? (
@@ -266,6 +277,9 @@ export default function SearchScreen({ navigation, route }: Props) {
             firstName={firstName}
             unreadCount={unreadNotifications}
             onBellPress={() => navigation.navigate("Notifications")}
+            // Mirrors Home's guest header so the swap stays invisible; the row
+            // is pointerEvents="none" here, so the button is never pressable.
+            onSignInPress={isGuest ? () => navigation.navigate("SignIn") : undefined}
           />
         </Animated.View>
         <View style={styles.searchRow}>

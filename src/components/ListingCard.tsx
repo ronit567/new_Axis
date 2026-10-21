@@ -111,10 +111,20 @@ function ListingCard({ item, onPress, onSave, style }: Props) {
         <Text style={styles.price}>{formatPrice(item)}</Text>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <View style={styles.sellerRow}>
-          <View style={[styles.dot, { backgroundColor: item.seller.dotColor || COLORS.primary }]} />
-          <Text style={styles.sellerText} numberOfLines={1}>
-            {item.seller.name} · {item.seller.location}
-          </Text>
+          {item.seller ? (
+            <>
+              <View style={[styles.dot, { backgroundColor: item.seller.dotColor || COLORS.primary }]} />
+              <Text style={styles.sellerText} numberOfLines={1}>
+                {item.seller.name} · {item.seller.location}
+              </Text>
+            </>
+          ) : (
+            // A guest can't see who is selling (0053), so the line carries the
+            // listing's own details instead, and every card keeps its height.
+            <Text style={styles.sellerText} numberOfLines={1}>
+              {item.category} · {item.postedAgo}
+            </Text>
+          )}
         </View>
       </View>
     </PressableScale>
