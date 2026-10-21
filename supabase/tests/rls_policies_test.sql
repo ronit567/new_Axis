@@ -219,8 +219,9 @@ end;
 $$;
 reset role;
 
--- ── Scenario 5: anonymous visitors are locked out entirely (0034) — every
---    table read below fails at the grant, before RLS is even consulted.
+-- ── Scenario 5: anonymous visitors (guests) can browse active listings and
+--    nothing else (0034, narrowed by 0053) — every other read below fails at
+--    the grant, before RLS is even consulted.
 set local role anon;
 select set_config('request.jwt.claims', '', true);
 -- anon has no grant at all (0005) on public.messages or public.saved_listings:
@@ -241,21 +242,65 @@ exception
   when insufficient_privilege then null; -- expected: no grant for anon
 end;
 $$;
--- 0034 revoked anon's SELECT grant on listings and profiles outright (the app
--- never shipped signed-out browsing, and the bundled anon key made the old
--- anon-readable policies a directory-enumeration hole). Expect the same hard
--- denial as the private tables above — a grant failure, not an RLS-empty
--- result. (Before 0034 this scenario already hard-failed, but only as a side
--- effect of anon lacking EXECUTE on is_blocked(); now it is stated intent.)
+-- 0053 reopened listings to anon for guest browsing, narrowly: active rows
+-- only, and every column except seller_id. Of the three fixture listings that
+-- is aaaa and cccc — never OWNER's sold bbbb. There is no block filtering for
+-- anon (no identity to block), so BLOCKED's active listing is visible too.
+select pg_temp.assert(
+  (select count(*) from public.listings) = 2,
+  'anon should see exactly the two active listings (0053)');
+select pg_temp.assert(
+  not exists (select 1 from public.listings where status <> 'active'),
+  'anon must never see a sold listing (0053)');
+select pg_temp.assert(
+  (select count(title) from public.listings
+     where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 1,
+  'anon should be able to read a granted column of an active listing (0053)');
+-- seller_id is withheld by the column grant, so reading it, filtering on it or
+-- asking for the whole row all fail at the grant rather than returning rows.
 do $$
 begin
-  perform count(*) from public.listings;
-  raise exception 'RLS TEST FAILED: anon was able to select from listings';
+  perform seller_id from public.listings;
+  raise exception 'RLS TEST FAILED: anon was able to read listings.seller_id';
 exception
   when insufficient_privilege then
-    null; -- expected: SELECT grant revoked for anon (0034)
+    null; -- expected: seller_id is not in 0053's column grant
 end;
 $$;
+do $$
+begin
+  perform count(*) from public.listings
+    where seller_id = '11111111-1111-1111-1111-111111111111';
+  raise exception 'RLS TEST FAILED: anon was able to filter listings by seller_id';
+exception
+  when insufficient_privilege then
+    null; -- expected: a WHERE on seller_id needs the same privilege
+end;
+$$;
+do $$
+begin
+  perform * from public.listings;
+  raise exception 'RLS TEST FAILED: anon was able to select * from listings';
+exception
+  when insufficient_privilege then
+    null; -- expected: * includes seller_id
+end;
+$$;
+-- Read-only: 0053 grants anon no write on listings.
+do $$
+begin
+  insert into public.listings (seller_id, title)
+    values ('11111111-1111-1111-1111-111111111111', 'anon insert');
+  raise exception 'RLS TEST FAILED: anon was able to insert a listing';
+exception
+  when insufficient_privilege then
+    null; -- expected: no INSERT grant for anon
+end;
+$$;
+-- profiles stay exactly as 0034 left them: a hard denial, not an RLS-empty
+-- result, so a guest can never enumerate students. (Before 0034 this already
+-- hard-failed, but only as a side effect of anon lacking EXECUTE on
+-- is_blocked(); now it is stated intent.)
 do $$
 begin
   perform count(*) from public.profiles;

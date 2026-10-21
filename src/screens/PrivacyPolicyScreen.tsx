@@ -10,7 +10,7 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
   return (
     <LegalDocument
       title="Privacy policy"
-      lastUpdated="September 15, 2026"
+      lastUpdated="October 16, 2026"
       onBack={() => navigation.goBack()}
     >
       <Text style={styles.intro}>
@@ -30,6 +30,10 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
         such as items you save or view.
       </Text>
       <Text style={styles.paragraph}>
+        You can browse listings without an account, and we ask guests for no
+        personal information.
+      </Text>
+      <Text style={styles.paragraph}>
         We do not collect your location, your contacts, or any advertising
         identifier. Axis contains no advertising or analytics SDKs.
       </Text>
@@ -45,8 +49,11 @@ export default function PrivacyPolicyScreen({ navigation }: Props) {
 
       <Text style={styles.sectionTitle}>How we share information</Text>
       <Text style={styles.paragraph}>
-        Your name and active listings are visible to other verified students so
-        they can buy from you. We do not sell your personal information, and we do
+        Your active listings, including their photos, title, description, price,
+        condition and pickup spot, can be seen by anyone using the app, including
+        people browsing without an account. Who posted a listing is not shown to
+        them: your name and profile are visible only to other verified students
+        who are signed in. We do not sell your personal information, and we do
         not use it for advertising or tracking.
       </Text>
       <Text style={styles.paragraph}>

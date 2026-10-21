@@ -19,6 +19,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { COLORS, SIZES, GRADIENTS, FONTS, SHADOWS } from '../constants/theme';
 import PressableScale from '../components/PressableScale';
 import { haptics } from '../lib/haptics';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
@@ -31,6 +32,7 @@ const RISE = 14;
 const ORB_COLORS = ['#6E3AAE', '#6E3AAE', 'rgba(110,58,174,0)'] as const;
 
 export default function WelcomeScreen({ navigation }: Props) {
+  const { browseAsGuest } = useAuth();
   // null until AccessibilityInfo resolves; gates every loop + the shine sweep.
   const [reduceMotion, setReduceMotion] = useState<boolean | null>(null);
   // Measured so the sweep travels exactly one wordmark width, edge to edge.
@@ -259,6 +261,24 @@ export default function WelcomeScreen({ navigation }: Props) {
               </PressableScale>
             </Animated.View>
 
+            {/* Guideline 5.1.1(v): looking at what's for sale can't require an
+                account. Deliberately quieter than the two buttons above — it's
+                the way to look around first, not the way in. The navigator
+                swaps to the guest screens on its own. */}
+            <Animated.View style={{ opacity: opacityOf(signInV), transform: [{ translateY: riseOf(signInV) }] }}>
+              <PressableScale
+                style={styles.guestBtn}
+                onPress={() => {
+                  haptics.tap();
+                  browseAsGuest();
+                }}
+                scaleTo={0.96}
+                accessibilityRole="button"
+              >
+                <Text style={styles.guestBtnText}>Browse without an account</Text>
+              </PressableScale>
+            </Animated.View>
+
             {/* Axis names Western on this screen to say who can join. This line
                 keeps that from reading as the university's own app. */}
             <Animated.Text style={[styles.affiliationNote, { opacity: opacityOf(signInV) }]}>
@@ -413,6 +433,19 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  // A text button: no fill, but a full 44pt target.
+  guestBtn: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestBtnText: {
+    color: COLORS.white,
+    fontSize: SIZES.md,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+    textDecorationLine: 'underline',
   },
   affiliationNote: {
     color: 'rgba(255,255,255,0.7)',

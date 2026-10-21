@@ -8,6 +8,12 @@ import TermsOfServiceScreen from '../TermsOfServiceScreen';
 // 4.1(c), 5.2.1) reads that as a claim of affiliation unless the app says
 // otherwise, so both places a reviewer meets it first carry the disclaimer.
 
+// Welcome's "Browse without an account" reads useAuth; the real AuthContext
+// would load the Supabase client, which needs native modules and env vars.
+jest.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({ browseAsGuest: jest.fn() }),
+}));
+
 const navigation = { navigate: jest.fn(), goBack: jest.fn() } as never;
 
 function renderScreen(ui: React.ReactElement) {

@@ -52,6 +52,8 @@ yarn-error.*
 .idea/
 .claude/
 .agents/
+# AI-assistant skill installs (the skills CLI); nothing the app uses.
+skills-lock.json
 *.suo
 *.ntvs*
 *.njsproj

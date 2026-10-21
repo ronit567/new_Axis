@@ -47,6 +47,14 @@ import {
   SEARCH_PAGE_SIZE,
   type CreateListingInput,
 } from '../ListingRepository';
+import { GUEST_LISTING_COLUMNS } from '../mappers';
+
+// A guest's read (0053) must never name seller_id: anon has no grant on it, so
+// asking for it — or for `*`, which includes it — fails the whole request.
+function expectGuestSafeSelect(selectArg: unknown) {
+  expect(selectArg).toBe(GUEST_LISTING_COLUMNS);
+  expect(String(selectArg)).not.toMatch(/\*|seller/);
+}
 
 const seller: ProfileRow = {
   id: 'seller-1',
@@ -197,6 +205,40 @@ describe('ListingRepository.getAll', () => {
 
     await expect(ListingRepository.getAll('user-1')).rejects.toThrow('network down');
   });
+
+  describe('as a guest (no user id, 0053)', () => {
+    it('reads only guest-granted columns, with no seller filter, embed or saved lookup', async () => {
+      const { seller_id: _omitted, ...guestRow } = makeListingRow({ id: 'l1' });
+      const { listingsBuilder, savedBuilder } = mockQueries({
+        listings: { data: [guestRow as ListingRow], error: null },
+      });
+
+      const result = await ListingRepository.getAll(null, { category: 'Textbooks' });
+
+      expectGuestSafeSelect(listingsBuilder.select.mock.calls[0][0]);
+      expect(listingsBuilder.eq).toHaveBeenCalledWith('status', 'active');
+      expect(listingsBuilder.eq).toHaveBeenCalledWith('category', 'Textbooks');
+      expect(listingsBuilder.neq).not.toHaveBeenCalled();
+      expect(savedBuilder.select).not.toHaveBeenCalled();
+      expect(result.rawCount).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({ id: 'l1', seller: null, saved: false });
+    });
+
+    it('keeps every row even though none has a seller', async () => {
+      mockQueries({
+        listings: {
+          data: [makeListingRow({ id: 'l1' }), makeListingRow({ id: 'l2' })],
+          error: null,
+        },
+      });
+
+      const result = await ListingRepository.getAll(null);
+
+      expect(result.items.map((l) => l.id)).toEqual(['l1', 'l2']);
+      expect(result.rawCount).toBe(2);
+    });
+  });
 });
 
 describe('ListingRepository.getById', () => {
@@ -266,6 +308,34 @@ describe('ListingRepository.getById', () => {
     });
 
     await expect(ListingRepository.getById('l1', 'user-1')).rejects.toThrow('seller lookup failed');
+  });
+
+  describe('as a guest (no user id, 0053)', () => {
+    it('reads the listing alone, with no seller or saved lookup', async () => {
+      const { listingBuilder, sellerBuilder, savedBuilder } = mockGetByIdQueries({
+        listing: { data: makeListingRow(), error: null },
+      });
+
+      const result = await ListingRepository.getById('l1', null);
+
+      expectGuestSafeSelect(listingBuilder.select.mock.calls[0][0]);
+      expect(listingBuilder.eq).toHaveBeenCalledWith('id', 'l1');
+      expect(sellerBuilder.select).not.toHaveBeenCalled();
+      expect(savedBuilder.select).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ id: 'l1', seller: null, saved: false });
+    });
+
+    it('returns null when the listing is not visible to guests (sold or deleted)', async () => {
+      mockGetByIdQueries({ listing: { data: null, error: null } });
+
+      await expect(ListingRepository.getById('l1', null)).resolves.toBeNull();
+    });
+
+    it('throws when the listing query errors', async () => {
+      mockGetByIdQueries({ listing: { data: null, error: new Error('permission denied') } });
+
+      await expect(ListingRepository.getById('l1', null)).rejects.toThrow('permission denied');
+    });
   });
 });
 
@@ -727,11 +797,25 @@ describe('ListingRepository.search', () => {
       data: [makeSearchRow({ id: 'l1' }), makeSearchRow({ id: 'l2', title: 'Calc textbook' })],
       error: null,
     };
-    const result = await ListingRepository.search('textbook', {});
+    const result = await ListingRepository.search('textbook', {}, 'u1');
     expect(result.items).toHaveLength(2);
     expect(result.rawCount).toBe(2);
     expect(result.items.map((r) => r.id)).toEqual(['l1', 'l2']);
-    expect(result.items[0].seller.id).toBe('s1');
+    expect(result.items[0].seller?.id).toBe('s1');
+  });
+
+  it('embeds the seller for a signed-in search', async () => {
+    await ListingRepository.search('', {}, 'u1');
+    expect(searchListingsBuilder.calls.select[0][0]).toMatch(/seller:profiles/);
+  });
+
+  it('reads guest-safe columns with no seller for a signed-out search (0053)', async () => {
+    searchListingsResult = { data: [makeSearchRow({ id: 'l1', seller: undefined })], error: null };
+    const { items } = await ListingRepository.search('chem', { condition: 'Good' });
+    expectGuestSafeSelect(searchListingsBuilder.calls.select[0][0]);
+    expect(searchListingsBuilder.calls.or).toHaveLength(1);
+    expect(items).toHaveLength(1);
+    expect(items[0].seller).toBeNull();
   });
 
   it('skips a row whose embedded seller is null (broken FK) instead of throwing, keeping rawCount at the fetched row count', async () => {
@@ -739,7 +823,7 @@ describe('ListingRepository.search', () => {
       data: [makeSearchRow({ id: 'l1', seller: null }), makeSearchRow({ id: 'l2' })],
       error: null,
     };
-    const result = await ListingRepository.search('', {});
+    const result = await ListingRepository.search('', {}, 'u1');
     expect(result.items.map((r) => r.id)).toEqual(['l2']);
     expect(result.rawCount).toBe(2);
   });

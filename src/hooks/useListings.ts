@@ -28,19 +28,21 @@ const SEARCH_DEBOUNCE_MS = 300
 // Matches QueryProvider's default; named because the feed reasons about it.
 const FEED_STALE_MS = 2 * 60 * 1000
 
-// Home feed. Gated on auth because listings RLS requires an authenticated user.
+// Home feed. Runs signed in or as a guest (0053 lets anon read active
+// listings); a guest's page carries no sellers and nothing saved. Same cache
+// key either way — AuthProvider clears the cache when a guest signs in.
 // Offset-paginated so pull-to-refresh/onEndReached hit real queries instead of
 // fetching everything at once (further FlatList/perf tuning is AX-905).
 export function useListings(category?: string) {
-  const { user } = useAuth()
+  const { user, canBrowse } = useAuth()
   const queryClient = useQueryClient()
   const queryKey = queryKeys.listings(category)
 
   const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) => {
-      if (!user) return { items: [], rawCount: 0 }
-      return ListingRepository.getAll(user.id, {
+      if (!canBrowse) return { items: [], rawCount: 0 }
+      return ListingRepository.getAll(user?.id ?? null, {
         category,
         limit: LISTINGS_PAGE_SIZE,
         offset: pageParam,
@@ -51,7 +53,7 @@ export function useListings(category?: string) {
     // than rows fetched (see ListingRepository.getAll) without being the last page.
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < LISTINGS_PAGE_SIZE ? undefined : allPages.length * LISTINGS_PAGE_SIZE,
-    enabled: !!user,
+    enabled: canBrowse,
     staleTime: FEED_STALE_MS,
     // Handled by the effect below. Left on, a stale remount refetches EVERY
     // loaded page, strictly one after another.
@@ -80,27 +82,27 @@ export function useListings(category?: string) {
   // (no data yet) is untouched — the query fetches that itself.
   const userId = user?.id
   useEffect(() => {
-    if (!userId) return
+    if (!canBrowse) return
     const state = queryClient.getQueryState(queryKey)
     if (!state?.data) return
     const stale = state.isInvalidated || Date.now() - state.dataUpdatedAt > FEED_STALE_MS
     if (stale) void refreshFirstPage()
     // Once per mount and per category; refreshFirstPage is a fresh closure each
     // render and must not re-trigger this.
-  }, [userId, category])
+  }, [userId, canBrowse, category])
 
   return { ...query, refreshFirstPage }
 }
 
 export function useListing(id: string) {
-  const { user } = useAuth()
+  const { user, canBrowse } = useAuth()
   return useQuery({
     queryKey: queryKeys.listing(id),
     queryFn: () => {
-      if (!user) return null
-      return ListingRepository.getById(id, user.id)
+      if (!canBrowse) return null
+      return ListingRepository.getById(id, user?.id ?? null)
     },
-    enabled: !!user && !!id,
+    enabled: canBrowse && !!id,
   })
 }
 
@@ -114,7 +116,7 @@ export function useListing(id: string) {
 // Offset-paginated like useListings, so a broad search isn't capped at one
 // page with no way to see more — onEndReached loads the next page instead.
 export function useSearchListings(query: string, filters: ListingSearchFilters) {
-  const { user } = useAuth()
+  const { user, canBrowse } = useAuth()
   const [debounced, setDebounced] = useState({ query, filters })
   const filtersKey = JSON.stringify(filters)
 
@@ -126,8 +128,8 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
   return useInfiniteQuery({
     queryKey: queryKeys.search(debounced.query, debounced.filters),
     queryFn: ({ pageParam }) => {
-      if (!user) return { items: [], rawCount: 0 }
-      return ListingRepository.search(debounced.query, debounced.filters, user.id, {
+      if (!canBrowse) return { items: [], rawCount: 0 }
+      return ListingRepository.search(debounced.query, debounced.filters, user?.id, {
         limit: SEARCH_PAGE_SIZE,
         offset: pageParam,
       })
@@ -135,7 +137,7 @@ export function useSearchListings(query: string, filters: ListingSearchFilters) 
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) =>
       lastPage.rawCount < SEARCH_PAGE_SIZE ? undefined : allPages.length * SEARCH_PAGE_SIZE,
-    enabled: !!user,
+    enabled: canBrowse,
     // Every debounced keystroke is a new query key, which starts with no data —
     // so the screen tore the whole results grid down to skeletons and rebuilt
     // it from nothing, several times per typed phrase. Keeping the previous

@@ -87,7 +87,7 @@ is ever widened to include France, stop and read "Export compliance" in
 
 | Question | Answer |
 | --- | --- |
-| Does your app contain, show or access third-party content? | No. All content is created by its users, who grant the rights in the Terms of Service. |
+| Does your app contain, show or access third-party content? | No. The question targets bundled content the developer does not own -- licensed media, third-party data or logos. Axis bundles none; everything shown is supplied by its own users. **The Terms do not grant Axis a licence to that content** (see R31); that is a real gap, but it is not what this question asks. |
 | Does this app use the Advertising Identifier (IDFA)? | No |
 | Sign-in required | Yes. Put both demo accounts in Sign-In Information. |
 

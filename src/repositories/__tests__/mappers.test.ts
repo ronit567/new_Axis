@@ -103,6 +103,13 @@ describe('toListing', () => {
     expect(toListing(listingRow, sellerRow, false).saved).toBe(false);
   });
 
+  it('maps a guest row (no seller_id, no seller) with a null seller and the listing intact', () => {
+    const { seller_id: _withheld, ...guestRow } = listingRow;
+    const listing = toListing(guestRow, null, false);
+    expect(listing.seller).toBeNull();
+    expect(listing).toMatchObject({ id: 'l1', title: 'Organic Chem 2 textbook', price: 45 });
+  });
+
   it('passes is_free/is_trade through unchanged', () => {
     expect(toListing(listingRow, sellerRow, false)).toMatchObject({ isFree: false, isTrade: false });
     expect(

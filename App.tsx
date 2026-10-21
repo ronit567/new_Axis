@@ -60,14 +60,16 @@ import CommunityGuidelinesScreen from './src/screens/CommunityGuidelinesScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
- * One navigator, three mutually exclusive groups, gated on session AND
+ * One navigator, four mutually exclusive groups, gated on session AND
  * profile existence (not session alone — see AX-301): a signed-in user with
  * no `profiles` row yet is routed to a mandatory SetupProfile step instead of
- * the main app. React Navigation animates each swap and resets the outgoing
- * group's state automatically, so there's no manual navigate/reset.
+ * the main app, and a signed-out user who chose "Browse without an account"
+ * gets the guest group instead of Welcome. React Navigation animates each swap
+ * and resets the outgoing group's state automatically, so there's no manual
+ * navigate/reset.
  */
 function RootNavigator() {
-  const { isSignedIn, loading } = useAuth();
+  const { isSignedIn, isGuest, loading } = useAuth();
   const reducedMotion = useReducedMotion();
   const {
     data: profile,
@@ -105,29 +107,70 @@ function RootNavigator() {
   const pushAnimation = reducedMotion ? 'fade' : 'slide_from_right';
   const sheetAnimation = reducedMotion ? 'fade' : 'slide_from_bottom';
 
+  // Sign-in and sign-up, for Welcome and for a guest who decides to join.
+  // Finishing either starts a session, which swaps the group on its own.
+  const authScreens = (
+    <>
+      <Stack.Screen name="SignIn" component={SignInScreen} />
+      <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+      <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+    </>
+  );
+
+  // Registered in every group except onboarding. CreateAccount asks users to
+  // agree to these before an account exists, so they have to be reachable
+  // signed out too — consenting to a document you cannot open isn't consent,
+  // and App Review checks for it. Duplicate names across groups are fine: only
+  // one group is ever mounted.
+  const legalScreens = (
+    <>
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <Stack.Screen
+        name="CommunityGuidelines"
+        component={CommunityGuidelinesScreen}
+      />
+    </>
+  );
+
+  // No stack animation at all: Search mounts with header geometry
+  // pixel-identical to Home (greeting expanded, full-width bar, no side
+  // buttons), so the switch itself is invisible. Search then runs the whole
+  // entrance on one timeline — greeting collapses up while the back/filter
+  // buttons grow in and the results fade up.
+  const searchScreen = (
+    <Stack.Screen
+      name="Search"
+      component={SearchScreen}
+      options={{ animation: 'none' }}
+    />
+  );
+
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false, animation: pushAnimation }}
     >
-      {!isSignedIn ? (
+      {isGuest ? (
+        // Guest browsing (App Review Guideline 5.1.1(v)): the feed, search and
+        // listing detail, which 0053 lets anon read. Everything account-based
+        // either isn't registered here or asks the guest to sign in first
+        // (useAccountGate). The navigationKey matters because Main, Search and
+        // ListingDetail are also signed-in routes: without it React Navigation
+        // would keep those routes, mounted, across the sign-in swap.
+        <Stack.Group navigationKey="guest">
+          <Stack.Screen name="Main" component={MainScreen} />
+          {searchScreen}
+          <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
+          {authScreens}
+          {legalScreens}
+        </Stack.Group>
+      ) : !isSignedIn ? (
         <Stack.Group>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-          <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
-          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-          {/* Also registered in the signed-in group below. CreateAccount asks
-              users to agree to these before an account exists, so they have to
-              be reachable from here too — consenting to a document you cannot
-              open isn't consent, and App Review checks for it. Duplicate names
-              across groups are fine: only one group is ever mounted. */}
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-          <Stack.Screen
-            name="CommunityGuidelines"
-            component={CommunityGuidelinesScreen}
-          />
+          {authScreens}
+          {legalScreens}
         </Stack.Group>
       ) : needsOnboarding ? (
         <Stack.Group>
@@ -140,16 +183,7 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
           <Stack.Screen name="ManageListings" component={ManageListingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
-          {/* No stack animation at all: Search mounts with header geometry
-              pixel-identical to Home (greeting expanded, full-width bar, no
-              side buttons), so the switch itself is invisible. Search then
-              runs the whole entrance on one timeline — greeting collapses up
-              while the back/filter buttons grow in and the results fade up. */}
-          <Stack.Screen
-            name="Search"
-            component={SearchScreen}
-            options={{ animation: 'none' }}
-          />
+          {searchScreen}
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
           {/* 250ms (vs the platform default) keeps the compose slide snappy —
@@ -175,12 +209,7 @@ function RootNavigator() {
               branch). */}
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-          <Stack.Screen
-            name="CommunityGuidelines"
-            component={CommunityGuidelinesScreen}
-          />
+          {legalScreens}
         </Stack.Group>
       )}
     </Stack.Navigator>

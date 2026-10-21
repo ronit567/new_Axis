@@ -1,13 +1,15 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { signOut } from '../providers/QueryProvider';
+import { queryClient, signOut } from '../providers/QueryProvider';
 import { restoreSession } from '../lib/restoreSession';
 
 /**
@@ -28,6 +30,19 @@ type AuthContextValue = {
   user: User | null;
   /** True while the persisted session is being restored on launch. */
   loading: boolean;
+  /**
+   * Browsing signed out (App Review Guideline 5.1.1(v): products must be
+   * viewable without an account). Set by the Welcome screen's "Browse without
+   * an account"; the navigator then shows the feed, search and listing detail,
+   * and every account-based action asks the guest to sign in instead (see
+   * useAccountGate). Never true while signed in. Not persisted — a relaunch
+   * starts at Welcome — and ended by the next sign-in, so a later sign-out
+   * returns to Welcome too.
+   */
+  isGuest: boolean;
+  browseAsGuest: () => void;
+  /** Signed in or browsing as a guest: whoever may read the public listings. */
+  canBrowse: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<SignUpResult>;
   verifyOtp: (email: string, token: string) => Promise<void>;
@@ -117,6 +132,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [guest, setGuest] = useState(false);
+  // Mirrors `guest` for the auth listener below, which subscribes once and
+  // would otherwise only ever see the first render's value.
+  const guestRef = useRef(false);
+
+  const browseAsGuest = useCallback(() => {
+    guestRef.current = true;
+    setGuest(true);
+  }, []);
 
   useEffect(() => {
     // Always resolve `loading`, even if session restore rejects (e.g. a
@@ -130,6 +154,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      // A guest signing in carries a cache of guest reads — listings with no
+      // seller, nothing saved, their own listings still in the feed — under
+      // the same keys the signed-in screens use. Drop it before the session
+      // lands, so the first signed-in render fetches instead of showing it.
+      if (nextSession && guestRef.current) {
+        guestRef.current = false;
+        queryClient.clear();
+        setGuest(false);
+      }
       setSession(nextSession);
     });
 
@@ -142,6 +175,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       user: session?.user ?? null,
       loading,
+      isGuest: guest && !session,
+      browseAsGuest,
+      canBrowse: !!session || guest,
       signIn,
       signUp,
       verifyOtp,
@@ -151,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatePassword,
       signOut,
     }),
-    [session, loading],
+    [session, loading, guest, browseAsGuest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
